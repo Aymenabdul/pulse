@@ -14,20 +14,20 @@ import {
     DialogContent,
     DialogActions,
     TextField,
-    CircularProgress
+    CircularProgress,
+    Snackbar
 } from "@mui/material";
 import {
     CloudUpload,
     Delete,
     InsertDriveFile,
-    // Image,
-    // PictureAsPdf,
     Description,
     FolderOpen
 } from "@mui/icons-material";
 import { useState, useRef } from "react";
+import axiosInstance from "../axios/axios";
 
-export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEndpoint }) {
+export default function FileUpload() {
     const [files, setFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
     const [error, setError] = useState('');
@@ -36,8 +36,11 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
     const [pendingFiles, setPendingFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [surveyNameError, setSurveyNameError] = useState('');
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const fileInputRef = useRef(null);
 
+    const maxFiles = 10;
+    const maxFileSize = 50 * 1024 * 1024; // 50MB
     const acceptedTypes = ['.xlsx', '.xls', '.csv'];
 
     const getFileIcon = (fileName) => {
@@ -51,6 +54,14 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
             default:
                 return <InsertDriveFile sx={{ color: '#9E9E9E', fontSize: 18 }} />;
         }
+    };
+
+    const showSnackbar = (message, severity = 'success') => {
+        setSnackbar({ open: true, message, severity });
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     const formatFileSize = (bytes) => {
@@ -84,9 +95,23 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
                 size: f.size,
                 type: f.type
             })));
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
+            const formData = new FormData();
+            validFiles.forEach(fileData => {
+                formData.append('file', fileData.file);
+            });
+            formData.append('surveyName', surveyName);
+
+            const response = await axiosInstance.post('/api2/file/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            console.log('Upload success:', response.data);
+            showSnackbar(response.data || 'Files uploaded successfully!', 'success');
+
+            // Update files with success status
             setFiles(currentFiles => 
                 currentFiles.map(f => {
                     const matchingFile = validFiles.find(vf => vf.id === f.id);
@@ -94,35 +119,18 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
                 })
             );
             
-            /*
-            // Backend integration code (commented out for now)
-            for (const fileData of validFiles) {
-                const formData = new FormData();
-                formData.append('file', fileData.file);
-                formData.append('surveyName', surveyName);
-                
-                const response = await fetch(apiEndpoint || '/api/upload-survey', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to upload ${fileData.name}`);
-                }
-                
-                // Update progress for this file
-                setFiles(currentFiles => 
-                    currentFiles.map(f => 
-                        f.id === fileData.id ? { ...f, progress: 100, uploaded: true, surveyName } : f
-                    )
-                );
-            }
-            */
-            
             return true;
         } catch (error) {
             console.error('Upload error:', error);
-            setError(`Upload failed: ${error.message}`);
+            const errorMessage = error.response?.data?.message || error.response?.data || error.message || 'Upload failed';
+            setError(`Upload failed: ${errorMessage}`);
+            showSnackbar(`Upload failed: ${errorMessage}`, 'error');
+            
+            // Remove failed files from the list
+            setFiles(currentFiles => 
+                currentFiles.filter(f => !validFiles.some(vf => vf.id === f.id))
+            );
+            
             return false;
         } finally {
             setUploading(false);
@@ -150,16 +158,19 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
 
         const updatedFiles = [...files, ...validFiles];
         setFiles(updatedFiles);
-        
-        if (onFilesChange) {
-            onFilesChange(updatedFiles);
-        }
 
         setShowSurveyDialog(false);
-        setSurveyName('');
-        setPendingFiles([]);
 
-        await submitFilesToBackend(validFiles, surveyName.trim());
+        const success = await submitFilesToBackend(validFiles, surveyName.trim());
+        
+        if (success) {
+            setSurveyName('');
+            setPendingFiles([]);
+        } else {
+            // Re-open dialog if upload failed
+            setPendingFiles(validFiles);
+            setShowSurveyDialog(true);
+        }
     };
 
     const handleFiles = (newFiles) => {
@@ -167,7 +178,9 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
         const fileList = Array.from(newFiles);
         
         if (files.length + fileList.length > maxFiles) {
-            setError(`Maximum ${maxFiles} files allowed. You're trying to add ${fileList.length} more files.`);
+            const errorMsg = `Maximum ${maxFiles} files allowed. You're trying to add ${fileList.length} more files.`;
+            setError(errorMsg);
+            showSnackbar(errorMsg, 'warning');
             return;
         }
 
@@ -197,12 +210,15 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
         });
 
         if (errors.length > 0) {
-            setError(errors.join(' '));
+            const errorMessage = errors.join(' ');
+            setError(errorMessage);
+            showSnackbar(errorMessage, 'error');
         }
 
         if (validFiles.length > 0) {
             setPendingFiles(validFiles);
             setShowSurveyDialog(true);
+            showSnackbar(`${validFiles.length} file(s) selected for upload`, 'info');
         }
     };
 
@@ -236,17 +252,12 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
     const removeFile = (fileId) => {
         const updatedFiles = files.filter(file => file.id !== fileId);
         setFiles(updatedFiles);
-        if (onFilesChange) {
-            onFilesChange(updatedFiles);
-        }
     };
 
     const clearAllFiles = () => {
         setFiles([]);
         setError('');
-        if (onFilesChange) {
-            onFilesChange([]);
-        }
+        showSnackbar('All files cleared', 'info');
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -630,6 +641,22 @@ export default function FileUpload({ maxFiles, maxFileSize, onFilesChange, apiEn
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert 
+                    onClose={handleCloseSnackbar} 
+                    severity={snackbar.severity}
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
-}
+};

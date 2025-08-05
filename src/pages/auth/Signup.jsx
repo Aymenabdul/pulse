@@ -9,12 +9,17 @@ import {
     Typography,
     MenuItem,
     Select,
-    InputLabel
+    InputLabel,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import axios from "axios";
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export default function Signup() {
     const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +31,12 @@ export default function Signup() {
         constituency: '',
         role: ''
     });
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success' 
+    });
+
 
     const navigate = useNavigate();
 
@@ -40,9 +51,44 @@ export default function Signup() {
         });
     };
 
-    const handleSubmit = () => {
-        console.log("Signup data:", formData);
-        navigate("/login");
+    const handleSubmit = async () => {
+        if (!formData.name || !formData.email || !formData.password || !formData.phone || !formData.constituency || !formData.role) {
+            setSnackbar({
+                open: true,
+                message: "Please fill in all fields",
+                severity: "error"
+            });
+            return;
+        };
+
+        try {
+            const response = await axios.post(`${BASE_URL}/signup`, formData);
+
+            if (response.status === 201) {
+                setSnackbar({
+                    open: true,
+                    message: "Signup successful!",
+                    severity: "success"
+                });
+                navigate("/login");
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: response.data.error,
+                    severity: "error"
+                });
+
+                // alert(`Signup failed: ${responseBody}`);
+            }
+        } catch (error) {
+            console.error("Signup error:", error);
+            setSnackbar({
+                open: true,
+                message: error.response?.data || 'Signup failed',
+                severity: "error"
+            });
+
+        }
     };
 
     return (
@@ -334,6 +380,20 @@ export default function Signup() {
                     </Typography>
                 </Box>
             </Box>
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={3000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                    severity={snackbar.severity}
+                    sx={{ width: '100%' }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

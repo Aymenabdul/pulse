@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { use, useEffect, useState } from "react";
 import {
     Box,
     Button,
@@ -7,50 +7,66 @@ import {
 } from "@mui/material";
 import { Search, Clear } from "@mui/icons-material";
 import UserTable from "../../components/UserTable";
+import axiosInstance from "../../axios/axios";
 
-const sampleUsers = [
-  {
-    id: 1,
-    name: "Alice Johnson",
-    email: "alice@example.com",
-    phone: "1234567890",
-    constituency: "Greenfield",
-    role: "surveyor",
-    status: "pending"
-  },
-  {
-    id: 2,
-    name: "Bob Smith",
-    email: "bob@example.com",
-    phone: "2345678901",
-    constituency: "Hilltop",
-    role: "admin",
-    status: "approved"
-  },
-  {
-    id: 3,
-    name: "Charlie Brown",
-    email: "charlie@example.com",
-    phone: "3456789012",
-    constituency: "Riverside",
-    role: "surveyor",
-    status: "declined"
-  }
-];
+// const sampleUsers = [
+//   {
+//     id: 1,
+//     name: "Alice Johnson",
+//     email: "alice@example.com",
+//     phone: "1234567890",
+//     constituency: "Greenfield",
+//     role: "surveyor",
+//     status: "pending"
+//   },
+//   {
+//     id: 2,
+//     name: "Bob Smith",
+//     email: "bob@example.com",
+//     phone: "2345678901",
+//     constituency: "Hilltop",
+//     role: "admin",
+//     status: "approved"
+//   },
+//   {
+//     id: 3,
+//     name: "Charlie Brown",
+//     email: "charlie@example.com",
+//     phone: "3456789012",
+//     constituency: "Riverside",
+//     role: "surveyor",
+//     status: "declined"
+//   }
+// ];
 
 export default function Users() {
+    const [users, setUsers] = useState([]);
     const [searchQuery, setSearchQuery] = useState({
         name: "",
         email: "",
         
     })
 
-    const handleSearchChange = (field) => (e) => {
-        setSearchQuery({
-            ...searchQuery,
-            [field]: e.target.value
-        });
-    };
+    useEffect(() => {
+        handleFetchUsers();
+    }, [])
+
+    const handleFetchUsers = async () => {
+        try {
+            const response = await axiosInstance.get("/all");
+            console.log(response.data);
+            setUsers(response.data);
+        } catch (error) {
+            console.error("Error fetching users:", error);
+        }
+    }
+
+    // const handleSearchChange = (field) => (e) => {
+    //     setSearchQuery({
+    //         ...searchQuery,
+    //         [field]: e.target.value
+    //     });
+    // };
 
     return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
@@ -125,7 +141,7 @@ export default function Users() {
                     </Button>
                 </Box>
             </Box> */}
-            <UserTable users={sampleUsers}/>
+            <UserTable users={users}/>
         </Box>
     )
 }

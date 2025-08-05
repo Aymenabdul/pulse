@@ -18,11 +18,16 @@ import {
   Typography,
   Menu,
   Button,
-  Paper
+  Paper,
+  Snackbar,
+  Switch,
+  FormControlLabel,
+  Alert
 } from "@mui/material";
 import { useState, useMemo } from "react";
 import ClearIcon from "@mui/icons-material/Clear";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import axiosInstance from "../axios/axios";
 
 const headCells = [
   { id: "name", label: "User", sortable: true },
@@ -45,6 +50,8 @@ export default function UserTable({ users }) {
   const [userData, setUserData] = useState(users);
   const [anchorElStatus, setAnchorElStatus] = useState(null);
   const [anchorElRole, setAnchorElRole] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [loading, setLoading] = useState({});
 
   const handleSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -60,24 +67,6 @@ export default function UserTable({ users }) {
     );
   };
 
-  const filteredUsers = useMemo(() => {
-    return userData
-      .filter(
-        (user) =>
-          (!statusFilter || user.status === statusFilter) &&
-          (!roleFilter || user.role === roleFilter) &&
-          user.name.toLowerCase().includes(searchName.toLowerCase()) &&
-          user.email.toLowerCase().includes(searchEmail.toLowerCase()) &&
-          user.constituency.toLowerCase().includes(searchConstituency.toLowerCase())
-      )
-      .sort((a, b) => {
-        if (!["name", "email", "constituency"].includes(orderBy)) return 0;
-        const aVal = a[orderBy].toLowerCase();
-        const bVal = b[orderBy].toLowerCase();
-        return order === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      });
-  }, [userData, order, orderBy, statusFilter, roleFilter, searchName, searchEmail, searchConstituency]);
-
   const handleOpenStatusMenu = (e) => setAnchorElStatus(e.currentTarget);
   const handleOpenRoleMenu = (e) => setAnchorElRole(e.currentTarget);
   const handleCloseStatusMenu = () => setAnchorElStatus(null);
@@ -89,6 +78,60 @@ export default function UserTable({ users }) {
     setSearchConstituency("");
     setStatusFilter("");
     setRoleFilter("");
+  };
+
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleAcceptUser = async (email, userId) => {
+    setLoading(prev => ({ ...prev, [userId]: true }));
+    try {
+      const response = await axiosInstance.put(`/activate-user?email=${email}`);
+      
+      setUserData(prev =>
+        prev.map(user => 
+          user.id === userId ? { ...user, accept: true } : user
+        )
+      );
+      
+      showSnackbar(response.data.message || "User accepted successfully", "success");
+    } catch (e) {
+      console.error("Error accepting user:", e);
+      showSnackbar(e.response?.data?.message || "Error accepting user", "error");
+    } finally {
+      setLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const handleDeclineUser = async (email, userId) => {
+    setLoading(prev => ({ ...prev, [userId]: true }));
+    console.log(email);
+    try {
+      const response = await axiosInstance.put(`/decline-user?email=${email}`);
+      
+      setUserData(prev =>
+        prev.map(user => 
+          user.id === userId ? { ...user, accept: false, declined: true } : user
+        )
+      );
+      
+      showSnackbar(response.data?.message || "User declined successfully", "success");
+    } catch (e) {
+      console.error("Error declining user:", e.response?.data);
+      showSnackbar(e.response?.data?.message || "Error declining user", "error");
+    } finally {
+      setLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const getUserStatus = (user) => {
+    if (user.declined) return "Declined";
+    return user.accept ? "Accepted" : "Pending";
   };
 
   return (
@@ -170,7 +213,7 @@ export default function UserTable({ users }) {
           <TableHead sx={{ bgcolor: "#a9e7e5" }}>
             <TableRow>
               {headCells.map((headCell) => (
-                <TableCell key={headCell.id} sx={{ fontSize: "1rem", fontWeight: 600 }}>
+                <TableCell key={headCell.id} sx={{ fontSize: "1rem", fontWeight: 600 }} align="center">
                   <Box display="flex" alignItems="center">
                     {headCell.sortable ? (
                       <TableSortLabel
@@ -195,7 +238,7 @@ export default function UserTable({ users }) {
                         >
                           <MenuItem onClick={() => { setStatusFilter(""); handleCloseStatusMenu(); }}>All</MenuItem>
                           <MenuItem onClick={() => { setStatusFilter("pending"); handleCloseStatusMenu(); }}>Pending</MenuItem>
-                          <MenuItem onClick={() => { setStatusFilter("approved"); handleCloseStatusMenu(); }}>Approved</MenuItem>
+                          <MenuItem onClick={() => { setStatusFilter("accepted"); handleCloseStatusMenu(); }}>Accepted</MenuItem>
                           <MenuItem onClick={() => { setStatusFilter("declined"); handleCloseStatusMenu(); }}>Declined</MenuItem>
                         </Menu>
                       </>
@@ -223,44 +266,45 @@ export default function UserTable({ users }) {
           </TableHead>
 
           <TableBody>
-            {filteredUsers.map((user, index) => (
-              <TableRow key={user.id} sx={{ backgroundColor: index % 2 === 0 ? "#e0f7f9" : "#d0ebeaff", py: 2 }}>
-                <TableCell sx={{ py: 2 }}>{user.name}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user.email}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user.phone}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user.constituency}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user.role}</TableCell>
-                <TableCell sx={{ py: 2, textTransform: "capitalize" }}>{user.status}</TableCell>
-                <TableCell sx={{ py: 2 }} >
-                  {user.status === "pending" ? (
-                    <>
+            {users.map((user, index) => (
+              <TableRow key={user?.id} sx={{ backgroundColor: index % 2 === 0 ? "#e0f7f9" : "#d0ebeaff", py: 2 }}>
+                <TableCell sx={{ py: 2 }}>{user?.name}</TableCell>
+                <TableCell sx={{ py: 2 }}>{user?.email}</TableCell>
+                <TableCell sx={{ py: 2 }}>{user?.phoneNumber ? user?.phoneNumber : "No phone number given"}</TableCell>
+                <TableCell sx={{ py: 2 }}>{user?.constituency}</TableCell>
+                <TableCell sx={{ py: 2 }}>{user?.role}</TableCell>
+                <TableCell sx={{ py: 2, textTransform: "capitalize" }}>{getUserStatus(user)}</TableCell>
+                <TableCell sx={{ py: 2 }} align="center">
+                  {user?.accept === true || user?.declined ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {user.accept ? "Accepted" : "Declined"}
+                    </Typography>
+                  ) : (
+                    <Box display="flex" justifyContent="center" alignItems="center" gap={1}>
                       <Button
                         variant="outlined"
-                        size="small"
-                        color="success"
-                        onClick={() => handleStatusChange(user.id, "approved")}
-                        sx={{ mr: 1 }}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
                         color="error"
-                        onClick={() => handleStatusChange(user.id, "declined")}
+                        size="small"
+                        onClick={() => handleDeclineUser(user.email, user.id)}
+                        disabled={loading[user.id]}
                       >
                         Decline
                       </Button>
-                    </>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No actions
-                    </Typography>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        size="small"
+                        onClick={() => handleAcceptUser(user.email, user.id)}
+                        disabled={loading[user.id]}
+                      >
+                        Accept
+                      </Button>
+                    </Box>
                   )}
                 </TableCell>
               </TableRow>
             ))}
-            {filteredUsers.length === 0 && (
+            {users?.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   No users found.
@@ -270,6 +314,21 @@ export default function UserTable({ users }) {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

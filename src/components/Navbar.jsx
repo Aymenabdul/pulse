@@ -13,11 +13,14 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Navbar({ userRole }) {
     const [anchorEl, setAnchorEl] = useState(null);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+    const { logout } = useAuth();
 
     const navigate = useNavigate();
 
@@ -55,6 +58,8 @@ export default function Navbar({ userRole }) {
     };
 
     const handleLogout = () => {
+        logout();
+        handleMenuClose();
         navigate("/login");
     };
 
