@@ -64,7 +64,7 @@ export default function Login() {
             console.log(result);
             if (result.success) {
                 const userDetails = await getUserDetails();
-                console.log(userDetails);
+                console.log("userdetails : ",userDetails);
                 // userDetails?.role === "Admin" || userDetails?.role === "admin" || userDetails?.role.toLowerCase() === "surveyor"
                 if (userDetails?.role === "Admin" || userDetails?.role === "admin") {
                     navigate("/admin/dashboard");

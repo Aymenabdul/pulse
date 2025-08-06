@@ -6,27 +6,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TableSortLabel,
-  TableFooter,
-  TablePagination,
-  TextField,
-  Select,
-  MenuItem,
-  IconButton,
-  InputAdornment,
   Grid,
-  Typography,
-  Menu,
+  TextField,
   Button,
   Paper,
   Snackbar,
-  Switch,
-  FormControlLabel,
   Alert
 } from "@mui/material";
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import ClearIcon from "@mui/icons-material/Clear";
-import FilterListIcon from "@mui/icons-material/FilterList";
 import axiosInstance from "../axios/axios";
 
 const headCells = [
@@ -46,38 +34,20 @@ export default function UserTable({ users }) {
   const [roleFilter, setRoleFilter] = useState("");
   const [searchName, setSearchName] = useState("");
   const [searchEmail, setSearchEmail] = useState("");
+  const [userData, setUserData] = useState(users); // Initialize userData with the users prop
   const [searchConstituency, setSearchConstituency] = useState("");
-  const [userData, setUserData] = useState(users);
-  const [anchorElStatus, setAnchorElStatus] = useState(null);
-  const [anchorElRole, setAnchorElRole] = useState(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [loading, setLoading] = useState({});
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+  // Effect to update userData if the users prop changes
+  useEffect(() => {
+    setUserData(users);
+  }, [users]);
 
   const handleSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
     setOrderBy(property);
-  };
-
-  const handleStatusChange = (id, newStatus) => {
-    setUserData((prev) =>
-      prev.map((user) =>
-        user.id === id ? { ...user, status: newStatus } : user
-      )
-    );
-  };
-
-  const handleOpenStatusMenu = (e) => setAnchorElStatus(e.currentTarget);
-  const handleOpenRoleMenu = (e) => setAnchorElRole(e.currentTarget);
-  const handleCloseStatusMenu = () => setAnchorElStatus(null);
-  const handleCloseRoleMenu = () => setAnchorElRole(null);
-
-  const handleClearAll = () => {
-    setSearchName("");
-    setSearchEmail("");
-    setSearchConstituency("");
-    setStatusFilter("");
-    setRoleFilter("");
   };
 
   const showSnackbar = (message, severity = "success") => {
@@ -89,16 +59,16 @@ export default function UserTable({ users }) {
   };
 
   const handleAcceptUser = async (email, userId) => {
+    // Optimistic update
+    setUserData(prev =>
+      prev.map(user =>
+        user.id === userId ? { ...user, accept: "Accepted" } : user
+      )
+    );
     setLoading(prev => ({ ...prev, [userId]: true }));
+
     try {
       const response = await axiosInstance.put(`/activate-user?email=${email}`);
-      
-      setUserData(prev =>
-        prev.map(user => 
-          user.id === userId ? { ...user, accept: true } : user
-        )
-      );
-      
       showSnackbar(response.data.message || "User accepted successfully", "success");
     } catch (e) {
       console.error("Error accepting user:", e);
@@ -109,34 +79,41 @@ export default function UserTable({ users }) {
   };
 
   const handleDeclineUser = async (email, userId) => {
-    setLoading(prev => ({ ...prev, [userId]: true }));
-    console.log(email);
-    try {
-      const response = await axiosInstance.put(`/decline-user?email=${email}`);
-      
-      setUserData(prev =>
-        prev.map(user => 
-          user.id === userId ? { ...user, accept: false, declined: true } : user
-        )
-      );
-      
-      showSnackbar(response.data?.message || "User declined successfully", "success");
-    } catch (e) {
-      console.error("Error declining user:", e.response?.data);
-      showSnackbar(e.response?.data?.message || "Error declining user", "error");
-    } finally {
-      setLoading(prev => ({ ...prev, [userId]: false }));
-    }
-  };
+  // Optimistic UI update - immediately change the status in the front-end
+  setUserData(prev =>
+    prev.map(user =>
+      user.id === userId ? { ...user, accept: "Declined" } : user
+    )
+  );
 
-  const getUserStatus = (user) => {
-    if (user.declined) return "Declined";
-    return user.accept ? "Accepted" : "Pending";
-  };
+  // Set the user as loading to prevent multiple actions on the same user
+  setLoading(prev => ({ ...prev, [userId]: true }));
+
+  try {
+    // Make the API request to decline the user
+    const response = await axiosInstance.put(`/decline-user?email=${email}`);
+    // Show success message
+    showSnackbar(response.data?.message || "User declined successfully", "success");
+  } catch (e) {
+    // Revert the UI status in case of error
+    setUserData(prev =>
+      prev.map(user =>
+        user.id === userId ? { ...user, accept: "Pending" } : user // or whatever the original status is
+      )
+    );
+    console.error("Error declining user:", e);
+    showSnackbar(e.response?.data?.message || "Error declining user", "error");
+  } finally {
+    // Hide loading state once the operation is complete
+    setLoading(prev => ({ ...prev, [userId]: false }));
+  }
+};
+
 
   return (
     <Box sx={{ width: { xs: "100%", md: "95%" } }} p={2}>
       <Grid container spacing={2} mb={2}>
+        {/* Search filters */}
         <Grid size={{ xs: 12, sm: 4 }}>
           <TextField
             label="Search Name"
@@ -146,15 +123,15 @@ export default function UserTable({ users }) {
             value={searchName}
             onChange={(e) => setSearchName(e.target.value)}
             slotProps={{
-                input: {
-                    endAdornment: searchName && (
-                      <InputAdornment position="end">
-                        <IconButton onClick={() => setSearchName("")}>
-                          <ClearIcon fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    )
-                }
+              input: {
+                endAdornment: searchName && (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setSearchName("")}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }
             }}
           />
         </Grid>
@@ -167,15 +144,15 @@ export default function UserTable({ users }) {
             value={searchEmail}
             onChange={(e) => setSearchEmail(e.target.value)}
             slotProps={{
-                input: {
-                    endAdornment: searchEmail && (
-                      <InputAdornment position="end">
-                        <IconButton onClick={() => setSearchEmail("")}>
-                          <ClearIcon fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    )
-                }
+              input: {
+                endAdornment: searchEmail && (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setSearchEmail("")}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }
             }}
           />
         </Grid>
@@ -188,22 +165,22 @@ export default function UserTable({ users }) {
             value={searchConstituency}
             onChange={(e) => setSearchConstituency(e.target.value)}
             slotProps={{
-                input: {
-                    endAdornment: searchConstituency && (
-                      <InputAdornment position="end">
-                        <IconButton onClick={() => setSearchConstituency("")}>
-                          <ClearIcon fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    )
-                }
+              input: {
+                endAdornment: searchConstituency && (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setSearchConstituency("")}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }
             }}
           />
         </Grid>
       </Grid>
 
       <Box display="flex" justifyContent="flex-end" mb={2}>
-        <Button variant="outlined" size="small" onClick={handleClearAll}>
+        <Button variant="outlined" size="small" onClick={() => { setSearchName(""); setSearchEmail(""); setSearchConstituency(""); }}>
           Clear All Filters
         </Button>
       </Box>
@@ -214,72 +191,25 @@ export default function UserTable({ users }) {
             <TableRow>
               {headCells.map((headCell) => (
                 <TableCell key={headCell.id} sx={{ fontSize: "1rem", fontWeight: 600 }} align="center">
-                  <Box display="flex" alignItems="center">
-                    {headCell.sortable ? (
-                      <TableSortLabel
-                        active={orderBy === headCell.id}
-                        direction={orderBy === headCell.id ? order : "asc"}
-                        onClick={() => handleSort(headCell.id)}
-                      >
-                        {headCell.label}
-                      </TableSortLabel>
-                    ) : (
-                      headCell.label
-                    )}
-                    {headCell.id === "status" && (
-                      <>
-                        <IconButton size="small" onClick={handleOpenStatusMenu}>
-                          <FilterListIcon fontSize="small" />
-                        </IconButton>
-                        <Menu
-                          anchorEl={anchorElStatus}
-                          open={Boolean(anchorElStatus)}
-                          onClose={handleCloseStatusMenu}
-                        >
-                          <MenuItem onClick={() => { setStatusFilter(""); handleCloseStatusMenu(); }}>All</MenuItem>
-                          <MenuItem onClick={() => { setStatusFilter("pending"); handleCloseStatusMenu(); }}>Pending</MenuItem>
-                          <MenuItem onClick={() => { setStatusFilter("accepted"); handleCloseStatusMenu(); }}>Accepted</MenuItem>
-                          <MenuItem onClick={() => { setStatusFilter("declined"); handleCloseStatusMenu(); }}>Declined</MenuItem>
-                        </Menu>
-                      </>
-                    )}
-                    {headCell.id === "role" && (
-                      <>
-                        <IconButton size="small" onClick={handleOpenRoleMenu}>
-                          <FilterListIcon fontSize="small" />
-                        </IconButton>
-                        <Menu
-                          anchorEl={anchorElRole}
-                          open={Boolean(anchorElRole)}
-                          onClose={handleCloseRoleMenu}
-                        >
-                          <MenuItem onClick={() => { setRoleFilter(""); handleCloseRoleMenu(); }}>All</MenuItem>
-                          <MenuItem onClick={() => { setRoleFilter("admin"); handleCloseRoleMenu(); }}>Admin</MenuItem>
-                          <MenuItem onClick={() => { setRoleFilter("surveyor"); handleCloseRoleMenu(); }}>ESA User</MenuItem>
-                        </Menu>
-                      </>
-                    )}
-                  </Box>
+                  {headCell.label}
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {users.map((user, index) => (
+            {userData.map((user, index) => (
               <TableRow key={user?.id} sx={{ backgroundColor: index % 2 === 0 ? "#e0f7f9" : "#d0ebeaff", py: 2 }}>
                 <TableCell sx={{ py: 2 }}>{user?.name}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.email}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user?.phoneNumber ? user?.phoneNumber : "No phone number given"}</TableCell>
+                <TableCell sx={{ py: 2 }}>{user?.phoneNumber || "No phone number given"}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.constituency}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.role}</TableCell>
-                <TableCell sx={{ py: 2, textTransform: "capitalize" }}>{getUserStatus(user)}</TableCell>
+                <TableCell sx={{ py: 2, textTransform: "capitalize" }}>
+                  {user.accept || "Pending"}
+                </TableCell>
                 <TableCell sx={{ py: 2 }} align="center">
-                  {user?.accept === true || user?.declined ? (
-                    <Typography variant="body2" color="text.secondary">
-                      {user.accept ? "Accepted" : "Declined"}
-                    </Typography>
-                  ) : (
+                  {user.accept === "Pending" && (
                     <Box display="flex" justifyContent="center" alignItems="center" gap={1}>
                       <Button
                         variant="outlined"
@@ -301,10 +231,32 @@ export default function UserTable({ users }) {
                       </Button>
                     </Box>
                   )}
+                  {user.accept === "Declined" && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      onClick={() => handleAcceptUser(user.email, user.id)}
+                      disabled={loading[user.id]}
+                    >
+                      Accept
+                    </Button>
+                  )}
+                  {user.accept === "Accepted" && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => handleDeclineUser(user.email, user.id)}
+                      disabled={loading[user.id]}
+                    >
+                      Decline
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
-            {users?.length === 0 && (
+            {userData?.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   No users found.
@@ -321,11 +273,7 @@ export default function UserTable({ users }) {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity}
-          variant="filled"
-        >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled">
           {snackbar.message}
         </Alert>
       </Snackbar>

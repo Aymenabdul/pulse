@@ -294,7 +294,7 @@ export default function FileUpload() {
                     </Box>
                 </Box>
                 
-                <Stack spacing={1.2} sx={{ maxHeight: { xs: 200, lg: 240 }, overflowY: 'auto', pr: 1 }}>
+                <Stack spacing={1.2} sx={{ maxHeight: { xs: 200, lg: 240 },overflowY:'scroll', pr: 1 }}>
                     {files.map((file) => (
                         <Paper
                             key={file.id}

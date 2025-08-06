@@ -20,7 +20,7 @@ export default function Files() {
             }
         };
         handleFetchData();
-    })
+    },[])
 
     return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>

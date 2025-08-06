@@ -55,11 +55,18 @@ export default function Users() {
         try {
             const response = await axiosInstance.get("/all");
             console.log(response.data);
-            setUsers(response.data);
+            // Ensure response data is an array before setting state
+            if (Array.isArray(response.data)) {
+                setUsers(response.data);
+            } else {
+                console.error("Expected an array of users, but received:", response.data);
+                setUsers([]); // Fallback to empty array if response is not an array
+            }
         } catch (error) {
             console.error("Error fetching users:", error);
+            setUsers([]); // Set empty array in case of error
         }
-    }
+    };
 
     // const handleSearchChange = (field) => (e) => {
     //     setSearchQuery({
