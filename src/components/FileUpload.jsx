@@ -27,7 +27,7 @@ import {
 import { useState, useRef } from "react";
 import axiosInstance from "../axios/axios";
 
-export default function FileUpload() {
+export default function FileUpload({ onUploadSuccess }) {
     const [files, setFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
     const [error, setError] = useState('');
@@ -39,8 +39,8 @@ export default function FileUpload() {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const fileInputRef = useRef(null);
 
-    const maxFiles = 10; // Changed to 5 as per requirement
-    const maxFileSize = 50 * 1024 * 1024; // 50MB
+    const maxFiles = 10; 
+    const maxFileSize = 50 * 1024 * 1024; 
     const acceptedTypes = ['.xlsx', '.xls', '.csv'];
 
     const getFileIcon = (fileName) => {
@@ -86,32 +86,60 @@ export default function FileUpload() {
     };
 
     const submitFilesToBackend = async () => {
-        const filesWithoutSurvey = files.filter(file => !file.surveyName || file.surveyName.trim() === '');
-        if (filesWithoutSurvey.length > 0) {
-            showSnackbar('Please set survey names for all files before uploading', 'warning');
+        if (!files.length) {
+            showSnackbar('No files selected for upload.', 'warning');
+            return false;
+        }
+
+        const surveyName = files[0]?.surveyName || '';
+        if (!surveyName.trim()) {
+            showSnackbar('Please set a survey name before uploading.', 'warning');
             return false;
         }
 
         try {
             setUploading(true);
-            
+
             const formData = new FormData();
-            
-            files.forEach(fileData => {
-                formData.append('file', fileData.file);
+
+            // Append all files
+            files.forEach((fileData) => {
+                formData.append('file', fileData.file); // use same key for array
             });
-            
-            formData.append('surveyName', files[0].surveyName);
 
-            const response = await axiosInstance.post('/file/upload', formData);
+            // Append survey name once
+            formData.append('surveyName', surveyName.trim());
 
+            // Debug logs
+            console.log('Uploading files:', files.length);
+            console.log('Survey name:', surveyName);
+            files.forEach((f, idx) => {
+                console.log(`File ${idx + 1}: ${f.name} (${f.size} bytes)`);
+            });
+
+            const response = await axiosInstance.post('/file/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            if (onUploadSuccess) onUploadSuccess();
             const backendMessage = response.data || 'Files uploaded successfully!';
+            console.log('Backend response:', backendMessage);
+
             showSnackbar(backendMessage, 'success');
 
-            setFiles(currentFiles => 
+            // Mark all as uploaded and clear
+            setFiles(currentFiles =>
                 currentFiles.map(f => ({ ...f, progress: 100, uploaded: true }))
             );
-            
+
+            setTimeout(() => {
+                setFiles([]);
+                setError('');
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                showSnackbar('Files cleared after successful upload', 'info');
+            }, 1000);
+
             return true;
         } catch (error) {
             console.error('Upload error:', error);
@@ -122,6 +150,7 @@ export default function FileUpload() {
             setUploading(false);
         }
     };
+
 
     const handleSurveyNameSubmit = async () => {
         setSurveyNameError('');
@@ -182,7 +211,7 @@ export default function FileUpload() {
                     type: file.type,
                     progress: 0,
                     uploaded: false,
-                    surveyName: '' // Will be set in modal
+                    surveyName: '' 
                 });
             }
         });
@@ -240,7 +269,6 @@ export default function FileUpload() {
         }
     };
 
-    // Function to update survey name for individual files
     const updateFileSurveyName = (fileId, newSurveyName) => {
         setFiles(currentFiles =>
             currentFiles.map(file =>
@@ -333,7 +361,6 @@ export default function FileUpload() {
                                         {formatFileSize(file.size)}
                                     </Typography>
                                     
-                                    {/* Survey name input for each file */}
                                     <TextField
                                         size="small"
                                         placeholder="Enter survey name"
@@ -459,6 +486,7 @@ export default function FileUpload() {
                             onChange={handleChange}
                             accept={acceptedTypes.join(',')}
                             style={{ display: 'none' }}
+                            disabled={files.length > 0}
                         />
                         
                         <CloudUpload 
@@ -481,7 +509,7 @@ export default function FileUpload() {
                         <Button
                             variant="contained"
                             startIcon={<CloudUpload sx={{ fontSize: 16 }} />}
-                            disabled={uploading}
+                            disabled={uploading || files.length > 0}
                             sx={{
                                 background: 'rgba(0, 0, 0, 0.1)',
                                 color: 'rgba(0, 0, 0, 0.8)',

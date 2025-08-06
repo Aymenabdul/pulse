@@ -14,29 +14,42 @@ import {
   Toolbar,
   Typography,
   CircularProgress,
-  Switch
+  Button,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { FilterList, Delete } from "@mui/icons-material";
-import { useMemo, useState } from "react";
-
+import { useMemo, useState, useEffect } from "react";
+import axiosInstance from "../axios/axios";
 
 const headCells = [
-  { id: "name", label: "Survey Name", sortable: true },
+  { id: "surveyName", label: "Survey Name", sortable: true },
   { id: "createdAt", label: "Created At", sortable: true },
   { id: "status", label: "Status", sortable: false },
   { id: "activity", label: "Activity", sortable: false },
-  { id: "actions", label: "Actions", sortable: false }
+  { id: "actions", label: "Actions", sortable: false },
 ];
 
 export default function SurveyTable({ data, loading }) {
-  const [orderBy, setOrderBy] = useState("name");
+  const [orderBy, setOrderBy] = useState("surveyName");
   const [order, setOrder] = useState("asc");
   const [selected, setSelected] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
   const [tableData, setTableData] = useState(data);
-  const isSelected = (id) => selected.indexOf(id) !== -1;
+  
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success"
+  });
 
+  useEffect(() => {
+    setTableData(data);
+  }, [data]);
+
+  const isSelected = (id) => selected.indexOf(id) !== -1;
 
   const handleSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -46,24 +59,75 @@ export default function SurveyTable({ data, loading }) {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = filteredData.map((row) => row.id); // Select all filtered data
+      const newSelecteds = filteredData.map((row) => row.id);
       setSelected(newSelecteds);
-      return;
+    } else {
+      setSelected([]);
     }
-    setSelected([]); // Deselect all if unchecked
   };
 
-  const handleClick = (id) => {
-    const selectedIndex = selected.indexOf(id);
-    let newSelected = [];
+  const handleCheckboxClick = (event, id) => {
+    event.stopPropagation();
 
-    if (selectedIndex === -1) {
-      newSelected = [...selected, id]; // Add to selected
-    } else {
-      newSelected = selected.filter((sid) => sid !== id); // Remove from selected
+    setSelected((prevSelected) => {
+      const selectedIndex = prevSelected.indexOf(id);
+      
+      if (selectedIndex === -1) {
+        // Add to selection
+        return [...prevSelected, id];
+      } else {
+        // Remove from selection
+        return prevSelected.filter((selectedId) => selectedId !== id);
+      }
+    });
+  };
+
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  const handleActivateSurvey = async (surveyName) => {
+    try {
+      const response = await axiosInstance.put(`/file/activate-survey?surveyName=${surveyName}`);
+      if (response.status === 200) {
+        const updated = tableData.map((s) =>
+          s.surveyName === surveyName ? { ...s, isActive: true } : s
+        );
+        setTableData(updated);
+        showSnackbar(response.data.message || "Survey activated successfully", "success");
+      } else {
+        showSnackbar("Failed to activate survey", "error");
+      }
+    } catch (error) {
+      console.error("Error activating survey:", error);
+      showSnackbar(error.response?.data?.message || "Error activating survey", "error");
     }
+  };
 
-    setSelected(newSelected);
+  const handleDeactivateSurvey = async (surveyName) => {
+    try {
+      const response = await axiosInstance.put(`/file/deactivate-survey?surveyName=${surveyName}`);
+      if (response.status === 200) {
+        const updated = tableData.map((s) =>
+          s.surveyName === surveyName ? { ...s, isActive: false } : s
+        );
+        setTableData(updated);
+        showSnackbar(response.data.message || "Survey deactivated successfully", "success");
+      } else {
+        showSnackbar("Failed to deactivate survey", "error");
+      }
+    } catch (error) {
+      console.error("Error deactivating survey:", error);
+      showSnackbar(error.response?.data?.message || "Error deactivating survey", "error");
+    }
   };
 
   const handleFilterClick = (e) => {
@@ -79,23 +143,39 @@ export default function SurveyTable({ data, loading }) {
     handleFilterClose();
   };
 
-  const handleToggleStatus = (id) => {
-    const updated = tableData.map((s) =>
-      s.id === id ? { ...s, status: s.status === "active" ? "inactive" : "active" } : s
-    );
-    setTableData(updated);
+  const handleDelete = (surveyName) => {
+    const surveyToDelete = tableData.find((s) => s.surveyName === surveyName);
+    
+    if (surveyToDelete) {
+      // Remove from table data
+      const updated = tableData.filter((s) => s.surveyName !== surveyName);
+      setTableData(updated);
+      
+      // Remove from selected if it was selected
+      setSelected(prevSelected => prevSelected.filter((id) => id !== surveyToDelete.id));
+      
+      console.log("Survey deleted locally:", surveyName);
+    }
   };
 
-  const handleDelete = (id) => {
-    const updated = tableData.filter((s) => s.id !== id);
-    setTableData(updated);
-    setSelected(selected.filter((sid) => sid !== id));
+  const handleBulkDelete = () => {
+    selected.forEach((id) => {
+      const surveyToDelete = tableData.find((row) => row.id === id);
+      if (surveyToDelete) {
+        handleDelete(surveyToDelete.surveyName);
+      }
+    });
+    // Clear selection after bulk delete
+    setSelected([]);
   };
-
 
   const filteredData = useMemo(() => {
     return tableData
-      .filter((row) => !statusFilter || row.status === statusFilter)
+      .filter((row) => {
+        if (!statusFilter) return true;
+        const status = row.isActive ? "active" : "inactive";
+        return status === statusFilter;
+      })
       .sort((a, b) => {
         if (!headCells.find((h) => h.id === orderBy)?.sortable) return 0;
         const aVal = a[orderBy];
@@ -113,7 +193,10 @@ export default function SurveyTable({ data, loading }) {
           Surveys
         </Typography>
         {selected.length > 0 && (
-          <IconButton color="error" onClick={() => selected.forEach(id => handleDelete(id))}>
+          <IconButton
+            color="error"
+            onClick={handleBulkDelete}
+          >
             <Delete />
           </IconButton>
         )}
@@ -123,20 +206,31 @@ export default function SurveyTable({ data, loading }) {
         <Table size="small">
           <TableHead sx={{ bgcolor: "#a9e7e5" }}>
             <TableRow>
-              <TableCell padding="checkbox">
+              <TableCell padding="checkbox" align="center">
                 <Checkbox
                   indeterminate={
                     selected.length > 0 && selected.length < filteredData.length
                   }
                   checked={
-                    filteredData.length > 0 && selected.length === filteredData.length
+                    filteredData.length > 0 &&
+                    selected.length === filteredData.length
                   }
                   onChange={handleSelectAllClick}
                 />
               </TableCell>
               {headCells.map((headCell) => (
-                <TableCell key={headCell.id} sx={{ fontSize: "1rem", fontWeight: 600 }}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                <TableCell
+                  key={headCell.id}
+                  sx={{ fontSize: "1rem", fontWeight: 600 }}
+                  align="center"
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
                     {headCell.sortable ? (
                       <TableSortLabel
                         active={orderBy === headCell.id}
@@ -172,24 +266,46 @@ export default function SurveyTable({ data, loading }) {
                 return (
                   <TableRow
                     key={row.id}
+                    hover
+                    role="checkbox"
+                    tabIndex={-1}
                     selected={isItemSelected}
-                    onClick={() => handleClick(row.id)}
                     sx={{ backgroundColor: index % 2 === 0 ? "#e0f7f9" : "#d0ebeaff" }}
                   >
-                    <TableCell padding="checkbox">
-                      <Checkbox checked={isItemSelected} />
-                    </TableCell>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.createdAt}</TableCell>
-                    <TableCell sx={{ textTransform: "capitalize" }}>{row.status}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={row.status === "active"}
-                        onChange={() => handleToggleStatus(row.id)}
+                    <TableCell padding="checkbox" align="center">
+                      <Checkbox
+                        checked={isItemSelected}
+                        onClick={(event) => handleCheckboxClick(event, row.id)}
                       />
                     </TableCell>
-                    <TableCell>
-                      <IconButton color="error" onClick={() => handleDelete(row.id)}>
+                    <TableCell align="center">{row?.surveyName}</TableCell>
+                    <TableCell align="center">{row?.createdAt}</TableCell>
+                    <TableCell align="center" sx={{ textTransform: "capitalize" }}>
+                      {row?.isActive ? "Active" : "Inactive"}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color={row.isActive ? "error" : "success"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          row.isActive
+                            ? handleDeactivateSurvey(row.surveyName)
+                            : handleActivateSurvey(row.surveyName);
+                        }}
+                      >
+                        {row.isActive ? "Deactivate" : "Activate"}
+                      </Button>
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        color="error"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(row.surveyName);
+                        }}
+                      >
                         <Delete fontSize="small" />
                       </IconButton>
                     </TableCell>
@@ -213,6 +329,22 @@ export default function SurveyTable({ data, loading }) {
         <MenuItem onClick={() => handleStatusFilterChange("active")}>Active</MenuItem>
         <MenuItem onClick={() => handleStatusFilterChange("inactive")}>Inactive</MenuItem>
       </Menu>
+
+      {/* Snackbar for messages */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

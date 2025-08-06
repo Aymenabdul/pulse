@@ -11,7 +11,14 @@ import {
   Button,
   Paper,
   Snackbar,
-  Alert
+  Alert,
+  InputAdornment,
+  IconButton,
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from "@mui/material";
 import { useState, useEffect } from "react";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -34,7 +41,7 @@ export default function UserTable({ users }) {
   const [roleFilter, setRoleFilter] = useState("");
   const [searchName, setSearchName] = useState("");
   const [searchEmail, setSearchEmail] = useState("");
-  const [userData, setUserData] = useState(users); // Initialize userData with the users prop
+  const [userData, setUserData] = useState(users);
   const [searchConstituency, setSearchConstituency] = useState("");
   const [loading, setLoading] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -58,63 +65,128 @@ export default function UserTable({ users }) {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const handleAcceptUser = async (email, userId) => {
-    // Optimistic update
-    setUserData(prev =>
-      prev.map(user =>
-        user.id === userId ? { ...user, accept: "Accepted" } : user
-      )
-    );
+  // Filter and search functionality
+  const getFilteredUsers = () => {
+    return userData.filter(user => {
+      // Search filters
+      const nameMatch = user.name?.toLowerCase().includes(searchName.toLowerCase()) || searchName === "";
+      const emailMatch = user.email?.toLowerCase().includes(searchEmail.toLowerCase()) || searchEmail === "";
+      const constituencyMatch = user.constituency?.toLowerCase().includes(searchConstituency.toLowerCase()) || searchConstituency === "";
+      
+      // Status filter
+      const statusMatch = statusFilter === "" || 
+        (statusFilter === "active" && user.accept === "1") ||
+        (statusFilter === "inactive" && user.accept === "0");
+      
+      // Role filter
+      const roleMatch = roleFilter === "" || user.role?.toLowerCase() === roleFilter.toLowerCase();
+      
+      return nameMatch && emailMatch && constituencyMatch && statusMatch && roleMatch;
+    });
+  };
+
+  // Sort functionality
+  const getSortedUsers = (users) => {
+    const filteredUsers = [...users];
+    
+    if (orderBy && headCells.find(cell => cell.id === orderBy)?.sortable) {
+      filteredUsers.sort((a, b) => {
+        let aValue = a[orderBy];
+        let bValue = b[orderBy];
+        
+        // Handle null/undefined values
+        if (aValue == null) aValue = "";
+        if (bValue == null) bValue = "";
+        
+        // Convert to string for comparison
+        aValue = aValue.toString().toLowerCase();
+        bValue = bValue.toString().toLowerCase();
+        
+        if (order === "asc") {
+          return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        } else {
+          return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+        }
+      });
+    }
+    
+    return filteredUsers;
+  };
+
+  const refreshUserData = async () => {
+    try {
+      const response = await axiosInstance.get('/all'); 
+      setUserData(response.data);
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+      showSnackbar("Error refreshing user data", "error");
+    }
+  };
+
+  const handleActivateUser = async (email, userId) => {
     setLoading(prev => ({ ...prev, [userId]: true }));
 
     try {
       const response = await axiosInstance.put(`/activate-user?email=${email}`);
-      showSnackbar(response.data.message || "User accepted successfully", "success");
+      
+      const message = response.data?.message || response.data || "User activated successfully";
+      showSnackbar(message, "success");
+      
+      await refreshUserData();
     } catch (e) {
-      console.error("Error accepting user:", e);
-      showSnackbar(e.response?.data?.message || "Error accepting user", "error");
+      console.error("Error activating user:", e);
+      
+      const errorMessage = e.response?.data?.message || e.response?.data?.error || e.response?.data || "Error activating user";
+      showSnackbar(errorMessage, "error");
     } finally {
       setLoading(prev => ({ ...prev, [userId]: false }));
     }
   };
 
-  const handleDeclineUser = async (email, userId) => {
-  // Optimistic UI update - immediately change the status in the front-end
-  setUserData(prev =>
-    prev.map(user =>
-      user.id === userId ? { ...user, accept: "Declined" } : user
-    )
-  );
+  const handleDeactivateUser = async (email, userId) => {
+    setLoading(prev => ({ ...prev, [userId]: true }));
 
-  // Set the user as loading to prevent multiple actions on the same user
-  setLoading(prev => ({ ...prev, [userId]: true }));
+    try {
+      const response = await axiosInstance.put(`/decline-user?email=${email}`);
+      
+      const message = response.data?.message || response.data || "User deactivated successfully";
+      showSnackbar(message, "success");
+      
+      await refreshUserData();
+    } catch (e) {
+      console.error("Error deactivating user:", e);
+      
+      // Show the exact error message from backend
+      const errorMessage = e.response?.data?.message || e.response?.data?.error || e.response?.data || "Error deactivating user";
+      showSnackbar(errorMessage, "error");
+    } finally {
+      setLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
 
-  try {
-    // Make the API request to decline the user
-    const response = await axiosInstance.put(`/decline-user?email=${email}`);
-    // Show success message
-    showSnackbar(response.data?.message || "User declined successfully", "success");
-  } catch (e) {
-    // Revert the UI status in case of error
-    setUserData(prev =>
-      prev.map(user =>
-        user.id === userId ? { ...user, accept: "Pending" } : user // or whatever the original status is
-      )
-    );
-    console.error("Error declining user:", e);
-    showSnackbar(e.response?.data?.message || "Error declining user", "error");
-  } finally {
-    // Hide loading state once the operation is complete
-    setLoading(prev => ({ ...prev, [userId]: false }));
-  }
-};
+  const getUniqueRoles = () => {
+    const roles = [...new Set(userData.map(user => user.role).filter(Boolean))];
+    return roles.sort();
+  };
 
+  const getStatusText = (acceptValue) => {
+    return acceptValue === "Accepted" ? "Active" : "Inactive";
+  };
+
+  const clearAllFilters = () => {
+    setSearchName("");
+    setSearchEmail("");
+    setSearchConstituency("");
+    setStatusFilter("");
+    setRoleFilter("");
+  };
+
+  const displayUsers = getSortedUsers(getFilteredUsers());
 
   return (
     <Box sx={{ width: { xs: "100%", md: "95%" } }} p={2}>
       <Grid container spacing={2} mb={2}>
-        {/* Search filters */}
-        <Grid size={{ xs: 12, sm: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <TextField
             label="Search Name"
             variant="outlined"
@@ -135,7 +207,7 @@ export default function UserTable({ users }) {
             }}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <TextField
             label="Search Email"
             variant="outlined"
@@ -156,7 +228,7 @@ export default function UserTable({ users }) {
             }}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <TextField
             label="Search Constituency"
             variant="outlined"
@@ -177,10 +249,66 @@ export default function UserTable({ users }) {
             }}
           />
         </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={statusFilter}
+              label="Status"
+              onChange={(e) => setStatusFilter(e.target.value)}
+              endAdornment={statusFilter && (
+                <InputAdornment position="end">
+                  <IconButton 
+                    onClick={() => setStatusFilter("")} 
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              )}
+            >
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Role</InputLabel>
+            <Select
+              value={roleFilter}
+              label="Role"
+              onChange={(e) => setRoleFilter(e.target.value)}
+              endAdornment={roleFilter && (
+                <InputAdornment position="end">
+                  <IconButton 
+                    onClick={() => setRoleFilter("")} 
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              )}
+            >
+              <MenuItem value="">All</MenuItem>
+              {getUniqueRoles().map(role => (
+                <MenuItem key={role} value={role}>{role}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
       </Grid>
 
       <Box display="flex" justifyContent="flex-end" mb={2}>
-        <Button variant="outlined" size="small" onClick={() => { setSearchName(""); setSearchEmail(""); setSearchConstituency(""); }}>
+        <Button 
+          variant="outlined" 
+          size="small" 
+          onClick={clearAllFilters}
+        >
+        
           Clear All Filters
         </Button>
       </Box>
@@ -190,56 +318,55 @@ export default function UserTable({ users }) {
           <TableHead sx={{ bgcolor: "#a9e7e5" }}>
             <TableRow>
               {headCells.map((headCell) => (
-                <TableCell key={headCell.id} sx={{ fontSize: "1rem", fontWeight: 600 }} align="center">
+                <TableCell 
+                  key={headCell.id} 
+                  sx={{ 
+                    fontSize: "1rem", 
+                    fontWeight: 600,
+                    cursor: headCell.sortable ? "pointer" : "default"
+                  }} 
+                  align="center"
+                  onClick={() => headCell.sortable && handleSort(headCell.id)}
+                >
                   {headCell.label}
+                  {headCell.sortable && orderBy === headCell.id && (
+                    <span style={{ marginLeft: '4px' }}>
+                      {order === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {userData.map((user, index) => (
-              <TableRow key={user?.id} sx={{ backgroundColor: index % 2 === 0 ? "#e0f7f9" : "#d0ebeaff", py: 2 }}>
+            {displayUsers.map((user, index) => (
+              <TableRow 
+                key={user?.id} 
+                sx={{ 
+                  backgroundColor: index % 2 === 0 ? "#e0f7f9" : "#d0ebeaff", 
+                  py: 2 
+                }}
+              >
                 <TableCell sx={{ py: 2 }}>{user?.name}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.email}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.phoneNumber || "No phone number given"}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.constituency}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.role}</TableCell>
                 <TableCell sx={{ py: 2, textTransform: "capitalize" }}>
-                  {user.accept || "pending"}
+                  {getStatusText(user.accept)}
                 </TableCell>
                 <TableCell sx={{ py: 2 }} align="center">
-                  {user.accept === "pending" && (
-                    <Box display="flex" justifyContent="center" alignItems="center" gap={1}>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        onClick={() => handleDeclineUser(user.email, user.id)}
-                        disabled={loading[user.id]}
-                      >
-                        Decline
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        size="small"
-                        onClick={() => handleAcceptUser(user.email, user.id)}
-                        disabled={loading[user.id]}
-                      >
-                        Accept
-                      </Button>
-                    </Box>
-                  )}
                   {user.accept === "Declined" && (
                     <Button
                       variant="contained"
                       color="success"
                       size="small"
-                      onClick={() => handleAcceptUser(user.email, user.id)}
+                      onClick={() => handleActivateUser(user.email, user.id)}
                       disabled={loading[user.id]}
+                      startIcon={loading[user.id] ? <CircularProgress size={16} /> : null}
                     >
-                      Accept
+                      Activate
                     </Button>
                   )}
                   {user.accept === "Accepted" && (
@@ -247,16 +374,17 @@ export default function UserTable({ users }) {
                       variant="outlined"
                       color="error"
                       size="small"
-                      onClick={() => handleDeclineUser(user.email, user.id)}
+                      onClick={() => handleDeactivateUser(user.email, user.id)}
                       disabled={loading[user.id]}
+                      startIcon={loading[user.id] ? <CircularProgress size={16} /> : null}
                     >
-                      Decline
+                      Deactivate
                     </Button>
                   )}
                 </TableCell>
               </TableRow>
             ))}
-            {userData?.length === 0 && (
+            {displayUsers?.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   No users found.

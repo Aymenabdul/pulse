@@ -9,37 +9,32 @@ import axiosInstance from "../../axios/axios";
 
 export default function Files() {
     const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(true); // Track loading state
+    const [loading, setLoading] = useState(true); 
 
     useEffect(() => {
-        const handleFetchData = async () => {
-            try {
-                const response = await axiosInstance.get("/file/survey-stats");
-                setData(response.data);
-                console.log(response.data);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false); // Set loading to false once the request is completed
-            }
-        };
         handleFetchData();
-    },[])
+    }, []);
+
+    const handleFetchData = async () => {
+        try {
+            const response = await axiosInstance.get("/file/survey-stats");
+            setData(response.data);
+            console.log(response.data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false); 
+        }
+    };
 
     return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
-            <FileUpload
-                // maxFiles={5}                    
-                // maxFileSize={10 * 1024 * 1024}  
-                // acceptedTypes={['.xlsx', '.xls', '.csv']}
-                // onFilesChange={handleFilesChange}
-            />
+            <FileUpload onUploadSuccess={handleFetchData}/>
             
-            {/* Conditional rendering for loading */}
             {loading ? (
-                <CircularProgress /> // Show loading spinner while fetching data
+                <CircularProgress /> 
             ) : (
-                <SurveyTable data={data} loading={loading} /> // Display table once data is fetched
+                <SurveyTable data={data} loading={loading} /> 
             )}
         </Box>
     )
