@@ -39,7 +39,7 @@ export default function FileUpload() {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const fileInputRef = useRef(null);
 
-    const maxFiles = 10;
+    const maxFiles = 10; // Changed to 5 as per requirement
     const maxFileSize = 50 * 1024 * 1024; // 50MB
     const acceptedTypes = ['.xlsx', '.xls', '.csv'];
 
@@ -85,52 +85,38 @@ export default function FileUpload() {
         return null;
     };
 
-    const submitFilesToBackend = async (validFiles, surveyName) => {
+    const submitFilesToBackend = async () => {
+        const filesWithoutSurvey = files.filter(file => !file.surveyName || file.surveyName.trim() === '');
+        if (filesWithoutSurvey.length > 0) {
+            showSnackbar('Please set survey names for all files before uploading', 'warning');
+            return false;
+        }
+
         try {
             setUploading(true);
             
-            console.log('Survey Name:', surveyName);
-            console.log('Files to upload:', validFiles.map(f => ({
-                name: f.name,
-                size: f.size,
-                type: f.type
-            })));
-
             const formData = new FormData();
-            validFiles.forEach(fileData => {
+            
+            files.forEach(fileData => {
                 formData.append('file', fileData.file);
             });
-            formData.append('surveyName', surveyName);
+            
+            formData.append('surveyName', files[0].surveyName);
 
-            const response = await axiosInstance.post('/api2/file/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
+            const response = await axiosInstance.post('/file/upload', formData);
 
-            console.log('Upload success:', response.data);
-            showSnackbar(response.data || 'Files uploaded successfully!', 'success');
+            const backendMessage = response.data || 'Files uploaded successfully!';
+            showSnackbar(backendMessage, 'success');
 
-            // Update files with success status
             setFiles(currentFiles => 
-                currentFiles.map(f => {
-                    const matchingFile = validFiles.find(vf => vf.id === f.id);
-                    return matchingFile ? { ...f, progress: 100, uploaded: true, surveyName } : f;
-                })
+                currentFiles.map(f => ({ ...f, progress: 100, uploaded: true }))
             );
             
             return true;
         } catch (error) {
             console.error('Upload error:', error);
-            const errorMessage = error.response?.data?.message || error.response?.data || error.message || 'Upload failed';
-            setError(`Upload failed: ${errorMessage}`);
+            const errorMessage = error.response?.data || error.message || 'Upload failed';
             showSnackbar(`Upload failed: ${errorMessage}`, 'error');
-            
-            // Remove failed files from the list
-            setFiles(currentFiles => 
-                currentFiles.filter(f => !validFiles.some(vf => vf.id === f.id))
-            );
-            
             return false;
         } finally {
             setUploading(false);
@@ -156,21 +142,12 @@ export default function FileUpload() {
             surveyName: surveyName.trim()
         }));
 
-        const updatedFiles = [...files, ...validFiles];
-        setFiles(updatedFiles);
-
+        setFiles(currentFiles => [...currentFiles, ...validFiles]);
         setShowSurveyDialog(false);
-
-        const success = await submitFilesToBackend(validFiles, surveyName.trim());
+        setSurveyName('');
+        setPendingFiles([]);
         
-        if (success) {
-            setSurveyName('');
-            setPendingFiles([]);
-        } else {
-            // Re-open dialog if upload failed
-            setPendingFiles(validFiles);
-            setShowSurveyDialog(true);
-        }
+        showSnackbar(`${validFiles.length} file(s) added with survey name: ${surveyName.trim()}`, 'info');
     };
 
     const handleFiles = (newFiles) => {
@@ -204,7 +181,8 @@ export default function FileUpload() {
                     size: file.size,
                     type: file.type,
                     progress: 0,
-                    uploaded: false
+                    uploaded: false,
+                    surveyName: '' // Will be set in modal
                 });
             }
         });
@@ -218,7 +196,6 @@ export default function FileUpload() {
         if (validFiles.length > 0) {
             setPendingFiles(validFiles);
             setShowSurveyDialog(true);
-            showSnackbar(`${validFiles.length} file(s) selected for upload`, 'info');
         }
     };
 
@@ -263,6 +240,15 @@ export default function FileUpload() {
         }
     };
 
+    // Function to update survey name for individual files
+    const updateFileSurveyName = (fileId, newSurveyName) => {
+        setFiles(currentFiles =>
+            currentFiles.map(file =>
+                file.id === fileId ? { ...file, surveyName: newSurveyName } : file
+            )
+        );
+    };
+
     const FilesList = () => (
         files.length > 0 ? (
             <Box sx={{ height: '100%' }}>
@@ -270,22 +256,42 @@ export default function FileUpload() {
                     <Typography variant="h6" sx={{ color: 'rgba(0, 0, 0, 0.8)', fontSize: '1.1rem', fontWeight: 600 }}>
                         Selected Files ({files.length})
                     </Typography>
-                    <Button
-                        onClick={clearAllFiles}
-                        size="small"
-                        sx={{ 
-                            color: 'rgba(244, 67, 54, 0.8)',
-                            textTransform: 'none',
-                            fontSize: '0.8rem',
-                            minWidth: 'auto',
-                            px: 1.5,
-                            '&:hover': {
-                                background: 'rgba(244, 67, 54, 0.1)'
-                            }
-                        }}
-                    >
-                        Clear All
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                            onClick={submitFilesToBackend}
+                            disabled={uploading || files.length === 0}
+                            variant="contained"
+                            size="small"
+                            sx={{
+                                textTransform: 'none',
+                                fontSize: '0.8rem',
+                                px: 2,
+                                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                                '&:hover': {
+                                    background: 'linear-gradient(135deg, #45a049, #3d8b40)'
+                                }
+                            }}
+                        >
+                            {uploading ? <CircularProgress size={14} sx={{ mr: 1 }} /> : null}
+                            Upload All
+                        </Button>
+                        <Button
+                            onClick={clearAllFiles}
+                            size="small"
+                            sx={{ 
+                                color: 'rgba(244, 67, 54, 0.8)',
+                                textTransform: 'none',
+                                fontSize: '0.8rem',
+                                minWidth: 'auto',
+                                px: 1.5,
+                                '&:hover': {
+                                    background: 'rgba(244, 67, 54, 0.1)'
+                                }
+                            }}
+                        >
+                            Clear All
+                        </Button>
+                    </Box>
                 </Box>
                 
                 <Stack spacing={1.2} sx={{ maxHeight: { xs: 200, lg: 240 }, overflowY: 'auto', pr: 1 }}>
@@ -325,8 +331,27 @@ export default function FileUpload() {
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: '0.75rem' }}>
                                         {formatFileSize(file.size)}
-                                        {file.surveyName && ` • Survey: ${file.surveyName}`}
                                     </Typography>
+                                    
+                                    {/* Survey name input for each file */}
+                                    <TextField
+                                        size="small"
+                                        placeholder="Enter survey name"
+                                        value={file.surveyName}
+                                        onChange={(e) => updateFileSurveyName(file.id, e.target.value)}
+                                        sx={{
+                                            mt: 1,
+                                            width: '100%',
+                                            '& .MuiOutlinedInput-root': {
+                                                height: '32px',
+                                                fontSize: '0.75rem',
+                                                '& fieldset': {
+                                                    borderColor: 'rgba(0, 0, 0, 0.2)'
+                                                }
+                                            }
+                                        }}
+                                        disabled={file.uploaded}
+                                    />
                                     
                                     <LinearProgress
                                         variant="determinate"
@@ -356,6 +381,7 @@ export default function FileUpload() {
                                             backgroundColor: 'rgba(244, 67, 54, 0.15)'
                                         }
                                     }}
+                                    disabled={uploading}
                                 >
                                     <Delete sx={{ fontSize: 16 }} />
                                 </IconButton>
@@ -570,7 +596,7 @@ export default function FileUpload() {
                 </DialogTitle>
                 <DialogContent sx={{ pb: 2 }}>
                     <Typography variant="body2" sx={{ mb: 2, color: 'rgba(0, 0, 0, 0.6)' }}>
-                        Please provide a name for this survey. The uploaded files will be associated with this survey name.
+                        Please provide a survey name for the selected files ({pendingFiles.length} files).
                     </Typography>
                     <TextField
                         autoFocus
@@ -619,7 +645,6 @@ export default function FileUpload() {
                     <Button
                         onClick={handleSurveyNameSubmit}
                         variant="contained"
-                        disabled={uploading}
                         sx={{
                             textTransform: 'none',
                             borderRadius: 1.5,
@@ -630,14 +655,7 @@ export default function FileUpload() {
                             }
                         }}
                     >
-                        {uploading ? (
-                            <>
-                                <CircularProgress size={16} sx={{ mr: 1 }} />
-                                Uploading...
-                            </>
-                        ) : (
-                            'Upload Files'
-                        )}
+                        Add Files
                     </Button>
                 </DialogActions>
             </Dialog>

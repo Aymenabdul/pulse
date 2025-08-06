@@ -27,7 +27,7 @@ export default function Signup() {
         name: '',
         email: '',
         password: '',
-        phone: '',
+        phoneNumber: '',
         constituency: '',
         role: ''
     });
@@ -52,7 +52,7 @@ export default function Signup() {
     };
 
     const handleSubmit = async () => {
-        if (!formData.name || !formData.email || !formData.password || !formData.phone || !formData.constituency || !formData.role) {
+        if (!formData.name || !formData.email || !formData.password || !formData.phoneNumber || !formData.constituency || !formData.role) {
             setSnackbar({
                 open: true,
                 message: "Please fill in all fields",
