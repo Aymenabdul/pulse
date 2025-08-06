@@ -206,10 +206,10 @@ export default function UserTable({ users }) {
                 <TableCell sx={{ py: 2 }}>{user?.constituency}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.role}</TableCell>
                 <TableCell sx={{ py: 2, textTransform: "capitalize" }}>
-                  {user.accept || "Pending"}
+                  {user.accept || "pending"}
                 </TableCell>
                 <TableCell sx={{ py: 2 }} align="center">
-                  {user.accept === "Pending" && (
+                  {user.accept === "pending" && (
                     <Box display="flex" justifyContent="center" alignItems="center" gap={1}>
                       <Button
                         variant="outlined"
