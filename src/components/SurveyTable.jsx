@@ -35,6 +35,8 @@ export default function SurveyTable({ data, loading }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
   const [tableData, setTableData] = useState(data);
+  const isSelected = (id) => selected.indexOf(id) !== -1;
+
 
   const handleSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -44,14 +46,11 @@ export default function SurveyTable({ data, loading }) {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const consistentStatus = filteredData[0]?.status;
-      const newSelecteds = filteredData
-        .filter((row) => row.status === consistentStatus)
-        .map((row) => row.id);
+      const newSelecteds = filteredData.map((row) => row.id); // Select all filtered data
       setSelected(newSelecteds);
       return;
     }
-    setSelected([]);
+    setSelected([]); // Deselect all if unchecked
   };
 
   const handleClick = (id) => {
@@ -59,16 +58,11 @@ export default function SurveyTable({ data, loading }) {
     let newSelected = [];
 
     if (selectedIndex === -1) {
-      const currentItem = filteredData.find((s) => s.id === id);
-      const selectedStatus = filteredData.find((s) => s.id === selected[0])?.status;
-      if (selected.length === 0 || currentItem.status === selectedStatus) {
-        newSelected = [...selected, id];
-      } else {
-        return;
-      }
+      newSelected = [...selected, id]; // Add to selected
     } else {
-      newSelected = selected.filter((sid) => sid !== id);
+      newSelected = selected.filter((sid) => sid !== id); // Remove from selected
     }
+
     setSelected(newSelected);
   };
 
@@ -98,7 +92,6 @@ export default function SurveyTable({ data, loading }) {
     setSelected(selected.filter((sid) => sid !== id));
   };
 
-  const isSelected = (id) => selected.indexOf(id) !== -1;
 
   const filteredData = useMemo(() => {
     return tableData
