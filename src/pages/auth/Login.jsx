@@ -65,9 +65,10 @@ export default function Login() {
             if (result.success) {
                 const userDetails = await getUserDetails();
                 console.log(userDetails);
-                if (userDetails?.role === "admin") {
+                // userDetails?.role === "Admin" || userDetails?.role === "admin" || userDetails?.role.toLowerCase() === "surveyor"
+                if (userDetails?.role === "Admin" || userDetails?.role === "admin") {
                     navigate("/admin/dashboard");
-                } else if (userDetails?.role === "Surveyor") {
+                } else if (userDetails?.role === "Surveyor" || userDetails?.role === "surveyor") {
                     navigate("/surveyor/home");
                 } else {
                     setError("Unrecognized user role");

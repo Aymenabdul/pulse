@@ -274,7 +274,7 @@ export default function Signup() {
                                 type="tel"
                                 fullWidth
                                 value={formData.phone}
-                                onChange={handleInputChange('phone')}
+                                onChange={handleInputChange('phoneNumber')}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: 2,

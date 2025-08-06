@@ -36,14 +36,21 @@ function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  const userRole = user.role?.toLowerCase();
+  const normalizedRequiredRole = requiredRole?.toLowerCase();
+
+  console.log("ProtectedRoute - User role:", user.role, "Required:", requiredRole, "Normalized user:", userRole, "Normalized required:", normalizedRequiredRole);
+
   // Check if user has the required role for this route
-  if (requiredRole && user.role !== requiredRole) {
+  if (normalizedRequiredRole && userRole !== normalizedRequiredRole) {
     // Redirect to appropriate home page based on user's actual role
-    if (user.role === "admin") {
+    if (userRole === "admin") {
       return <Navigate to="/admin/dashboard" replace />;
-    } else if (user.role === "surveyor") {
+    } else if (userRole === "surveyor") {
       return <Navigate to="/surveyor/home" replace />;
     }
+    // If unknown role, redirect to login
+    return <Navigate to="/login" replace />;
   }
 
   return children;
@@ -69,9 +76,9 @@ function RootRedirect() {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role === "admin") {
+  if (user?.role === "admin" || user?.role === "Admin") {
     return <Navigate to="/admin/dashboard" replace />;
-  } else if (user.role === "Surveyor") {
+  } else if (user?.role === "Surveyor" || user?.role === "surveyor") {
     return <Navigate to="/surveyor/home" replace />;
   }
 

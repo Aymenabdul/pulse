@@ -1,17 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Box
 } from "@mui/material";
 import FileUpload from "../../components/FileUpload";
 import SurveyTable from "../../components/SurveyTable";
+import axiosInstance from "../../axios/axios";
 
 export default function Files() {
-    // const [uploadedFiles, setUploadedFiles] = useState([]);
+    const [data, setData] = useState([]);
 
-    // const handleFilesChange = (files) => {
-    //     console.log('Files selected:', files);
-    //     setUploadedFiles(files);
-    // }
+    useEffect(() => {
+        const handleFetchData = async () => {
+            try {
+                const response = await axiosInstance.get("/file/survey-stats");
+                setData(response.data);
+                console.log(response.data);
+            } catch (error) {
+                console.error(error);
+            }
+        };
+        handleFetchData();
+    })
+
     return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
             <FileUpload

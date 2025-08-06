@@ -20,7 +20,7 @@ export default function Navbar({ userRole }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
 
     const navigate = useNavigate();
 
@@ -144,7 +144,7 @@ export default function Navbar({ userRole }) {
                                 border: "1px solid rgba(255, 255, 255, 0.2)"
                             }}
                         >
-                            {userRole === "admin" ? "Admin" : "Surveyor"}
+                            {user?.role}
                         </Typography>
                     )}
 
