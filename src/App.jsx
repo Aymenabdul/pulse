@@ -39,17 +39,12 @@ function ProtectedRoute({ children, requiredRole }) {
   const userRole = user.role?.toLowerCase();
   const normalizedRequiredRole = requiredRole?.toLowerCase();
 
-  console.log("ProtectedRoute - User role:", user.role, "Required:", requiredRole, "Normalized user:", userRole, "Normalized required:", normalizedRequiredRole);
-
-  // Check if user has the required role for this route
   if (normalizedRequiredRole && userRole !== normalizedRequiredRole) {
-    // Redirect to appropriate home page based on user's actual role
     if (userRole === "admin") {
       return <Navigate to="/admin/dashboard" replace />;
     } else if (userRole === "surveyor") {
       return <Navigate to="/surveyor/home" replace />;
     }
-    // If unknown role, redirect to login
     return <Navigate to="/login" replace />;
   }
 
@@ -104,6 +99,8 @@ export default function App() {
           <Route path="statistics" element={<Statistics />} />
           <Route path="survey/with-voter-id" element={<WithVoterId from="admin" />} />
           <Route path="survey/without-voter-id" element={<WithoutVoterId from="admin" />} />
+          <Route path="without-voter-id/form" element={<SurveyWithoutVoterId />} />
+          <Route path="with-voter-id/form/:id" element={<SurveyWithVoterId />} />
         </Route>
 
         <Route path="/surveyor" element={
@@ -115,7 +112,7 @@ export default function App() {
           <Route path="survey/with-voter-id" element={<WithVoterId from="surveyor" />} />
           <Route path="survey/without-voter-id" element={<WithoutVoterId from="surveyor" />} />
           <Route path="without-voter-id/form" element={<SurveyWithoutVoterId />} />
-          <Route path="with-voter-id/form" element={<SurveyWithVoterId />} />
+          <Route path="with-voter-id/form/:id" element={<SurveyWithVoterId />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

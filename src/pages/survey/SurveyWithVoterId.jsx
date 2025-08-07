@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -9,21 +9,35 @@ import {
   Snackbar,
   Alert,
   Card,
-  CardContent
+  CardContent,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormLabel
 } from "@mui/material";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
+import axiosInstance from "../../axios/axios";
 
 export default function SurveyWithVoterId({ from }) {
+  const [voter, setVoter] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
 
-  const voterData = {
-    voterId: "TN123456789",
-    fullName: "Ravi Kumar",
-    age: 32,
-    gender: "Male",
-    houseNumber: "12B",
-    whatsappNumber: "9876543210"
-  };
+  useEffect(() => {
+    handleFetchVoterData();
+  }, [])
+
+  const handleFetchVoterData = async () => {
+    try {
+      const response = await axiosInstance.get(`/file/getFileData/${id}`);
+      console.log(response.data);
+      setVoter(response.data);
+    } catch (error) {
+      console.error("Error fetching voter data:", error);
+      return null;
+    }
+  }
 
   const [form, setForm] = useState({
     voterStatus: "",
@@ -61,11 +75,15 @@ export default function SurveyWithVoterId({ from }) {
   };
 
   const handleBack = () => {
-    if (from === "admin") {
-      navigate("/admin/dashboard");
-    } else {
-      navigate("/surveyor/home");
-    }
+      const currentPath = location.pathname;
+
+      if (currentPath.includes('/admin')) {
+          navigate('/admin/survey/with-voter-id');
+      } else if (currentPath.includes('/surveyor')) {
+          navigate('/surveyor/survey/with-voter-id');
+      } else {
+          navigate('/');
+      }
   };
 
   return (
@@ -77,12 +95,12 @@ export default function SurveyWithVoterId({ from }) {
       <Card sx={{ mb: 3, backgroundColor: "#f5f5f5" }}>
         <CardContent>
           <Typography variant="h5" textAlign="center">Voter Details</Typography>
-          <Typography mt={1}><strong>Voter ID:</strong> {voterData.voterId}</Typography>
-          <Typography mt={1}><strong>Name:</strong> {voterData.fullName}</Typography>
-          <Typography mt={1}><strong>Age:</strong> {voterData.age}</Typography>
-          <Typography mt={1}><strong>Gender:</strong> {voterData.gender}</Typography>
-          <Typography mt={1}><strong>House Number:</strong> {voterData.houseNumber}</Typography>
-          <Typography mt={1}><strong>WhatsApp:</strong> {voterData.whatsappNumber}</Typography>
+          <Typography mt={1}><strong>Voter ID:</strong> {voter?.voterID}</Typography>
+          <Typography mt={1}><strong>Name:</strong> {voter?.name}</Typography>
+          <Typography mt={1}><strong>Age:</strong> {voter?.age}</Typography>
+          <Typography mt={1}><strong>Gender:</strong> {voter?.gender}</Typography>
+          <Typography mt={1}><strong>House Number:</strong> {voter?.houseNumber}</Typography>
+          {/* <Typography mt={1}><strong>WhatsApp:</strong> {voter?.whatsappNumber}</Typography> */}
         </CardContent>
       </Card>
 
@@ -148,26 +166,37 @@ export default function SurveyWithVoterId({ from }) {
             <Card>
               <CardContent>
                 <Typography fontWeight={600} mb={1}>{label}</Typography>
-                <Grid container spacing={1}>
-                  {options.map((option) => (
-                    <Grid size={{ xs: 12, sm: 6 }} key={option}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={form[field] === option}
-                            onChange={() => handleChange(field, option)}
-                          />
-                        }
-                        label={option}
-                        sx={{
-                          "& .MuiFormControlLabel-label": {
-                            transition: "0.2s",
-                            "&:hover": { fontSize: "1.05rem" }
-                          }
-                        }}
-                      />
-                    </Grid>
-                  ))}
+                <Grid size={{ xs: 12 }} key={field}>
+                  <Card>
+                    <CardContent>
+                      <FormControl component="fieldset">
+                        <RadioGroup
+                          value={form[field]}
+                          onChange={(e) => handleChange(field, e.target.value)}
+                          sx={{ backgroundColor: "transparent" }}
+                        >
+                          <Grid container spacing={1}>
+                            {options.map((option) => (
+                              <Grid size={{ xs: 12, sm: 6 }} key={option} sx={{ backgroundColor: "transparent" }}>
+                                <FormControlLabel
+                                  value={option}
+                                  control={<Radio />}
+                                  label={option}
+                                  sx={{
+                                    backgroundColor: "transparent",
+                                    "& .MuiFormControlLabel-label": {
+                                      transition: "0.2s",
+                                      "&:hover": { fontSize: "1.05rem" }
+                                    }
+                                  }}
+                                />
+                              </Grid>
+                            ))}
+                          </Grid>
+                        </RadioGroup>
+                      </FormControl>
+                    </CardContent>
+                  </Card>
                 </Grid>
               </CardContent>
             </Card>

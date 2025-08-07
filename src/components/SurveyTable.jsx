@@ -17,6 +17,7 @@ import {
   Button,
   Snackbar,
   Alert,
+  TablePagination,
 } from "@mui/material";
 import { FilterList, Delete } from "@mui/icons-material";
 import { useMemo, useState, useEffect } from "react";
@@ -37,6 +38,8 @@ export default function SurveyTable({ data, loading }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
   const [tableData, setTableData] = useState(data);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -59,7 +62,7 @@ export default function SurveyTable({ data, loading }) {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = filteredData.map((row) => row.id);
+      const newSelecteds = paginatedData.map((row) => row.id);
       setSelected(newSelecteds);
     } else {
       setSelected([]);
@@ -80,6 +83,15 @@ export default function SurveyTable({ data, loading }) {
         return prevSelected.filter((selectedId) => selectedId !== id);
       }
     });
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   const showSnackbar = (message, severity = "success") => {
@@ -140,6 +152,7 @@ export default function SurveyTable({ data, loading }) {
 
   const handleStatusFilterChange = (status) => {
     setStatusFilter(status);
+    setPage(0); // Reset to first page when filter changes
     handleFilterClose();
   };
 
@@ -186,6 +199,10 @@ export default function SurveyTable({ data, loading }) {
       });
   }, [tableData, statusFilter, order, orderBy]);
 
+  const paginatedData = useMemo(() => {
+    return filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [filteredData, page, rowsPerPage]);
+
   return (
     <Box sx={{ width: { xs: "100%", md: "98%" }, p: 2 }}>
       <Toolbar>
@@ -209,11 +226,11 @@ export default function SurveyTable({ data, loading }) {
               <TableCell padding="checkbox" align="center">
                 <Checkbox
                   indeterminate={
-                    selected.length > 0 && selected.length < filteredData.length
+                    selected.length > 0 && selected.length < paginatedData.length
                   }
                   checked={
-                    filteredData.length > 0 &&
-                    selected.length === filteredData.length
+                    paginatedData.length > 0 &&
+                    selected.length === paginatedData.length
                   }
                   onChange={handleSelectAllClick}
                 />
@@ -261,7 +278,7 @@ export default function SurveyTable({ data, loading }) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredData.map((row, index) => {
+              paginatedData.map((row, index) => {
                 const isItemSelected = isSelected(row.id);
                 return (
                   <TableRow
@@ -313,7 +330,7 @@ export default function SurveyTable({ data, loading }) {
                 );
               })
             )}
-            {filteredData.length === 0 && !loading && (
+            {paginatedData.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   No surveys found.
@@ -324,13 +341,22 @@ export default function SurveyTable({ data, loading }) {
         </Table>
       </TableContainer>
 
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25]}
+        component="div"
+        count={filteredData.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleFilterClose}>
         <MenuItem onClick={() => handleStatusFilterChange("")}>All</MenuItem>
         <MenuItem onClick={() => handleStatusFilterChange("active")}>Active</MenuItem>
         <MenuItem onClick={() => handleStatusFilterChange("inactive")}>Inactive</MenuItem>
       </Menu>
 
-      {/* Snackbar for messages */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}

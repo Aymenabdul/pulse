@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Box,
     Typography,
@@ -17,7 +17,8 @@ import {
     MenuItem as MenuItemComponent,
     Container,
     Snackbar,
-    Alert
+    Alert,
+    CircularProgress
 } from "@mui/material";
 import {
     ArrowBack,
@@ -29,6 +30,7 @@ import {
     Delete
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
+import axiosInstance from "../../axios/axios";
 
 export default function WithVoterId() {
     const navigate = useNavigate();
@@ -36,12 +38,23 @@ export default function WithVoterId() {
 
     const [filters, setFilters] = useState({
         survey: '',
-        constituency: '188-MELUR',
+        constituency: '',
         boothNumber: '',
         district: '',
         name: '',
         houseNo: ''
     });
+
+    const [loading, setLoading] = useState({
+        surveys: false,
+        constituencies: false,
+        booths: false,
+        search: false
+    });
+
+    const [surveyOptions, setSurveyOptions] = useState([]);
+    const [constituencyOptions, setConstituencyOptions] = useState([]);
+    const [boothOptions, setBoothOptions] = useState([]);
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedVoterId, setSelectedVoterId] = useState(null);
@@ -50,178 +63,102 @@ export default function WithVoterId() {
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
     const [showAdditionalFilters, setShowAdditionalFilters] = useState(false);
 
-    const [voters, setVoters] = useState([
-        {
-            id: 1,
-            name: "Siva Balaji",
-            voterId: "YSO2216778",
-            serialNumber: 1,
-            relative: "Sasi Kumar",
-            boothNo: 1,
-            houseNo: 101,
-            voted: true,
-            verified: true,
-            survey: "2024-election",
-            constituency: "188-MELUR",
-            district: "madurai"
-        },
-        {
-            id: 2,
-            name: "Chinnasamy K",
-            voterId: "YSO1367010",
-            serialNumber: 2,
-            relative: "Ariyan P",
-            boothNo: 1,
-            houseNo: 102,
-            voted: false,
-            verified: false,
-            survey: "public-opinion",
-            constituency: "188-MELUR",
-            district: "madurai"
-        },
-        {
-            id: 3,
-            name: "Praween Kumar",
-            voterId: "YSO1315563",
-            serialNumber: 3,
-            relative: "Jeyaraj M",
-            boothNo: 1,
-            houseNo: 103,
-            voted: true,
-            verified: true,
-            survey: "2024-election",
-            constituency: "188-MELUR",
-            district: "madurai"
-        },
-        {
-            id: 4,
-            name: "Vasar Arafath",
-            voterId: "YSO1315555",
-            serialNumber: 4,
-            relative: "Mohammed Ali",
-            boothNo: 2,
-            houseNo: 201,
-            voted: false,
-            verified: false,
-            survey: "public-opinion",
-            constituency: "188-MELUR",
-            district: "madurai"
-        },
-        {
-            id: 5,
-            name: "Saranya Devi",
-            voterId: "YSO2241008",
-            serialNumber: 5,
-            relative: "Raman S",
-            boothNo: 2,
-            houseNo: 202,
-            voted: true,
-            verified: true,
-            survey: "2024-election",
-            constituency: "188-MELUR",
-            district: "madurai"
-        },
-        {
-            id: 6,
-            name: "Kaviyarasu T",
-            voterId: "YSO1367077",
-            serialNumber: 6,
-            relative: "Kumaran R",
-            boothNo: 2,
-            houseNo: 203,
-            voted: false,
-            verified: false,
-            survey: "constituency-feedback",
-            constituency: "188-MELUR",
-            district: "madurai"
-        },
-        {
-            id: 7,
-            name: "Anand M",
-            voterId: "YSO1234567",
-            serialNumber: 7,
-            relative: "Mala V",
-            boothNo: 3,
-            houseNo: 301,
-            voted: true,
-            verified: false,
-            survey: "public-opinion",
-            constituency: "188-MELUR",
-            district: "theni"
-        },
-        {
-            id: 8,
-            name: "Bhavani S",
-            voterId: "YSO7654321",
-            serialNumber: 8,
-            relative: "Kumar P",
-            boothNo: 3,
-            houseNo: 302,
-            voted: false,
-            verified: true,
-            survey: "2024-election",
-            constituency: "188-MELUR",
-            district: "dindigul"
-        },
-        {
-            id: 9,
-            name: "Ganesh K",
-            voterId: "YSO9876543",
-            serialNumber: 9,
-            relative: "Lakshmi A",
-            boothNo: 1,
-            houseNo: 104,
-            voted: true,
-            verified: true,
-            survey: "constituency-feedback",
-            constituency: "189-MADURAI-EAST",
-            district: "madurai"
-        },
-        {
-            id: 10,
-            name: "Deepa R",
-            voterId: "YSO1122334",
-            serialNumber: 10,
-            relative: "Suresh B",
-            boothNo: 2,
-            houseNo: 204,
-            voted: false,
-            verified: false,
-            survey: "2024-election",
-            constituency: "188-MELUR",
-            district: "madurai"
-        },
-        {
-            id: 11,
-            name: "Vikram P",
-            voterId: "YSO3344556",
-            serialNumber: 11,
-            relative: "Priya V",
-            boothNo: 3,
-            houseNo: 303,
-            voted: true,
-            verified: true,
-            survey: "public-opinion",
-            constituency: "189-MADURAI-EAST",
-            district: "theni"
-        },
-        {
-            id: 12,
-            name: "Prakash L",
-            voterId: "YSO6677889",
-            serialNumber: 12,
-            relative: "Geetha M",
-            boothNo: 1,
-            houseNo: 105,
-            voted: false,
-            verified: false,
-            survey: "constituency-feedback",
-            constituency: "188-MELUR",
-            district: "madurai"
-        }
-    ]);
+    const [voters, setVoters] = useState([]);
 
     const selectedVoter = voters.find(voter => voter.id === selectedVoterId);
+
+    useEffect(() => {
+        const fetchSurveys = async () => {
+            setLoading(prev => ({ ...prev, surveys: true }));
+            try {
+                const response = await axiosInstance.get('/file/active');
+                setSurveyOptions(response.data || []);
+            } catch (error) {
+                console.error('Error fetching active surveys:', error);
+                showSnackbar('Error fetching surveys', 'error');
+            } finally {
+                setLoading(prev => ({ ...prev, surveys: false }));
+            }
+        };
+
+        fetchSurveys();
+    }, []);
+
+    useEffect(() => {
+        if (filters.survey) {
+            fetchConstituencies(filters.survey);
+            setFilters(prev => ({
+                ...prev,
+                constituency: '',
+                boothNumber: ''
+            }));
+            setBoothOptions([]);
+            setVoters([]); 
+        } else {
+            setConstituencyOptions([]);
+            setBoothOptions([]);
+            setVoters([]);
+        }
+    }, [filters.survey]);
+
+    useEffect(() => {
+        if (filters.survey && filters.constituency) {
+            fetchBooths(filters.survey, filters.constituency);
+            setFilters(prev => ({
+                ...prev,
+                boothNumber: ''
+            }));
+            setVoters([]); 
+        } else {
+            setBoothOptions([]);
+            setVoters([]);
+        }
+    }, [filters.constituency]);
+
+    useEffect(() => {
+        if (!filters.boothNumber) {
+            setVoters([]);
+        }
+    }, [filters.boothNumber]);
+
+    const fetchActiveSurveys = async () => {
+        setLoading(prev => ({ ...prev, surveys: true }));
+        try {
+            const response = await axiosInstance.get('/file/active');
+            setSurveyOptions(response.data || []);
+        } catch (error) {
+            console.error('Error fetching active surveys:', error);
+            showSnackbar('Error fetching surveys', 'error');
+        } finally {
+            setLoading(prev => ({ ...prev, surveys: false }));
+        }
+    };
+
+    const fetchConstituencies = async (surveyName) => {
+        setLoading(prev => ({ ...prev, constituencies: true }));
+        try {
+            const response = await axiosInstance.get(`/file/distinct-constituencies?surveyName=${encodeURIComponent(surveyName)}`);
+            setConstituencyOptions(response.data || []);
+        } catch (error) {
+            console.error('Error fetching constituencies:', error);
+            showSnackbar('Error fetching constituencies', 'error');
+        } finally {
+            setLoading(prev => ({ ...prev, constituencies: false }));
+        }
+    };
+
+    const fetchBooths = async (surveyName, constituency) => {
+        setLoading(prev => ({ ...prev, booths: true }));
+        try {
+            const response = await axiosInstance.get(`/file/distinct-booths?surveyName=${encodeURIComponent(surveyName)}&Constituency=${encodeURIComponent(constituency)}`);
+            setBoothOptions(response.data || []);
+        } catch (error) {
+            console.error('Error fetching booths:', error);
+            showSnackbar('Error fetching booths', 'error');
+        } finally {
+            setLoading(prev => ({ ...prev, booths: false }));
+        }
+    };
 
     const handleFilterChange = (field, value) => {
         setFilters(prev => ({
@@ -233,24 +170,17 @@ export default function WithVoterId() {
     const handleClearFilters = () => {
         setFilters({
             survey: '',
-            constituency: '188-MELUR',
+            constituency: '',
             boothNumber: '',
             district: '',
             name: '',
             houseNo: ''
         });
+        setConstituencyOptions([]);
+        setBoothOptions([]);
+        setVoters([]);
         setShowAdditionalFilters(false);
     };
-
-    // const handleVoterClick = (voter) => {
-    //     if (voter.verified) {
-    //         console.log(`Navigating to survey page for verified voter: ${voter.name} with ID: ${voter.voterId}`);
-    //         window.location.href = `/survey/${voter.voterId}?edit=true`;
-    //     } else {
-    //         console.log(`Navigating to new survey page for unverified voter: ${voter.name} with ID: ${voter.voterId}`);
-    //         window.location.href = `/survey/${voter.voterId}?new=true`;
-    //     }
-    // };
 
     const handleMenuOpen = (event, voterId) => {
         event.stopPropagation();
@@ -263,6 +193,12 @@ export default function WithVoterId() {
         setSelectedVoterId(null);
     };
 
+    const showSnackbar = (message, severity = 'success') => {
+        setSnackbarMessage(message);
+        setSnackbarSeverity(severity);
+        setSnackbarOpen(true);
+    };
+
     const handleSnackbarClose = (event, reason) => {
         if (reason === 'clickaway') {
             return;
@@ -272,24 +208,31 @@ export default function WithVoterId() {
 
     const handleDelete = () => {
         setVoters(prev => prev.filter(voter => voter.id !== selectedVoterId));
-        setSnackbarMessage('Entry deleted successfully!');
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
+        showSnackbar('Entry deleted successfully!', 'success');
         handleMenuClose();
     };
 
-    const handleVotedToggle = () => {
-        setVoters(prev =>
-            prev.map(voter =>
-                voter.id === selectedVoterId
-                    ? { ...voter, voted: !voter.voted }
-                    : voter
-            )
-        );
-        setSnackbarMessage(selectedVoter?.voted ? 'Voter unmarked as voted.' : 'Voter marked as voted!');
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
-        handleMenuClose();
+    const handleVotedToggle = async () => {
+        try {
+            const response = await axiosInstance.post(`/file/markAsVoted/${selectedVoterId}`);
+            if (response.status === 200) {
+                setVoters(prev =>
+                    prev.map(voter =>
+                        voter.id === selectedVoterId
+                            ? { ...voter, voted: true }
+                            : voter
+                    )
+                );
+                showSnackbar('Voter marked as voted!', 'success');
+            } else {
+                showSnackbar('Failed to mark as voted.', 'error');
+            }
+        } catch (error) {
+            console.error('Error marking voted:', error);
+            showSnackbar('Error marking voted.', 'error');
+        } finally {
+            handleMenuClose();
+        }
     };
 
     const handleVerifiedToggle = () => {
@@ -300,9 +243,7 @@ export default function WithVoterId() {
                     : voter
             )
         );
-        setSnackbarMessage(selectedVoter?.verified ? 'Voter unmarked as verified.' : 'Voter marked as verified!');
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
+        showSnackbar(selectedVoter?.verified ? 'Voter unmarked as verified.' : 'Voter marked as verified!', 'success');
         handleMenuClose();
     };
 
@@ -318,14 +259,84 @@ export default function WithVoterId() {
         }
     };
 
+    const handleNavigateToSurvey = (id) => {
+        const currentPath = location.pathname;
+
+        if (currentPath.includes('/admin')) {
+            navigate(`/admin/with-voter-id/form/${id}`);
+        } else if (currentPath.includes('/surveyor')) {
+            navigate(`/surveyor/with-voter-id/form/${id}`);
+        } else {
+            navigate('/');
+        }
+    }
+
+    const handleSearch = async () => {
+        if (!filters.survey || !filters.constituency || !filters.boothNumber) {
+            showSnackbar('Please select survey, constituency, and booth number to search', 'warning');
+            return;
+        }
+
+        setLoading(prev => ({ ...prev, search: true }));
+        
+        try {
+            const params = new URLSearchParams({
+                surveyName: filters.survey,
+                Constituency: filters.constituency,
+                booth: filters.boothNumber
+            });
+
+            if (filters.name.trim()) {
+                params.append('name', filters.name.trim());
+            }
+            if (filters.houseNo.trim()) {
+                params.append('houseNumber', filters.houseNo.trim());
+            }
+
+            const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
+            console.log(response.data);
+            
+            const transformedVoters = response.data.map((voter, index) => ({
+                id: voter.id || index + 1, 
+                name: voter.name || 'N/A',
+                voterId: voter.voterId || voter.voterID || 'N/A',
+                serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
+                relative: voter.relationName || 'N/A',
+                boothNo: voter.booth,
+                houseNo: voter.houseNumber || 'N/A',
+                constituency: voter.constituency || filters.constituency,
+                survey: voter.survey || voter.surveyName || filters.survey,
+                district: voter.district || filters.district || 'N/A',
+                voted: voter.voted || false,
+                verified: voter.verified || false
+            }));
+
+            setVoters(transformedVoters);
+            
+            if (transformedVoters.length === 0) {
+                showSnackbar('No voters found matching your criteria', 'info');
+            } else {
+                showSnackbar(`Found ${transformedVoters.length} voter(s)`, 'success');
+            }
+        } catch (error) {
+            console.error('Error searching voters:', error);
+            if (error.response?.status === 404) {
+                showSnackbar('No voters found matching your criteria', 'info');
+                setVoters([]);
+            } else {
+                showSnackbar('Error searching voters. Please try again.', 'error');
+            }
+        } finally {
+            setLoading(prev => ({ ...prev, search: false }));
+        }
+    };
+
     const filteredVoters = voters.filter(voter => {
         const nameMatch = !filters.name || voter.name.toLowerCase().includes(filters.name.toLowerCase());
         const houseNoMatch = !filters.houseNo || voter.houseNo.toString().includes(filters.houseNo);
-
         const boothNumberMatch = !filters.boothNumber ||
                                  (voter.boothNo !== undefined && voter.boothNo !== null &&
                                   voter.boothNo.toString() === filters.boothNumber.toString());
-
         const constituencyMatch = !filters.constituency || voter.constituency === filters.constituency;
         const surveyMatch = !filters.survey || voter.survey === filters.survey;
         const districtMatch = !filters.district || voter.district === filters.district;
@@ -333,20 +344,11 @@ export default function WithVoterId() {
         return nameMatch && houseNoMatch && boothNumberMatch && constituencyMatch && surveyMatch && districtMatch;
     });
 
-    const isAnyFilterActive = Object.keys(filters).some(key => {
-        if (key === 'constituency') {
-            return filters[key] !== '188-MELUR';
-        }
-        return filters[key] !== '';
-    });
+    const isAnyFilterActive = Object.keys(filters).some(key => filters[key] !== '');
+    const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
 
     return (
-        <Box
-            sx={{
-                minHeight: '100vh',
-                p: 3
-            }}
-        >
+        <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
             <Container maxWidth="xl">
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
                     <Button
@@ -363,146 +365,67 @@ export default function WithVoterId() {
                 <Box sx={{ mb: 6 }}>
                     <Grid container spacing={3} sx={{ mb: 3 }}>
                         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                            <FormControl fullWidth size="small"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        background: 'transparent',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.23)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.5)',
-                                        },
-                                        '&.Mui-focused fieldset': {
-                                            borderColor: 'primary.main',
-                                        },
-                                    },
-                                    '& .MuiInputBase-input': {
-                                        color: 'rgba(0, 0, 0, 0.87)',
-                                    },
-                                    '& .MuiInputLabel-root': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    },
-                                    '& .MuiSelect-icon': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    }
-                                }}>
+                            <FormControl fullWidth size="small">
                                 <InputLabel>Survey</InputLabel>
                                 <Select
                                     value={filters.survey}
                                     label="Survey"
                                     onChange={(e) => handleFilterChange('survey', e.target.value)}
+                                    disabled={loading.surveys}
+                                    endAdornment={loading.surveys && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Survey</MenuItem>
-                                    <MenuItem value="2024-election">2024 Election Survey</MenuItem>
-                                    <MenuItem value="public-opinion">Public Opinion Poll</MenuItem>
-                                    <MenuItem value="constituency-feedback">Constituency Feedback</MenuItem>
+                                    {surveyOptions.map((survey) => (
+                                        <MenuItem key={survey.id || survey} value={survey.surveyName || survey}>
+                                            {survey.surveyName || survey}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                         </Grid>
 
                         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                            <FormControl fullWidth size="small"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        background: 'transparent',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.23)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.5)',
-                                        },
-                                        '&.Mui-focused fieldset': {
-                                            borderColor: 'primary.main',
-                                        },
-                                    },
-                                    '& .MuiInputBase-input': {
-                                        color: 'rgba(0, 0, 0, 0.87)',
-                                    },
-                                    '& .MuiInputLabel-root': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    },
-                                    '& .MuiSelect-icon': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    }
-                                }}>
+                            <FormControl fullWidth size="small">
                                 <InputLabel>Constituency</InputLabel>
                                 <Select
                                     value={filters.constituency}
                                     label="Constituency"
                                     onChange={(e) => handleFilterChange('constituency', e.target.value)}
+                                    disabled={!filters.survey || loading.constituencies}
+                                    endAdornment={loading.constituencies && <CircularProgress size={20} />}
                                 >
-                                    <MenuItem value="188-MELUR">188-MELUR</MenuItem>
-                                    <MenuItem value="189-MADURAI-EAST">189-MADURAI-EAST</MenuItem>
-                                    <MenuItem value="190-MADURAI-WEST">190-MADURAI-WEST</MenuItem>
+                                    <MenuItem value="">Select Constituency</MenuItem>
+                                    {constituencyOptions.map((constituency, index) => (
+                                        <MenuItem key={index} value={constituency}>
+                                            {constituency}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                         </Grid>
 
                         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                            <FormControl fullWidth size="small"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        background: 'transparent',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.23)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.5)',
-                                        },
-                                        '&.Mui-focused fieldset': {
-                                            borderColor: 'primary.main',
-                                        },
-                                    },
-                                    '& .MuiInputBase-input': {
-                                        color: 'rgba(0, 0, 0, 0.87)',
-                                    },
-                                    '& .MuiInputLabel-root': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    },
-                                    '& .MuiSelect-icon': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    }
-                                }}>
+                            <FormControl fullWidth size="small">
                                 <InputLabel>Booth Number</InputLabel>
                                 <Select
                                     value={filters.boothNumber}
                                     label="Booth Number"
                                     onChange={(e) => handleFilterChange('boothNumber', e.target.value)}
+                                    disabled={!filters.constituency || loading.booths}
+                                    endAdornment={loading.booths && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Booth</MenuItem>
-                                    <MenuItem value="1">Booth 1</MenuItem>
-                                    <MenuItem value="2">Booth 2</MenuItem>
-                                    <MenuItem value="3">Booth 3</MenuItem>
+                                    {boothOptions.map((booth, index) => (
+                                        <MenuItem key={index} value={booth}>
+                                            Booth {booth}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                         </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                            <FormControl fullWidth size="small"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        background: 'transparent',
-                                        '& fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.23)',
-                                        },
-                                        '&:hover fieldset': {
-                                            borderColor: 'rgba(0, 0, 0, 0.5)',
-                                        },
-                                        '&.Mui-focused fieldset': {
-                                            borderColor: 'primary.main',
-                                        },
-                                    },
-                                    '& .MuiInputBase-input': {
-                                        color: 'rgba(0, 0, 0, 0.87)',
-                                    },
-                                    '& .MuiInputLabel-root': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    },
-                                    '& .MuiSelect-icon': {
-                                        color: 'rgba(0, 0, 0, 0.6)',
-                                    }
-                                }}>
+                        {/* <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                            <FormControl fullWidth size="small">
                                 <InputLabel>District</InputLabel>
                                 <Select
                                     value={filters.district}
@@ -515,7 +438,7 @@ export default function WithVoterId() {
                                     <MenuItem value="dindigul">Dindigul</MenuItem>
                                 </Select>
                             </FormControl>
-                        </Grid>
+                        </Grid> */}
 
                         {showAdditionalFilters && (
                             <>
@@ -527,26 +450,6 @@ export default function WithVoterId() {
                                         value={filters.name}
                                         onChange={(e) => handleFilterChange('name', e.target.value)}
                                         size="small"
-                                        sx={{
-                                            '& .MuiOutlinedInput-root': {
-                                                background: 'transparent',
-                                                '& fieldset': {
-                                                    borderColor: 'rgba(0, 0, 0, 0.23)',
-                                                },
-                                                '&:hover fieldset': {
-                                                    borderColor: 'rgba(0, 0, 0, 0.5)',
-                                                },
-                                                '&.Mui-focused fieldset': {
-                                                    borderColor: 'primary.main',
-                                                },
-                                            },
-                                            '& .MuiInputBase-input': {
-                                                color: 'rgba(0, 0, 0, 0.87)',
-                                            },
-                                            '& .MuiInputLabel-root': {
-                                                color: 'rgba(0, 0, 0, 0.6)',
-                                            },
-                                        }}
                                     />
                                 </Grid>
 
@@ -558,26 +461,6 @@ export default function WithVoterId() {
                                         value={filters.houseNo}
                                         onChange={(e) => handleFilterChange('houseNo', e.target.value)}
                                         size="small"
-                                        sx={{
-                                            '& .MuiOutlinedInput-root': {
-                                                background: 'transparent',
-                                                '& fieldset': {
-                                                    borderColor: 'rgba(0, 0, 0, 0.23)',
-                                                },
-                                                '&:hover fieldset': {
-                                                    borderColor: 'rgba(0, 0, 0, 0.5)',
-                                                },
-                                                '&.Mui-focused fieldset': {
-                                                    borderColor: 'primary.main',
-                                                },
-                                            },
-                                            '& .MuiInputBase-input': {
-                                                color: 'rgba(0, 0, 0, 0.87)',
-                                            },
-                                            '& .MuiInputLabel-root': {
-                                                color: 'rgba(0, 0, 0, 0.6)',
-                                            },
-                                        }}
                                     />
                                 </Grid>
                             </>
@@ -587,7 +470,9 @@ export default function WithVoterId() {
                     <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-start' }}>
                         <Button
                             variant="outlined"
-                            startIcon={<Search />}
+                            startIcon={loading.search ? <CircularProgress size={16} /> : <Search />}
+                            onClick={handleSearch}
+                            disabled={!shouldShowVoters || loading.search}
                             sx={{
                                 textTransform: 'none',
                                 px: 4,
@@ -598,10 +483,14 @@ export default function WithVoterId() {
                                     backgroundColor: 'rgba(3, 169, 244, 0.04)',
                                     borderColor: '#0288d1',
                                     color: '#0288d1'
+                                },
+                                '&:disabled': {
+                                    borderColor: 'rgba(0, 0, 0, 0.12)',
+                                    color: 'rgba(0, 0, 0, 0.26)'
                                 }
                             }}
                         >
-                            Search
+                            {loading.search ? 'Searching...' : 'Search'}
                         </Button>
                         <Button
                             variant="outlined"
@@ -637,34 +526,25 @@ export default function WithVoterId() {
                     </Box>
                 </Box>
 
-                <Box sx={{ textAlign: 'center', mb: 6 }}>
+                <Box sx={{ textAlign: 'center', mb: 4 }}>
                     <Typography
-                        variant="h2"
+                        variant="h4"
                         sx={{
-                            fontWeight: 'bold',
+                            fontWeight: 600,
                             color: 'rgba(0, 0, 0, 0.85)',
                             mb: 2
                         }}
                     >
-                        Voter Database
-                    </Typography>
-                    <Typography variant="h6" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
-                        {isAnyFilterActive || filteredVoters.length > 0 ? (
-                            filteredVoters.length > 0 ?
-                                `${filteredVoters.length} voters found in ${filters.constituency}` :
-                                'No voters found matching your criteria.'
-                        ) : (
-                            'Select filters to display data.'
-                        )}
+                        Voter Details
                     </Typography>
                 </Box>
 
                 <Grid container spacing={4}>
-                    {(isAnyFilterActive || (filters.constituency === '188-MELUR' && !isAnyFilterActive)) && filteredVoters.length > 0 ? (
+                    {shouldShowVoters && filteredVoters.length > 0 ? (
                         filteredVoters.map((voter) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
                                 <Card
-                                    onClick={() => navigate('/survey/with-voter-id/form')}
+                                    onClick={() => handleNavigateToSurvey(voter?.id)}
                                     sx={{
                                         background: 'rgba(255, 255, 255, 0.25)',
                                         backdropFilter: 'blur(20px)',
@@ -695,9 +575,9 @@ export default function WithVoterId() {
                                                         mr: 1
                                                     }}
                                                 >
-                                                    {voter.name}
+                                                    {voter?.name}
                                                 </Typography>
-                                                {voter.verified && (
+                                                {voter?.verified && (
                                                     <Box
                                                         sx={{
                                                             width: 20,
@@ -714,7 +594,7 @@ export default function WithVoterId() {
                                                 )}
                                             </Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                {voter.voted && (
+                                                {voter?.voted && (
                                                     <Chip
                                                         label="Voted"
                                                         size="small"
@@ -743,10 +623,10 @@ export default function WithVoterId() {
 
                                         <Box>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
-                                                <strong>Voter ID:</strong> {voter.voterId}
+                                                <strong>Voter ID:</strong> {voter?.voterId}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
-                                                <strong>Serial Number:</strong> {voter.serialNumber}
+                                                <strong>Serial Number:</strong> {voter?.serialNumber}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
                                                 <strong>Relative:</strong> {voter.relative}
@@ -762,14 +642,27 @@ export default function WithVoterId() {
                                 </Card>
                             </Grid>
                         ))
+                    ) : shouldShowVoters ? (
+                        <Grid size={{ xs: 12 }}>
+                            <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
+                                {loading.search ? (
+                                    <CircularProgress />
+                                ) : voters.length === 0 ? (
+                                    <Typography variant="h6">
+                                        Click "Search" to find voters matching your criteria.
+                                    </Typography>
+                                ) : (
+                                    <Typography variant="h6">
+                                        No voters found matching your criteria.
+                                    </Typography>
+                                )}
+                            </Box>
+                        </Grid>
                     ) : (
                         <Grid size={{ xs: 12 }}>
                             <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
-                                <Typography variant="h5">
-                                    {isAnyFilterActive ?
-                                        'No voters found matching your criteria.' :
-                                        'Select filters to display data.'
-                                    }
+                                <Typography variant="h6">
+                                    Please select survey, constituency, and booth to search for voter details.
                                 </Typography>
                             </Box>
                         </Grid>

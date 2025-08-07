@@ -6,6 +6,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Grid,
   TextField,
   Button,
@@ -18,9 +19,12 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  TablePagination,
+  Menu
 } from "@mui/material";
-import { useState, useEffect } from "react";
+import { FilterList } from "@mui/icons-material";
+import { useState, useEffect, useMemo } from "react";
 import ClearIcon from "@mui/icons-material/Clear";
 import axiosInstance from "../axios/axios";
 
@@ -29,8 +33,8 @@ const headCells = [
   { id: "email", label: "Email", sortable: true },
   { id: "phone", label: "Phone", sortable: false },
   { id: "constituency", label: "Constituency", sortable: true },
-  { id: "role", label: "Role", sortable: false },
-  { id: "status", label: "Status", sortable: false },
+  { id: "role", label: "Role", sortable: false, filterable: true },
+  { id: "status", label: "Status", sortable: false, filterable: true },
   { id: "actions", label: "Actions", sortable: false }
 ];
 
@@ -45,8 +49,13 @@ export default function UserTable({ users }) {
   const [searchConstituency, setSearchConstituency] = useState("");
   const [loading, setLoading] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  const [roleMenuAnchor, setRoleMenuAnchor] = useState(null);
+  const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
 
-  // Effect to update userData if the users prop changes
   useEffect(() => {
     setUserData(users);
   }, [users]);
@@ -57,6 +66,15 @@ export default function UserTable({ users }) {
     setOrderBy(property);
   };
 
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
@@ -65,40 +83,61 @@ export default function UserTable({ users }) {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  // Filter and search functionality
-  const getFilteredUsers = () => {
+  const handleRoleFilterClick = (e) => {
+    setRoleMenuAnchor(e.currentTarget);
+  };
+
+  const handleStatusFilterClick = (e) => {
+    setStatusMenuAnchor(e.currentTarget);
+  };
+
+  const handleRoleFilterClose = () => {
+    setRoleMenuAnchor(null);
+  };
+
+  const handleStatusFilterClose = () => {
+    setStatusMenuAnchor(null);
+  };
+
+  const handleRoleFilterChange = (role) => {
+    setRoleFilter(role);
+    setPage(0); 
+    handleRoleFilterClose();
+  };
+
+  const handleStatusFilterChange = (status) => {
+    setStatusFilter(status);
+    setPage(0); 
+    handleStatusFilterClose();
+  };
+
+  const filteredUsers = useMemo(() => {
     return userData.filter(user => {
-      // Search filters
       const nameMatch = user.name?.toLowerCase().includes(searchName.toLowerCase()) || searchName === "";
       const emailMatch = user.email?.toLowerCase().includes(searchEmail.toLowerCase()) || searchEmail === "";
       const constituencyMatch = user.constituency?.toLowerCase().includes(searchConstituency.toLowerCase()) || searchConstituency === "";
       
-      // Status filter
       const statusMatch = statusFilter === "" || 
-        (statusFilter === "active" && user.accept === "1") ||
-        (statusFilter === "inactive" && user.accept === "0");
+        (statusFilter === "active" && user.accept === "Accepted") ||
+        (statusFilter === "inactive" && user.accept === "Declined");
       
-      // Role filter
       const roleMatch = roleFilter === "" || user.role?.toLowerCase() === roleFilter.toLowerCase();
       
       return nameMatch && emailMatch && constituencyMatch && statusMatch && roleMatch;
     });
-  };
+  }, [userData, searchName, searchEmail, searchConstituency, statusFilter, roleFilter]);
 
-  // Sort functionality
-  const getSortedUsers = (users) => {
-    const filteredUsers = [...users];
+  const sortedUsers = useMemo(() => {
+    const users = [...filteredUsers];
     
     if (orderBy && headCells.find(cell => cell.id === orderBy)?.sortable) {
-      filteredUsers.sort((a, b) => {
+      users.sort((a, b) => {
         let aValue = a[orderBy];
         let bValue = b[orderBy];
         
-        // Handle null/undefined values
         if (aValue == null) aValue = "";
         if (bValue == null) bValue = "";
         
-        // Convert to string for comparison
         aValue = aValue.toString().toLowerCase();
         bValue = bValue.toString().toLowerCase();
         
@@ -110,8 +149,12 @@ export default function UserTable({ users }) {
       });
     }
     
-    return filteredUsers;
-  };
+    return users;
+  }, [filteredUsers, order, orderBy]);
+
+  const paginatedUsers = useMemo(() => {
+    return sortedUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [sortedUsers, page, rowsPerPage]);
 
   const refreshUserData = async () => {
     try {
@@ -179,14 +222,13 @@ export default function UserTable({ users }) {
     setSearchConstituency("");
     setStatusFilter("");
     setRoleFilter("");
+    setPage(0);
   };
-
-  const displayUsers = getSortedUsers(getFilteredUsers());
 
   return (
     <Box sx={{ width: { xs: "100%", md: "95%" } }} p={2}>
       <Grid container spacing={2} mb={2}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <TextField
             label="Search Name"
             variant="outlined"
@@ -207,7 +249,7 @@ export default function UserTable({ users }) {
             }}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <TextField
             label="Search Email"
             variant="outlined"
@@ -228,7 +270,7 @@ export default function UserTable({ users }) {
             }}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <TextField
             label="Search Constituency"
             variant="outlined"
@@ -249,57 +291,6 @@ export default function UserTable({ users }) {
             }}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={statusFilter}
-              label="Status"
-              onChange={(e) => setStatusFilter(e.target.value)}
-              endAdornment={statusFilter && (
-                <InputAdornment position="end">
-                  <IconButton 
-                    onClick={() => setStatusFilter("")} 
-                    size="small"
-                    sx={{ mr: 1 }}
-                  >
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              )}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel>Role</InputLabel>
-            <Select
-              value={roleFilter}
-              label="Role"
-              onChange={(e) => setRoleFilter(e.target.value)}
-              endAdornment={roleFilter && (
-                <InputAdornment position="end">
-                  <IconButton 
-                    onClick={() => setRoleFilter("")} 
-                    size="small"
-                    sx={{ mr: 1 }}
-                  >
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              )}
-            >
-              <MenuItem value="">All</MenuItem>
-              {getUniqueRoles().map(role => (
-                <MenuItem key={role} value={role}>{role}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
       </Grid>
 
       <Box display="flex" justifyContent="flex-end" mb={2}>
@@ -308,7 +299,6 @@ export default function UserTable({ users }) {
           size="small" 
           onClick={clearAllFilters}
         >
-        
           Clear All Filters
         </Button>
       </Box>
@@ -322,25 +312,46 @@ export default function UserTable({ users }) {
                   key={headCell.id} 
                   sx={{ 
                     fontSize: "1rem", 
-                    fontWeight: 600,
-                    cursor: headCell.sortable ? "pointer" : "default"
+                    fontWeight: 600
                   }} 
                   align="center"
-                  onClick={() => headCell.sortable && handleSort(headCell.id)}
                 >
-                  {headCell.label}
-                  {headCell.sortable && orderBy === headCell.id && (
-                    <span style={{ marginLeft: '4px' }}>
-                      {order === 'asc' ? '↑' : '↓'}
-                    </span>
-                  )}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {headCell.sortable ? (
+                      <TableSortLabel
+                        active={orderBy === headCell.id}
+                        direction={orderBy === headCell.id ? order : "asc"}
+                        onClick={() => handleSort(headCell.id)}
+                      >
+                        {headCell.label}
+                      </TableSortLabel>
+                    ) : (
+                      headCell.label
+                    )}
+                    {headCell.id === "role" && (
+                      <IconButton size="small" onClick={handleRoleFilterClick}>
+                        <FilterList fontSize="small" />
+                      </IconButton>
+                    )}
+                    {headCell.id === "status" && (
+                      <IconButton size="small" onClick={handleStatusFilterClick}>
+                        <FilterList fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
                 </TableCell>
               ))}
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {displayUsers.map((user, index) => (
+            {paginatedUsers.map((user, index) => (
               <TableRow 
                 key={user?.id} 
                 sx={{ 
@@ -384,7 +395,7 @@ export default function UserTable({ users }) {
                 </TableCell>
               </TableRow>
             ))}
-            {displayUsers?.length === 0 && (
+            {paginatedUsers?.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   No users found.
@@ -394,6 +405,38 @@ export default function UserTable({ users }) {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25]}
+        component="div"
+        count={sortedUsers.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+
+      {/* Role Filter Menu */}
+      <Menu 
+        anchorEl={roleMenuAnchor} 
+        open={Boolean(roleMenuAnchor)} 
+        onClose={handleRoleFilterClose}
+      >
+        <MenuItem onClick={() => handleRoleFilterChange("")}>All</MenuItem>
+        <MenuItem onClick={() => handleRoleFilterChange("surveyor")}>Surveyor</MenuItem>
+        <MenuItem onClick={() => handleRoleFilterChange("admin")}>Admin</MenuItem>
+      </Menu>
+
+      {/* Status Filter Menu */}
+      <Menu 
+        anchorEl={statusMenuAnchor} 
+        open={Boolean(statusMenuAnchor)} 
+        onClose={handleStatusFilterClose}
+      >
+        <MenuItem onClick={() => handleStatusFilterChange("")}>All</MenuItem>
+        <MenuItem onClick={() => handleStatusFilterChange("active")}>Active</MenuItem>
+        <MenuItem onClick={() => handleStatusFilterChange("inactive")}>Inactive</MenuItem>
+      </Menu>
 
       <Snackbar
         open={snackbar.open}
