@@ -47,7 +47,7 @@ export default function Navbar({ userRole }) {
 
     const surveyorNavItems = [
         { label: "Home", href: "/surveyor/home" },
-        { label: "Survey", href: "/surveyor/home" }
+        // { label: "Survey", href: "/surveyor/home" }
     ];
 
     const navItems = user?.role.toLowerCase() === "admin" ? adminNavItems : surveyorNavItems;

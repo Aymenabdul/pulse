@@ -34,14 +34,13 @@ const headCells = [
 export default function SurveyTable({ data, loading }) {
   const [orderBy, setOrderBy] = useState("surveyName");
   const [order, setOrder] = useState("asc");
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = useState(new Set());
   const [statusFilter, setStatusFilter] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
-  const [tableData, setTableData] = useState(data);
+  const [tableData, setTableData] = useState(data || []);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
-  // Snackbar state
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -49,10 +48,11 @@ export default function SurveyTable({ data, loading }) {
   });
 
   useEffect(() => {
-    setTableData(data);
+    setTableData(data || []);
+    setSelected(new Set());
   }, [data]);
 
-  const isSelected = (id) => selected.indexOf(id) !== -1;
+  const isSelected = (surveyName) => selected.has(surveyName);
 
   const handleSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -62,26 +62,31 @@ export default function SurveyTable({ data, loading }) {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = paginatedData.map((row) => row.id);
-      setSelected(newSelecteds);
+      const newSelected = new Set();
+      paginatedData.forEach(row => newSelected.add(row.surveyName));
+      setSelected(newSelected);
     } else {
-      setSelected([]);
+      setSelected(new Set());
     }
   };
 
-  const handleCheckboxClick = (event, id) => {
+  const handleCheckboxClick = (event, surveyName) => {
     event.stopPropagation();
 
+    const clickedRow = tableData.find(row => row.surveyName === surveyName);
+    if (!clickedRow) return;
+
     setSelected((prevSelected) => {
-      const selectedIndex = prevSelected.indexOf(id);
+      const newSelected = new Set(prevSelected);
+      const isCurrentlySelected = newSelected.has(surveyName);
       
-      if (selectedIndex === -1) {
-        // Add to selection
-        return [...prevSelected, id];
+      if (!isCurrentlySelected) {
+        newSelected.add(surveyName);
       } else {
-        // Remove from selection
-        return prevSelected.filter((selectedId) => selectedId !== id);
+        newSelected.delete(surveyName);
       }
+      
+      return newSelected;
     });
   };
 
@@ -142,6 +147,110 @@ export default function SurveyTable({ data, loading }) {
     }
   };
 
+  const handleBulkActivateDeactivate = async () => {
+    if (selected.size === 0) {
+      showSnackbar("No surveys selected", "warning");
+      return;
+    }
+
+    const selectedSurveys = tableData.filter(row => selected.has(row.surveyName));
+    
+    if (selectedSurveys.length === 0) {
+      showSnackbar("Selected surveys not found", "error");
+      return;
+    }
+
+    const operationPromises = selectedSurveys.map(async (survey) => {
+      try {
+        const shouldActivate = !survey.isActive;
+        const endpoint = shouldActivate 
+          ? `/file/activate-survey?surveyName=${survey.surveyName}`
+          : `/file/deactivate-survey?surveyName=${survey.surveyName}`;
+        
+        const response = await axiosInstance.put(endpoint);
+        
+        if (response.status === 200) {
+          return {
+            success: true,
+            surveyName: survey.surveyName,
+            action: shouldActivate ? 'activate' : 'deactivate',
+            newStatus: shouldActivate
+          };
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        return {
+          success: false,
+          surveyName: survey.surveyName,
+          error: error.message
+        };
+      }
+    });
+
+    showSnackbar(`Processing ${selectedSurveys.length} survey(s)...`, "info");
+
+    try {
+      const results = await Promise.allSettled(operationPromises);
+      
+      const successfulOperations = [];
+      const failedOperations = [];
+      
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          if (result.value.success) {
+            successfulOperations.push(result.value);
+          } else {
+            failedOperations.push(result.value);
+          }
+        } else {
+          failedOperations.push({
+            success: false,
+            error: result.reason?.message || 'Unknown error'
+          });
+        }
+      });
+
+      if (successfulOperations.length > 0) {
+        setTableData(prevData => 
+          prevData.map(survey => {
+            const successfulOp = successfulOperations.find(op => op.surveyName === survey.surveyName);
+            if (successfulOp) {
+              return { ...survey, isActive: successfulOp.newStatus };
+            }
+            return survey;
+          })
+        );
+      }
+
+      setSelected(new Set());
+
+      const successCount = successfulOperations.length;
+      const failureCount = failedOperations.length;
+      
+      if (failureCount === 0) {
+        showSnackbar(
+          `Successfully processed ${successCount} survey(s)`, 
+          "success"
+        );
+      } else if (successCount === 0) {
+        showSnackbar(
+          `Failed to process all surveys`, 
+          "error"
+        );
+      } else {
+        showSnackbar(
+          `${successCount} survey(s) processed successfully, ${failureCount} failed`, 
+          "warning"
+        );
+      }
+
+    } catch (error) {
+      console.error('Bulk operation error:', error);
+      showSnackbar('An unexpected error occurred', "error");
+    }
+  };
+
   const handleFilterClick = (e) => {
     setAnchorEl(e.currentTarget);
   };
@@ -152,37 +261,37 @@ export default function SurveyTable({ data, loading }) {
 
   const handleStatusFilterChange = (status) => {
     setStatusFilter(status);
-    setPage(0); // Reset to first page when filter changes
+    setPage(0); 
+    setSelected(new Set());
     handleFilterClose();
   };
 
   const handleDelete = (surveyName) => {
-    const surveyToDelete = tableData.find((s) => s.surveyName === surveyName);
+    const updated = tableData.filter((s) => s.surveyName !== surveyName);
+    setTableData(updated);
     
-    if (surveyToDelete) {
-      // Remove from table data
-      const updated = tableData.filter((s) => s.surveyName !== surveyName);
-      setTableData(updated);
-      
-      // Remove from selected if it was selected
-      setSelected(prevSelected => prevSelected.filter((id) => id !== surveyToDelete.id));
-      
-      console.log("Survey deleted locally:", surveyName);
-    }
+    setSelected(prevSelected => {
+      const newSelected = new Set(prevSelected);
+      newSelected.delete(surveyName);
+      return newSelected;
+    });
+    
+    showSnackbar("Survey deleted successfully", "success");
+    console.log("Survey deleted locally:", surveyName);
   };
 
   const handleBulkDelete = () => {
-    selected.forEach((id) => {
-      const surveyToDelete = tableData.find((row) => row.id === id);
-      if (surveyToDelete) {
-        handleDelete(surveyToDelete.surveyName);
-      }
+    const selectedSurveyNames = Array.from(selected);
+    selectedSurveyNames.forEach((surveyName) => {
+      handleDelete(surveyName);
     });
-    // Clear selection after bulk delete
-    setSelected([]);
+    setSelected(new Set());
+    showSnackbar(`${selectedSurveyNames.length} survey(s) deleted`, "success");
   };
 
   const filteredData = useMemo(() => {
+    if (!Array.isArray(tableData)) return [];
+    
     return tableData
       .filter((row) => {
         if (!statusFilter) return true;
@@ -203,19 +312,46 @@ export default function SurveyTable({ data, loading }) {
     return filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   }, [filteredData, page, rowsPerPage]);
 
+  const getSelectedStatus = () => {
+    if (selected.size === 0) return null;
+    
+    const selectedSurveys = tableData.filter(row => selected.has(row.surveyName));
+    const hasActive = selectedSurveys.some(survey => survey.isActive);
+    const hasInactive = selectedSurveys.some(survey => !survey.isActive);
+    
+    if (hasActive && hasInactive) {
+      return 'mixed';
+    } else if (hasActive) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
   return (
     <Box sx={{ width: { xs: "100%", md: "98%" }, p: 2 }}>
       <Toolbar>
         <Typography variant="h6" sx={{ flex: 1 }}>
           Surveys
         </Typography>
-        {selected.length > 0 && (
-          <IconButton
-            color="error"
-            onClick={handleBulkDelete}
-          >
-            <Delete />
-          </IconButton>
+        {selected.size > 0 && (
+          <>
+            <Button
+              variant="contained"
+              size="small"
+              color="primary"
+              onClick={handleBulkActivateDeactivate}
+              sx={{ mr: 1 }}
+            >
+              {getSelectedStatus() === 'mixed' ? 'Toggle Status' : getSelectedStatus() ? 'Deactivate All' : 'Activate All'} ({selected.size})
+            </Button>
+            <IconButton
+              color="error"
+              onClick={handleBulkDelete}
+            >
+              <Delete />
+            </IconButton>
+          </>
         )}
       </Toolbar>
 
@@ -226,11 +362,14 @@ export default function SurveyTable({ data, loading }) {
               <TableCell padding="checkbox" align="center">
                 <Checkbox
                   indeterminate={
-                    selected.length > 0 && selected.length < paginatedData.length
+                    selected.size > 0 && 
+                    selected.size < paginatedData.length &&
+                    paginatedData.some(row => selected.has(row.surveyName)) &&
+                    !paginatedData.every(row => selected.has(row.surveyName))
                   }
                   checked={
                     paginatedData.length > 0 &&
-                    selected.length === paginatedData.length
+                    paginatedData.every(row => selected.has(row.surveyName))
                   }
                   onChange={handleSelectAllClick}
                 />
@@ -279,10 +418,10 @@ export default function SurveyTable({ data, loading }) {
               </TableRow>
             ) : (
               paginatedData.map((row, index) => {
-                const isItemSelected = isSelected(row.id);
+                const isItemSelected = isSelected(row.surveyName);
                 return (
                   <TableRow
-                    key={row.id}
+                    key={row.surveyName}
                     hover
                     role="checkbox"
                     tabIndex={-1}
@@ -292,7 +431,7 @@ export default function SurveyTable({ data, loading }) {
                     <TableCell padding="checkbox" align="center">
                       <Checkbox
                         checked={isItemSelected}
-                        onClick={(event) => handleCheckboxClick(event, row.id)}
+                        onClick={(event) => handleCheckboxClick(event, row.surveyName)}
                       />
                     </TableCell>
                     <TableCell align="center">{row?.surveyName}</TableCell>

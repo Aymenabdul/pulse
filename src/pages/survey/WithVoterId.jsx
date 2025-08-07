@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -18,7 +18,8 @@ import {
     Container,
     Snackbar,
     Alert,
-    CircularProgress
+    CircularProgress,
+    Skeleton
 } from "@mui/material";
 import {
     ArrowBack,
@@ -31,6 +32,46 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
 import axiosInstance from "../../axios/axios";
+
+// Skeleton component for voter cards
+const VoterCardSkeleton = () => (
+    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+        <Card
+            sx={{
+                background: 'rgba(255, 255, 255, 0.25)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: 3,
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                height: '240px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+            }}
+        >
+            <CardContent sx={{ p: 3, flexGrow: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                        <Skeleton variant="text" width={120} height={24} sx={{ mr: 1 }} />
+                        <Skeleton variant="circular" width={20} height={20} />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Skeleton variant="rectangular" width={50} height={24} sx={{ borderRadius: 12 }} />
+                        <Skeleton variant="circular" width={24} height={24} />
+                    </Box>
+                </Box>
+
+                <Box>
+                    <Skeleton variant="text" width="80%" height={20} sx={{ mb: 0.5 }} />
+                    <Skeleton variant="text" width="70%" height={20} sx={{ mb: 0.5 }} />
+                    <Skeleton variant="text" width="60%" height={20} sx={{ mb: 0.5 }} />
+                    <Skeleton variant="text" width="50%" height={20} sx={{ mb: 0.5 }} />
+                    <Skeleton variant="text" width="55%" height={20} />
+                </Box>
+            </CardContent>
+        </Card>
+    </Grid>
+);
 
 export default function WithVoterId() {
     const navigate = useNavigate();
@@ -55,6 +96,7 @@ export default function WithVoterId() {
     const [surveyOptions, setSurveyOptions] = useState([]);
     const [constituencyOptions, setConstituencyOptions] = useState([]);
     const [boothOptions, setBoothOptions] = useState([]);
+    const [surveyData, setSurveyData] = useState([]); // Store all survey data for verification checks
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedVoterId, setSelectedVoterId] = useState(null);
@@ -62,66 +104,27 @@ export default function WithVoterId() {
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
     const [showAdditionalFilters, setShowAdditionalFilters] = useState(false);
-
+    const [allVoters, setAllVoters] = useState([]);
     const [voters, setVoters] = useState([]);
 
     const selectedVoter = voters.find(voter => voter.id === selectedVoterId);
 
-    useEffect(() => {
-        const fetchSurveys = async () => {
-            setLoading(prev => ({ ...prev, surveys: true }));
-            try {
-                const response = await axiosInstance.get('/file/active');
-                setSurveyOptions(response.data || []);
-            } catch (error) {
-                console.error('Error fetching active surveys:', error);
-                showSnackbar('Error fetching surveys', 'error');
-            } finally {
-                setLoading(prev => ({ ...prev, surveys: false }));
-            }
-        };
+    const showSnackbar = (message, severity = 'success') => {
+        setSnackbarMessage(message);
+        setSnackbarSeverity(severity);
+        setSnackbarOpen(true);
+    };
 
-        fetchSurveys();
+    const fetchSurveyData = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('/survey/voters');
+            setSurveyData(response.data || []);
+        } catch (error) {
+            console.error('Error fetching survey data:', error);
+        }
     }, []);
 
-    useEffect(() => {
-        if (filters.survey) {
-            fetchConstituencies(filters.survey);
-            setFilters(prev => ({
-                ...prev,
-                constituency: '',
-                boothNumber: ''
-            }));
-            setBoothOptions([]);
-            setVoters([]); 
-        } else {
-            setConstituencyOptions([]);
-            setBoothOptions([]);
-            setVoters([]);
-        }
-    }, [filters.survey]);
-
-    useEffect(() => {
-        if (filters.survey && filters.constituency) {
-            fetchBooths(filters.survey, filters.constituency);
-            setFilters(prev => ({
-                ...prev,
-                boothNumber: ''
-            }));
-            setVoters([]); 
-        } else {
-            setBoothOptions([]);
-            setVoters([]);
-        }
-    }, [filters.constituency]);
-
-    useEffect(() => {
-        if (!filters.boothNumber) {
-            setVoters([]);
-        }
-    }, [filters.boothNumber]);
-
-    const fetchActiveSurveys = async () => {
+    const fetchActiveSurveys = useCallback(async () => {
         setLoading(prev => ({ ...prev, surveys: true }));
         try {
             const response = await axiosInstance.get('/file/active');
@@ -132,9 +135,9 @@ export default function WithVoterId() {
         } finally {
             setLoading(prev => ({ ...prev, surveys: false }));
         }
-    };
+    }, []);
 
-    const fetchConstituencies = async (surveyName) => {
+    const fetchConstituencies = useCallback(async (surveyName) => {
         setLoading(prev => ({ ...prev, constituencies: true }));
         try {
             const response = await axiosInstance.get(`/file/distinct-constituencies?surveyName=${encodeURIComponent(surveyName)}`);
@@ -145,9 +148,9 @@ export default function WithVoterId() {
         } finally {
             setLoading(prev => ({ ...prev, constituencies: false }));
         }
-    };
+    }, []);
 
-    const fetchBooths = async (surveyName, constituency) => {
+    const fetchBooths = useCallback(async (surveyName, constituency) => {
         setLoading(prev => ({ ...prev, booths: true }));
         try {
             const response = await axiosInstance.get(`/file/distinct-booths?surveyName=${encodeURIComponent(surveyName)}&Constituency=${encodeURIComponent(constituency)}`);
@@ -158,13 +161,150 @@ export default function WithVoterId() {
         } finally {
             setLoading(prev => ({ ...prev, booths: false }));
         }
-    };
+    }, []);
+
+    // Helper function to check if a voter is verified
+    const isVoterVerified = useCallback((voterId) => {
+        // Find survey record that matches this voter's fileDataId and has verified = true
+        const isVerified = surveyData.some(survey => 
+            survey.fileDataId === String(voterId) && survey.verified === true
+        );
+        
+        // Debug logging to check the verification logic
+        console.log(`Checking verification for voter ID: ${voterId}`);
+        console.log("Survey data:", surveyData);
+        console.log("Is verified:", isVerified);
+        
+        return isVerified;
+    }, [surveyData]);
+
+    const fetchVoters = useCallback(async (currentFilters) => {
+        const { survey, constituency, boothNumber, name, houseNo } = currentFilters;
+
+        if (!survey || !constituency || !boothNumber) {
+            setVoters([]);
+            return;
+        }
+
+        setLoading(prev => ({ ...prev, search: true }));
+
+        try {
+            const params = new URLSearchParams({
+                surveyName: survey,
+                Constituency: constituency,
+                booth: boothNumber
+            });
+
+            if (name.trim()) {
+                params.append('name', name.trim());
+            }
+            if (houseNo.trim()) {
+                params.append('houseNumber', houseNo.trim());
+            }
+
+            const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
+            
+            const transformedVoters = response.data.map((voter, index) => {
+                const isVerified = isVoterVerified(voter.id);
+                console.log(`Voter ${voter.name} (ID: ${voter.id}) - Verified: ${isVerified}`);
+                
+                return {
+                    id: voter.id || index + 1, 
+                    name: voter.name || 'N/A',
+                    voterId: voter.voterId || voter.voterID || 'N/A',
+                    serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
+                    relative: voter.relationName || 'N/A',
+                    boothNo: voter.booth,
+                    houseNo: voter.houseNumber || 'N/A',
+                    constituency: voter.constituency || constituency,
+                    survey: voter.survey || voter.surveyName || survey,
+                    district: voter.district || 'N/A',
+                    voted: voter.voted || false,
+                    verified: isVerified
+                };
+            });
+
+            console.log("Transformed voters with verification:", transformedVoters);
+            
+            // Apply name and house number filters
+            const filtered = transformedVoters.filter(voter => {
+                const matchesName = name.trim()
+                    ? voter.name.toLowerCase().includes(name.trim().toLowerCase())
+                    : true;
+
+                const matchesHouse = houseNo.trim()
+                    ? voter.houseNo.toLowerCase().includes(houseNo.trim().toLowerCase())
+                    : true;
+
+                return matchesName && matchesHouse;
+            });
+
+            setAllVoters(transformedVoters);
+            setVoters(filtered);
+        } catch (error) {
+            console.error('Error searching voters:', error);
+            if (error.response?.status === 404) {
+                setVoters([]);
+            } else {
+                showSnackbar('Error searching voters. Please try again.', 'error');
+            }
+        } finally {
+            setLoading(prev => ({ ...prev, search: false }));
+        }
+    }, [isVoterVerified]);
+
+    // Initial data loading
+    useEffect(() => {
+        fetchActiveSurveys();
+        fetchSurveyData();
+    }, [fetchActiveSurveys, fetchSurveyData]);
+
+    // Handle all filter changes and data fetching
+    useEffect(() => {
+        const handleFilterChanges = async () => {
+            // Handle survey change
+            if (filters.survey && !constituencyOptions.length) {
+                await fetchConstituencies(filters.survey);
+            }
+            
+            // Handle constituency change
+            if (filters.survey && filters.constituency && !boothOptions.length) {
+                await fetchBooths(filters.survey, filters.constituency);
+            }
+            
+            // Handle voter fetching with debounce
+            const delayDebounceFn = setTimeout(async () => {
+                if (filters.survey && filters.constituency && filters.boothNumber) {
+                    await fetchVoters(filters);
+                } else {
+                    setVoters([]);
+                    setAllVoters([]);
+                }
+            }, 500);
+
+            return () => clearTimeout(delayDebounceFn);
+        };
+
+        handleFilterChanges();
+    }, [filters, constituencyOptions.length, boothOptions.length, surveyData, fetchConstituencies, fetchBooths, fetchVoters]);
 
     const handleFilterChange = (field, value) => {
-        setFilters(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setFilters(prev => {
+            const newFilters = { ...prev, [field]: value };
+            
+            // Reset dependent fields when parent fields change
+            if (field === 'survey') {
+                newFilters.constituency = '';
+                newFilters.boothNumber = '';
+                setConstituencyOptions([]);
+                setBoothOptions([]);
+            } else if (field === 'constituency') {
+                newFilters.boothNumber = '';
+                setBoothOptions([]);
+            }
+            
+            return newFilters;
+        });
     };
 
     const handleClearFilters = () => {
@@ -178,6 +318,7 @@ export default function WithVoterId() {
         });
         setConstituencyOptions([]);
         setBoothOptions([]);
+        setAllVoters([]);
         setVoters([]);
         setShowAdditionalFilters(false);
     };
@@ -193,12 +334,6 @@ export default function WithVoterId() {
         setSelectedVoterId(null);
     };
 
-    const showSnackbar = (message, severity = 'success') => {
-        setSnackbarMessage(message);
-        setSnackbarSeverity(severity);
-        setSnackbarOpen(true);
-    };
-
     const handleSnackbarClose = (event, reason) => {
         if (reason === 'clickaway') {
             return;
@@ -206,24 +341,26 @@ export default function WithVoterId() {
         setSnackbarOpen(false);
     };
 
-    const handleDelete = () => {
-        setVoters(prev => prev.filter(voter => voter.id !== selectedVoterId));
-        showSnackbar('Entry deleted successfully!', 'success');
-        handleMenuClose();
+    const handleDelete = async () => {
+        try {
+            await axiosInstance.delete(`/file/delete/${selectedVoterId}`);
+            setVoters(prev => prev.filter(voter => voter.id !== selectedVoterId));
+            showSnackbar('Entry deleted successfully!', 'success');
+        } catch (error) {
+            console.error('Error deleting voter:', error);
+            showSnackbar('Error deleting voter.', 'error');
+        } finally {
+            handleMenuClose();
+        }
     };
 
     const handleVotedToggle = async () => {
         try {
-            const response = await axiosInstance.post(`/file/markAsVoted/${selectedVoterId}`);
+            const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
             if (response.status === 200) {
-                setVoters(prev =>
-                    prev.map(voter =>
-                        voter.id === selectedVoterId
-                            ? { ...voter, voted: true }
-                            : voter
-                    )
-                );
                 showSnackbar('Voter marked as voted!', 'success');
+                // Reload the voter data to reflect changes
+                await fetchVoters(filters);
             } else {
                 showSnackbar('Failed to mark as voted.', 'error');
             }
@@ -269,83 +406,16 @@ export default function WithVoterId() {
         } else {
             navigate('/');
         }
-    }
-
-    const handleSearch = async () => {
-        if (!filters.survey || !filters.constituency || !filters.boothNumber) {
-            showSnackbar('Please select survey, constituency, and booth number to search', 'warning');
-            return;
-        }
-
-        setLoading(prev => ({ ...prev, search: true }));
-        
-        try {
-            const params = new URLSearchParams({
-                surveyName: filters.survey,
-                Constituency: filters.constituency,
-                booth: filters.boothNumber
-            });
-
-            if (filters.name.trim()) {
-                params.append('name', filters.name.trim());
-            }
-            if (filters.houseNo.trim()) {
-                params.append('houseNumber', filters.houseNo.trim());
-            }
-
-            const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
-            console.log(response.data);
-            
-            const transformedVoters = response.data.map((voter, index) => ({
-                id: voter.id || index + 1, 
-                name: voter.name || 'N/A',
-                voterId: voter.voterId || voter.voterID || 'N/A',
-                serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
-                relative: voter.relationName || 'N/A',
-                boothNo: voter.booth,
-                houseNo: voter.houseNumber || 'N/A',
-                constituency: voter.constituency || filters.constituency,
-                survey: voter.survey || voter.surveyName || filters.survey,
-                district: voter.district || filters.district || 'N/A',
-                voted: voter.voted || false,
-                verified: voter.verified || false
-            }));
-
-            setVoters(transformedVoters);
-            
-            if (transformedVoters.length === 0) {
-                showSnackbar('No voters found matching your criteria', 'info');
-            } else {
-                showSnackbar(`Found ${transformedVoters.length} voter(s)`, 'success');
-            }
-        } catch (error) {
-            console.error('Error searching voters:', error);
-            if (error.response?.status === 404) {
-                showSnackbar('No voters found matching your criteria', 'info');
-                setVoters([]);
-            } else {
-                showSnackbar('Error searching voters. Please try again.', 'error');
-            }
-        } finally {
-            setLoading(prev => ({ ...prev, search: false }));
-        }
     };
 
-    const filteredVoters = voters.filter(voter => {
-        const nameMatch = !filters.name || voter.name.toLowerCase().includes(filters.name.toLowerCase());
-        const houseNoMatch = !filters.houseNo || voter.houseNo.toString().includes(filters.houseNo);
-        const boothNumberMatch = !filters.boothNumber ||
-                                 (voter.boothNo !== undefined && voter.boothNo !== null &&
-                                  voter.boothNo.toString() === filters.boothNumber.toString());
-        const constituencyMatch = !filters.constituency || voter.constituency === filters.constituency;
-        const surveyMatch = !filters.survey || voter.survey === filters.survey;
-        const districtMatch = !filters.district || voter.district === filters.district;
-
-        return nameMatch && houseNoMatch && boothNumberMatch && constituencyMatch && surveyMatch && districtMatch;
-    });
-
-    const isAnyFilterActive = Object.keys(filters).some(key => filters[key] !== '');
     const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
+
+    // Render skeleton cards while loading
+    const renderSkeletonCards = () => {
+        return Array.from({ length: 6 }).map((_, index) => (
+            <VoterCardSkeleton key={`skeleton-${index}`} />
+        ));
+    };
 
     return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
@@ -424,22 +494,6 @@ export default function WithVoterId() {
                             </FormControl>
                         </Grid>
 
-                        {/* <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>District</InputLabel>
-                                <Select
-                                    value={filters.district}
-                                    label="District"
-                                    onChange={(e) => handleFilterChange('district', e.target.value)}
-                                >
-                                    <MenuItem value="">Select District</MenuItem>
-                                    <MenuItem value="madurai">Madurai</MenuItem>
-                                    <MenuItem value="theni">Theni</MenuItem>
-                                    <MenuItem value="dindigul">Dindigul</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid> */}
-
                         {showAdditionalFilters && (
                             <>
                                 <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -468,30 +522,6 @@ export default function WithVoterId() {
                     </Grid>
 
                     <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-start' }}>
-                        <Button
-                            variant="outlined"
-                            startIcon={loading.search ? <CircularProgress size={16} /> : <Search />}
-                            onClick={handleSearch}
-                            disabled={!shouldShowVoters || loading.search}
-                            sx={{
-                                textTransform: 'none',
-                                px: 4,
-                                py: 1,
-                                borderColor: '#03a9f4',
-                                color: '#03a9f4',
-                                '&:hover': {
-                                    backgroundColor: 'rgba(3, 169, 244, 0.04)',
-                                    borderColor: '#0288d1',
-                                    color: '#0288d1'
-                                },
-                                '&:disabled': {
-                                    borderColor: 'rgba(0, 0, 0, 0.12)',
-                                    color: 'rgba(0, 0, 0, 0.26)'
-                                }
-                            }}
-                        >
-                            {loading.search ? 'Searching...' : 'Search'}
-                        </Button>
                         <Button
                             variant="outlined"
                             startIcon={<Clear />}
@@ -540,8 +570,11 @@ export default function WithVoterId() {
                 </Box>
 
                 <Grid container spacing={4}>
-                    {shouldShowVoters && filteredVoters.length > 0 ? (
-                        filteredVoters.map((voter) => (
+                    {loading.search ? (
+                        // Show skeleton cards while loading
+                        renderSkeletonCards()
+                    ) : shouldShowVoters && voters.length > 0 ? (
+                        voters.map((voter) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
                                 <Card
                                     onClick={() => handleNavigateToSurvey(voter?.id)}
@@ -568,11 +601,11 @@ export default function WithVoterId() {
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                                             <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                                                 <Typography
-                                                    variant="h5"
                                                     sx={{
                                                         fontWeight: 600,
                                                         color: 'rgba(0, 0, 0, 0.85)',
-                                                        mr: 1
+                                                        mr: 1,
+                                                        mt: 1
                                                     }}
                                                 >
                                                     {voter?.name}
@@ -586,7 +619,8 @@ export default function WithVoterId() {
                                                             borderRadius: '50%',
                                                             display: 'flex',
                                                             alignItems: 'center',
-                                                            justifyContent: 'center'
+                                                            justifyContent: 'center',
+                                                            ml: 1
                                                         }}
                                                     >
                                                         <Check sx={{ fontSize: 14, color: 'white' }} />
@@ -642,33 +676,24 @@ export default function WithVoterId() {
                                 </Card>
                             </Grid>
                         ))
-                    ) : shouldShowVoters ? (
-                        <Grid size={{ xs: 12 }}>
-                            <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
-                                {loading.search ? (
-                                    <CircularProgress />
-                                ) : voters.length === 0 ? (
-                                    <Typography variant="h6">
-                                        Click "Search" to find voters matching your criteria.
-                                    </Typography>
-                                ) : (
-                                    <Typography variant="h6">
-                                        No voters found matching your criteria.
-                                    </Typography>
-                                )}
-                            </Box>
-                        </Grid>
                     ) : (
                         <Grid size={{ xs: 12 }}>
                             <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
-                                <Typography variant="h6">
-                                    Please select survey, constituency, and booth to search for voter details.
-                                </Typography>
+                                {shouldShowVoters ? (
+                                    <Typography variant="h6">
+                                        No voters found matching your criteria.
+                                    </Typography>
+                                ) : (
+                                    <Typography variant="h6">
+                                        Please select survey, constituency, and booth to search for voter details.
+                                    </Typography>
+                                )}
                             </Box>
                         </Grid>
                     )}
                 </Grid>
 
+                {selectedVoter?.voted === false && 
                 <Menu
                     anchorEl={anchorEl}
                     open={Boolean(anchorEl)}
@@ -687,15 +712,10 @@ export default function WithVoterId() {
                     }}
                 >
                     <MenuItemComponent onClick={handleVotedToggle}>
-                        {selectedVoter?.voted ? 'Unmark Voted' : 'Mark Voted'}
-                    </MenuItemComponent>
-                    <MenuItemComponent onClick={handleVerifiedToggle}>
-                        {selectedVoter?.verified ? 'Unmark Verified' : 'Mark Verified'}
-                    </MenuItemComponent>
-                    <MenuItemComponent onClick={handleDelete}>
-                        <Delete fontSize="small" sx={{ mr: 1 }} /> Delete
+                        Mark Voted
                     </MenuItemComponent>
                 </Menu>
+                }
 
                 <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={handleSnackbarClose}>
                     <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>

@@ -53,7 +53,6 @@ export default function Statistics() {
     const [boothOptions, setBoothOptions] = useState([]);
     const [currentlyAnimating, setCurrentlyAnimating] = useState(false);
 
-    // Animation functions
     const animateNumber = (target, statKey, duration = 1500, delay = 0) => {
         setTimeout(() => {
             const increment = target / (duration / 50);
@@ -90,7 +89,6 @@ export default function Statistics() {
         setCurrentlyAnimating(true);
     };
 
-    // API functions
     const fetchSurveys = async () => {
         setLoading(prev => ({ ...prev, surveys: true }));
         try {
@@ -161,37 +159,29 @@ export default function Statistics() {
         }
     };
 
-    // USEEFFECT 1: Initial data fetching and cascade filter management
     useEffect(() => {
         const handleInitialAndFilterCascade = async () => {
-            // Initial load - fetch surveys if not loaded
             if (surveyOptions.length === 0) {
                 await fetchSurveys();
             }
 
-            // Handle filter cascading
             if (!filters.surveyName) {
-                // No survey selected - clear dependent options
                 setConstituencyOptions([]);
                 setBoothOptions([]);
             } else {
-                // Survey selected - fetch constituencies
                 await fetchConstituencies(filters.surveyName);
                 
                 if (!filters.constituency) {
-                    // Survey selected but no constituency - clear booths
                     setBoothOptions([]);
                 } else {
-                    // Both survey and constituency selected - fetch booths
                     await fetchBooths(filters.surveyName, filters.constituency);
                 }
             }
         };
 
         handleInitialAndFilterCascade();
-    }, [filters.surveyName, filters.constituency, surveyOptions.length]);
+    }, [filters.surveyName, filters.constituency, surveyOptions?.length]);
 
-    // USEEFFECT 2: Statistics fetching whenever any filter changes
     useEffect(() => {
         fetchStatistics();
     }, [filters.surveyName, filters.constituency, filters.boothNumber]);
@@ -200,7 +190,6 @@ export default function Statistics() {
         setFilters(prev => {
             const newFilters = { ...prev, [field]: value };
             
-            // Clear dependent filters when parent changes
             if (field === 'surveyName') {
                 newFilters.constituency = '';
                 newFilters.boothNumber = '';
