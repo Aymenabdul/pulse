@@ -15,23 +15,37 @@ import {
   FormControlLabel,
   Select,
   MenuItem,
-  FormLabel
+  FormLabel,
+  CircularProgress
 } from "@mui/material";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import axiosInstance from "../../axios/axios";
 import { useAuth } from "../../hooks/useAuth";
 
-const MemoizedTextField = memo(({ label, field, value, onChange, type = "text" }) => (
+const MemoizedTextField = memo(({ label, field, value, onChange, type = "text", error, helperText }) => (
   <TextField
     fullWidth
     label={label}
     value={value}
-    onChange={(e) => onChange(field, e.target.value)}
+    onChange={(e) => {
+      let inputValue = e.target.value;
+      
+      // For phone number fields, only allow digits and limit to 10 characters
+      if (type === "tel") {
+        inputValue = inputValue.replace(/\D/g, '').slice(0, 10);
+      }
+      
+      onChange(field, inputValue);
+    }}
     margin="normal"
     type={type}
+    error={error}
+    helperText={helperText}
     slotProps={type === "tel" ? { 
       input: {
-        pattern: "[0-9]{10}", maxLength: 10 
+        pattern: "[0-9]{10}",
+        maxLength: 10,
+        inputMode: "numeric"
       }
     } : {}}
   />
@@ -39,9 +53,12 @@ const MemoizedTextField = memo(({ label, field, value, onChange, type = "text" }
 
 MemoizedTextField.displayName = 'MemoizedTextField';
 
-const MemoizedRadioGroup = memo(({ label, field, options, value, onChange }) => (
+const MemoizedRadioGroup = memo(({ label, field, options, value, onChange, required = false }) => (
   <div>
-    <Typography fontWeight={600} mb={1}>{label}</Typography>
+    <Typography fontWeight={600} mb={1}>
+      {label}
+      {required && <span style={{ color: 'red', marginLeft: '4px' }}>*</span>}
+    </Typography>
     <FormControl component="fieldset" fullWidth>
       <RadioGroup
         value={value}
@@ -71,19 +88,24 @@ const MemoizedRadioGroup = memo(({ label, field, options, value, onChange }) => 
 
 MemoizedRadioGroup.displayName = 'MemoizedRadioGroup';
 
-const FormField = memo(({ label, field, options, isInput, value, onChange, type }) => (
+const FormField = memo(({ label, field, options, isInput, value, onChange, type, required = false, error, helperText }) => (
   <Grid size={{ xs: 12 }}>
     <Card>
       <CardContent>
         {isInput ? (
           <div>
-            <Typography fontWeight={600} mb={1}>{label}</Typography>
+            <Typography fontWeight={600} mb={1}>
+              {label}
+              {required && <span style={{ color: 'red', marginLeft: '4px' }}>*</span>}
+            </Typography>
             <MemoizedTextField
               label={label}
               field={field}
               value={value}
               onChange={onChange}
               type={type}
+              error={error}
+              helperText={helperText}
             />
           </div>
         ) : (
@@ -93,6 +115,7 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, type 
             options={options}
             value={value}
             onChange={onChange}
+            required={required}
           />
         )}
       </CardContent>
@@ -107,10 +130,13 @@ export default function SurveyWithoutVoterId() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeSurveys, setActiveSurveys] = useState([]);
   const [selectedSurveyName, setSelectedSurveyName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [voterData, setVoterData] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const { id } = useParams();
 
   const [form, setForm] = useState({
     name: "",
@@ -129,35 +155,58 @@ export default function SurveyWithoutVoterId() {
     ques6: ""
   });
 
+  const [validationErrors, setValidationErrors] = useState({});
   const [alert, setAlert] = useState({ open: false, type: "success", message: "" });
 
-  // Fetch active surveys
+  const idFromParams = searchParams.get('id');
+
+  // Phone number validation function
+  const validatePhoneNumber = useCallback((number, fieldName) => {
+    if (!number) return null; // Optional field
+    
+    if (!/^\d{10}$/.test(number)) {
+      return `${fieldName} must be exactly 10 digits`;
+    }
+    
+    return null;
+  }, []);
+
+  // Update validation errors when form changes
+  useEffect(() => {
+    const errors = {};
+    
+    const phoneError = validatePhoneNumber(form.phoneNumber, "Phone number");
+    if (phoneError) errors.phoneNumber = phoneError;
+    
+    const whatsappError = validatePhoneNumber(form.whatsappNumber, "WhatsApp number");
+    if (whatsappError) errors.whatsappNumber = whatsappError;
+    
+    setValidationErrors(errors);
+  }, [form.phoneNumber, form.whatsappNumber, validatePhoneNumber]);
+
   const fetchActiveSurveys = useCallback(async () => {
     try {
       const response = await axiosInstance.get('/file/active');
-      setActiveSurveys(response.data || []);
+      setActiveSurveys(response.data);
     } catch (error) {
       console.error("Error fetching active surveys:", error);
       setAlert({ open: true, type: "error", message: "Error loading active surveys." });
     }
   }, []);
 
-  useEffect(() => {
-    fetchActiveSurveys();
-  }, [fetchActiveSurveys]);
-
-  // Check if user already has a survey for this surveyName
-  const checkExistingSurvey = useCallback(async () => {
-    if (!user?.id || !selectedSurveyName) return;
+  const fetchExistingSurvey = useCallback(async (id) => {
+    if (!id) return;
     
     try {
-      const response = await axiosInstance.get(`/survey/get-by-survey-name-and-user-id?surveyName=${encodeURIComponent(selectedSurveyName)}&userId=${user.id}`);
+      const response = await axiosInstance.get(`/survey/survey-by-id?id=${id}`);
+      console.log("Existing survey data:", response.data);
+      
       if (response.data) {
         setExistingSurvey(response.data);
         setIsEditing(true);
         
-        // Populate form with existing data
-        setForm({
+        setForm(prev => ({
+          ...prev,
           name: response.data.name || "",
           age: response.data.age || "",
           gender: response.data.gender || "",
@@ -172,41 +221,37 @@ export default function SurveyWithoutVoterId() {
           ques4: response.data.ques4 || "",
           ques5: response.data.ques5 || "",
           ques6: response.data.ques6 || ""
-        });
-      } else {
-        // Reset if no existing survey found
-        setExistingSurvey(null);
-        setIsEditing(false);
+        }));
+        
+        if (response.data.surveyName) {
+          setSelectedSurveyName(response.data.surveyName);
+        }
       }
     } catch (error) {
-      console.error("Error checking existing survey:", error);
-      // If 404, it means no existing survey, which is fine
+      console.error("Error fetching existing survey:", error);
       if (error.response?.status !== 404) {
-        console.error("Unexpected error:", error);
-      } else {
-        // Reset state for new survey
-        setExistingSurvey(null);
-        setIsEditing(false);
+        setAlert({ open: true, type: "error", message: "Error loading existing survey data." });
       }
     }
-  }, [user?.id, selectedSurveyName]);
+  }, []);
 
   useEffect(() => {
-    checkExistingSurvey();
-  }, [checkExistingSurvey]);
+    fetchActiveSurveys();
+  }, [fetchActiveSurveys]);
+
+  useEffect(() => {
+    if (idFromParams) {
+      console.log("ID from URL params: ", idFromParams);
+      fetchExistingSurvey(idFromParams);
+    }
+  }, [idFromParams, fetchExistingSurvey]);
 
   const handleSurveyChange = (event) => {
     const newSurveyName = event.target.value;
     setSelectedSurveyName(newSurveyName);
     
-    // Reset form when changing survey
-    setForm({
-      name: "",
-      age: "",
-      gender: "",
-      houseNumber: "",
-      phoneNumber: "",
-      whatsappNumber: "",
+    setForm(prev => ({
+      ...prev,
       voterStatus: "",
       voterType: "",
       ques1: "",
@@ -215,11 +260,14 @@ export default function SurveyWithoutVoterId() {
       ques4: "",
       ques5: "",
       ques6: ""
-    });
+    }));
     
-    // Reset existing survey state
     setExistingSurvey(null);
     setIsEditing(false);
+    
+    if (idFromParams && newSurveyName) {
+      fetchExistingSurvey(idFromParams);
+    }
   };
 
   const handleChange = useCallback((field, value) => {
@@ -232,14 +280,26 @@ export default function SurveyWithoutVoterId() {
       return;
     }
 
+    if (!form.voterStatus) {
+      setAlert({ open: true, type: "error", message: "Voter status is required. Please select one." });
+      return;
+    }
+
+    // Check for validation errors
+    if (Object.keys(validationErrors).length > 0) {
+      setAlert({ open: true, type: "error", message: "Please fix the validation errors before submitting." });
+      return;
+    }
+
     try {
       let response;
       
-      if (isEditing && existingSurvey) {
+      if (isEditing && existingSurvey && idFromParams) {
         const updatePayload = {
           name: form.name,
           age: form.age,
           gender: form.gender,
+          houseNumber: form.houseNumber,
           phoneNumber: form.phoneNumber,
           whatsappNumber: form.whatsappNumber,
           voterStatus: form.voterStatus,
@@ -251,16 +311,24 @@ export default function SurveyWithoutVoterId() {
           ques5: form.ques5,
           ques6: form.ques6,
           surveyName: selectedSurveyName,
-          userId: user?.id || null,
+          userId: user?.id,
+          updated_by: user?.name,
+          role: user?.role,
+          verified: existingSurvey.verified || true,
+          created_by: existingSurvey.created_by || user?.name,
+          voted: existingSurvey.voted || false,
+          id: existingSurvey.id
         };
-
-        const updateUrl = `/survey/update-by-id?surveyName=${encodeURIComponent(selectedSurveyName)}&id=${existingSurvey.id}`;
+        
+        console.log("Update payload:", updatePayload);
+        const updateUrl = `/survey/update-by-id?surveyName=${selectedSurveyName}&id=${idFromParams}`;
         
         response = await axiosInstance.put(updateUrl, updatePayload);
-        console.log(response.data);
+        console.log("Update response:", response.data);
         
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
-        
+
+        setTimeout(() => handleBack(), 2000);
       } else {
         const submitPayload = {
           name: form.name,
@@ -277,16 +345,20 @@ export default function SurveyWithoutVoterId() {
           ques5: form.ques5,
           ques6: form.ques6,
           surveyName: selectedSurveyName,
-          userId: user?.id || null,
+          userId: user?.id,
           verified: true,
+          created_by: user?.name,
+          role: user?.role,
+          voted: false
         };
 
+        console.log("Submit payload:", submitPayload);
         response = await axiosInstance.post('/survey/submit', submitPayload);
-        console.log(response.data);
+        console.log("Submit response:", response.data);
 
         setAlert({ open: true, type: "success", message: "Survey submitted successfully!" });
         
-        await checkExistingSurvey();
+        setTimeout(() => handleBack(), 2000);
       }
       
     } catch (e) {
@@ -303,14 +375,13 @@ export default function SurveyWithoutVoterId() {
       
       setAlert({ open: true, type: "error", message: errorMessage });
     }
-  }, [form, user?.id, selectedSurveyName, isEditing, existingSurvey, checkExistingSurvey]);
+  }, [form, user?.id, user?.name, user?.role, selectedSurveyName, isEditing, existingSurvey, idFromParams, validationErrors]);
 
   const handleClear = useCallback(() => {
     setForm({
       name: "",
       age: "",
       gender: "",
-      houseNumber: "",
       phoneNumber: "",
       whatsappNumber: "",
       voterStatus: "",
@@ -320,11 +391,12 @@ export default function SurveyWithoutVoterId() {
       ques3: "",
       ques4: "",
       ques5: "",
-      ques6: ""
+      ques6: "",
+      surveyName: ""
     });
+    setValidationErrors({});
   }, []);
 
-  // Fixed back navigation to preserve search params
   const handleBack = useCallback(() => {
     const currentPath = location.pathname;
     const currentParams = searchParams.toString();
@@ -381,7 +453,8 @@ export default function SurveyWithoutVoterId() {
         "Moved to different constituency",
         "Working abroad",
         "Passed away"
-      ]
+      ],
+      required: true
     },
     {
       label: "Voter Type",
@@ -432,6 +505,15 @@ export default function SurveyWithoutVoterId() {
   const buttonText = isEditing ? "Update" : "Submit";
   const buttonColor = isEditing ? "warning" : "primary";
 
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+        <Typography variant="h6" sx={{ ml: 2 }}>Loading voter data...</Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box p={2} maxWidth="md" mx="auto">
       <Button onClick={handleBack} sx={{ mb: 2 }} variant="outlined">
@@ -442,7 +524,12 @@ export default function SurveyWithoutVoterId() {
         Survey Without Voter ID
       </Typography>
       
-      {/* Survey Selection */}
+      {voterData && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Voter data loaded for: {voterData.name || 'N/A'}
+        </Alert>
+      )}
+      
       <Box mb={3}>
         <Card>
           <CardContent>
@@ -457,9 +544,9 @@ export default function SurveyWithoutVoterId() {
                 <MenuItem value="">
                   <em>Choose a survey</em>
                 </MenuItem>
-                {activeSurveys.map((survey) => (
-                  <MenuItem key={survey.id || survey.surveyName} value={survey.surveyName || survey.name}>
-                    {survey.surveyName || survey.name}
+                {activeSurveys?.map((survey, index) => (
+                  <MenuItem key={index} value={survey}>
+                    {survey}
                   </MenuItem>
                 ))}
               </Select>
@@ -468,21 +555,14 @@ export default function SurveyWithoutVoterId() {
         </Card>
       </Box>
       
-      {selectedSurveyName && (
-        <Typography variant="h6" align="center" color="primary" gutterBottom>
-          Survey: {selectedSurveyName}
-        </Typography>
-      )}
-
       {isEditing && (
         <Alert severity="info" sx={{ mb: 3 }}>
           You have already submitted this survey. You can update your responses below.
         </Alert>
       )}
 
-      {/* Show form fields by default */}
       <Grid container spacing={2}>
-        {formFields.map(({ label, field, options, isInput, type }) => (
+        {formFields.map(({ label, field, options, isInput, type, required }) => (
           <FormField
             key={field}
             label={label}
@@ -492,12 +572,20 @@ export default function SurveyWithoutVoterId() {
             value={form[field]}
             onChange={handleChange}
             type={type}
+            required={required}
+            error={!!validationErrors[field]}
+            helperText={validationErrors[field]}
           />
         ))}
       </Grid>
 
       <Box mt={3} display="flex" gap={2} justifyContent="center">
-        <Button variant="contained" color={buttonColor} onClick={handleSubmit}>
+        <Button 
+          variant="contained" 
+          color={buttonColor} 
+          onClick={handleSubmit}
+          disabled={Object.keys(validationErrors).length > 0}
+        >
           {buttonText}
         </Button>
         <Button variant="outlined" color="secondary" onClick={handleClear}>

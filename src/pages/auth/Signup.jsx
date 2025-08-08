@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import axios from "axios";
 
@@ -31,12 +31,13 @@ export default function Signup() {
         constituency: '',
         role: ''
     });
+    const [validationErrors, setValidationErrors] = useState({});
+    const [touchedFields, setTouchedFields] = useState({});
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
         severity: 'success' 
     });
-
 
     const navigate = useNavigate();
 
@@ -44,22 +45,149 @@ export default function Signup() {
         setShowPassword((prev) => !prev);
     };
 
+    // Phone number validation function
+    const validatePhoneNumber = (number) => {
+        if (!number) return "Phone number is required";
+        
+        if (!/^\d{10}$/.test(number)) {
+            return "Phone number must be exactly 10 digits";
+        }
+        
+        return null;
+    };
+
+    // Password validation function
+    const validatePassword = (password) => {
+        if (!password) return "Password is required";
+        
+        if (password.length < 8) {
+            return "Password must be at least 8 characters long";
+        }
+        
+        if (!/[A-Z]/.test(password)) {
+            return "Password must contain at least 1 uppercase letter";
+        }
+        
+        if (!/[0-9]/.test(password)) {
+            return "Password must contain at least 1 number";
+        }
+        
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+            return "Password must contain at least 1 special character";
+        }
+        
+        return null;
+    };
+
+    // Email validation function
+    const validateEmail = (email) => {
+        if (!email) return "Email is required";
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return "Please enter a valid email address";
+        }
+        
+        return null;
+    };
+
+    // Update validation errors when form changes (only for touched fields)
+    useEffect(() => {
+        const errors = {};
+        
+        // Only validate fields that have been touched
+        if (touchedFields.name && formData.name && !formData.name.trim()) {
+            errors.name = "Name is required";
+        }
+        
+        if (touchedFields.email) {
+            const emailError = validateEmail(formData.email);
+            if (emailError) errors.email = emailError;
+        }
+        
+        if (touchedFields.password) {
+            const passwordError = validatePassword(formData.password);
+            if (passwordError) errors.password = passwordError;
+        }
+        
+        if (touchedFields.phoneNumber) {
+            const phoneError = validatePhoneNumber(formData.phoneNumber);
+            if (phoneError) errors.phoneNumber = phoneError;
+        }
+        
+        if (touchedFields.constituency && formData.constituency && !formData.constituency.trim()) {
+            errors.constituency = "Constituency is required";
+        }
+        
+        if (touchedFields.role && formData.role && !formData.role.trim()) {
+            errors.role = "Role is required";
+        }
+        
+        setValidationErrors(errors);
+    }, [formData, touchedFields]);
+
     const handleInputChange = (field) => (event) => {
+        let value = event.target.value;
+        
+        // Mark field as touched when user interacts with it
+        setTouchedFields(prev => ({ ...prev, [field]: true }));
+        
+        // For phone number field, only allow digits and limit to 10 characters
+        if (field === 'phoneNumber') {
+            value = value.replace(/\D/g, '').slice(0, 10);
+        }
+        
         setFormData({
             ...formData,
-            [field]: event.target.value
+            [field]: value
         });
     };
 
     const handleSubmit = async () => {
-        if (!formData.name || !formData.email || !formData.password || !formData.phoneNumber || !formData.constituency || !formData.role) {
+        // Mark all fields as touched when submit is attempted
+        const allFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
+        setTouchedFields(prev => {
+            const newTouched = { ...prev };
+            allFields.forEach(field => {
+                newTouched[field] = true;
+            });
+            return newTouched;
+        });
+
+        // Check if all required fields are filled
+        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
+        const emptyFields = requiredFields.filter(field => !formData[field]?.trim());
+        
+        if (emptyFields.length > 0) {
             setSnackbar({
                 open: true,
                 message: "Please fill in all fields",
                 severity: "error"
             });
             return;
-        };
+        }
+
+        // Validate all fields regardless of touched state for submit
+        const errors = {};
+        
+        const emailError = validateEmail(formData.email);
+        if (emailError) errors.email = emailError;
+        
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) errors.password = passwordError;
+        
+        const phoneError = validatePhoneNumber(formData.phoneNumber);
+        if (phoneError) errors.phoneNumber = phoneError;
+
+        if (Object.keys(errors).length > 0) {
+            setValidationErrors(errors);
+            setSnackbar({
+                open: true,
+                message: "Please fix the validation errors before submitting",
+                severity: "error"
+            });
+            return;
+        }
 
         try {
             const response = await axios.post(`${BASE_URL}/signup`, formData);
@@ -70,25 +198,33 @@ export default function Signup() {
                     message: "Signup successful!",
                     severity: "success"
                 });
-                navigate("/login");
+                setTimeout(() => navigate("/login"), 2000);
             } else {
                 setSnackbar({
                     open: true,
-                    message: response.data.error,
+                    message: response.data.error || "Signup failed",
                     severity: "error"
                 });
-
-                // alert(`Signup failed: ${responseBody}`);
             }
         } catch (error) {
             console.error("Signup error:", error);
             setSnackbar({
                 open: true,
-                message: error.response?.data || 'Signup failed',
+                message: error.response?.data?.message || error.response?.data || 'Signup failed',
                 severity: "error"
             });
-
         }
+    };
+
+    const isFormValid = () => {
+        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
+        const allFieldsFilled = requiredFields.every(field => formData[field]?.trim());
+        
+        // Only check validation errors for touched fields
+        const relevantErrors = Object.keys(validationErrors).filter(field => touchedFields[field]);
+        const hasValidationErrors = relevantErrors.length > 0;
+        
+        return allFieldsFilled && !hasValidationErrors;
     };
 
     return (
@@ -198,6 +334,8 @@ export default function Signup() {
                                 fullWidth
                                 value={formData.name}
                                 onChange={handleInputChange('name')}
+                                error={!!(validationErrors.name && touchedFields.name)}
+                                helperText={touchedFields.name ? validationErrors.name : ""}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: 2,
@@ -220,6 +358,8 @@ export default function Signup() {
                                 fullWidth
                                 value={formData.email}
                                 onChange={handleInputChange('email')}
+                                error={!!validationErrors.email}
+                                helperText={validationErrors.email}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: 2,
@@ -242,6 +382,8 @@ export default function Signup() {
                                 fullWidth
                                 value={formData.password}
                                 onChange={handleInputChange('password')}
+                                error={!!validationErrors.password}
+                                helperText={validationErrors.password}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: 2,
@@ -273,8 +415,16 @@ export default function Signup() {
                                 variant="outlined"
                                 type="tel"
                                 fullWidth
-                                value={formData.phone}
+                                value={formData.phoneNumber}
                                 onChange={handleInputChange('phoneNumber')}
+                                error={!!validationErrors.phoneNumber}
+                                helperText={validationErrors.phoneNumber}
+                                slotProps={{
+                                    input: {
+                                        inputMode: "numeric",
+                                        maxLength: 10
+                                    }
+                                }}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: 2,
@@ -297,6 +447,8 @@ export default function Signup() {
                                 fullWidth
                                 value={formData.constituency}
                                 onChange={handleInputChange('constituency')}
+                                error={!!validationErrors.constituency}
+                                helperText={validationErrors.constituency}
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: 2,
@@ -311,7 +463,7 @@ export default function Signup() {
                             />
                         </FormControl>
 
-                        <FormControl fullWidth>
+                        <FormControl fullWidth error={!!validationErrors.role}>
                             <InputLabel 
                                 sx={{
                                     '&.Mui-focused': {
@@ -341,27 +493,43 @@ export default function Signup() {
                                     </MenuItem>
                                 ))}
                             </Select>
+                            {validationErrors.role && (
+                                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
+                                    {validationErrors.role}
+                                </Typography>
+                            )}
                         </FormControl>
                         
                         <Button
                             variant="contained"
                             fullWidth
                             onClick={handleSubmit}
+                            disabled={!isFormValid()}
                             sx={{ 
                                 mt: 2,
                                 py: 1.5,
                                 borderRadius: 2,
-                                background: "linear-gradient(135deg, #a8edea, #fed6e3)",
-                                color: "#333",
+                                background: isFormValid() 
+                                    ? "linear-gradient(135deg, #a8edea, #fed6e3)" 
+                                    : "rgba(0, 0, 0, 0.12)",
+                                color: isFormValid() ? "#333" : "rgba(0, 0, 0, 0.26)",
                                 fontSize: "1.1rem",
                                 fontWeight: 600,
                                 textTransform: "none",
-                                boxShadow: "0 4px 15px rgba(168, 237, 234, 0.3)",
+                                boxShadow: isFormValid() 
+                                    ? "0 4px 15px rgba(168, 237, 234, 0.3)" 
+                                    : "none",
                                 '&:hover': {
-                                    boxShadow: "0 6px 20px rgba(168, 237, 234, 0.4)",
-                                    transform: "translateY(-1px)"
+                                    boxShadow: isFormValid() 
+                                        ? "0 6px 20px rgba(168, 237, 234, 0.4)" 
+                                        : "none",
+                                    transform: isFormValid() ? "translateY(-1px)" : "none"
                                 },
-                                transition: "all 0.3s ease"
+                                transition: "all 0.3s ease",
+                                '&:disabled': {
+                                    background: "rgba(0, 0, 0, 0.12)",
+                                    color: "rgba(0, 0, 0, 0.26)"
+                                }
                             }}
                         >
                             Create Account

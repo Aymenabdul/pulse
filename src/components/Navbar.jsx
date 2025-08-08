@@ -14,6 +14,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
+import GoogleTranslateWidget from "./GoogleTranslateWidget";
 
 export default function Navbar({ userRole }) {
     const [anchorEl, setAnchorEl] = useState(null);
@@ -221,6 +222,9 @@ export default function Navbar({ userRole }) {
                         {item.label}
                     </MenuItem>
                 ))}
+                <Box sx={{ display: "flex", alignItems: "center", marginLeft: "auto" }}>
+                    <GoogleTranslateWidget />
+                </Box>
                 <MenuItem
                     sx={{
                         color: "#555",

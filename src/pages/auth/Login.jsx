@@ -78,7 +78,7 @@ export default function Login() {
             }
         } catch (err) {
             console.error("Login error:", err);
-            setError("An unexpected error occurred");
+            setError("Network error. Make sure you have an active internet connection.");
         } finally {
             setLoading(false);
         }

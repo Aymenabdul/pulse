@@ -28,7 +28,8 @@ import {
     Check,
     Clear,
     FilterList,
-    Delete
+    Delete,
+    Verified
 } from "@mui/icons-material";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import axiosInstance from "../../axios/axios";
@@ -110,6 +111,10 @@ export default function WithVoterId() {
     );
     const [allVoters, setAllVoters] = useState([]);
     const [voters, setVoters] = useState([]);
+
+    // Track initialization state
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [hasAttemptedSearch, setHasAttemptedSearch] = useState(false);
 
     const selectedVoter = voters.find(voter => voter.id === selectedVoterId);
 
@@ -264,47 +269,62 @@ export default function WithVoterId() {
 
     // Initial data loading
     useEffect(() => {
-        fetchActiveSurveys();
-        fetchSurveyData();
-    }, [fetchActiveSurveys, fetchSurveyData]);
-
-    // Load dependent data when component mounts with URL parameters
-    useEffect(() => {
-        const loadDependentData = async () => {
-            if (filters.survey) {
-                await fetchConstituencies(filters.survey);
-            }
-            if (filters.survey && filters.constituency) {
-                await fetchBooths(filters.survey, filters.constituency);
-            }
+        const initializeData = async () => {
+            await fetchActiveSurveys();
+            await fetchSurveyData();
+            setIsInitialized(true);
         };
         
-        loadDependentData();
-    }, []); // Only run once on mount
+        initializeData();
+    }, [fetchActiveSurveys, fetchSurveyData]);
 
-    // Handle filter changes and data fetching
+    // Handle initial loading of dependent data from URL parameters
     useEffect(() => {
-        const handleFilterChanges = async () => {
-            // Handle constituency change
-            if (filters.survey && filters.constituency && boothOptions.length === 0 && constituencyOptions.includes(filters.constituency)) {
-                await fetchBooths(filters.survey, filters.constituency);
-            }
-            
-            // Handle voter fetching with debounce
-            const delayDebounceFn = setTimeout(async () => {
-                if (filters.survey && filters.constituency && filters.boothNumber) {
-                    await fetchVoters(filters);
-                } else {
-                    setVoters([]);
-                    setAllVoters([]);
-                }
-            }, 500);
+        const loadInitialData = async () => {
+            if (!isInitialized) return;
 
-            return () => clearTimeout(delayDebounceFn);
+            // Load constituencies if survey is selected
+            if (filters.survey && !constituencyOptions.length) {
+                await fetchConstituencies(filters.survey);
+            }
         };
 
-        handleFilterChanges();
-    }, [filters, boothOptions.length, constituencyOptions, surveyData, fetchBooths, fetchVoters]);
+        loadInitialData();
+    }, [isInitialized, filters.survey, constituencyOptions.length, fetchConstituencies]);
+
+    // Handle loading booths when constituency changes or is loaded from URL
+    useEffect(() => {
+        const loadBooths = async () => {
+            if (!isInitialized) return;
+
+            if (filters.survey && filters.constituency && !boothOptions.length) {
+                await fetchBooths(filters.survey, filters.constituency);
+            }
+        };
+
+        loadBooths();
+    }, [isInitialized, filters.survey, filters.constituency, boothOptions.length, fetchBooths]);
+
+    // Handle voter fetching with debounce
+    useEffect(() => {
+        if (!isInitialized) return;
+
+        const delayDebounceFn = setTimeout(async () => {
+            if (filters.survey && filters.constituency && filters.boothNumber) {
+                setHasAttemptedSearch(true);
+                await fetchVoters(filters);
+            } else {
+                setVoters([]);
+                setAllVoters([]);
+                // Only set hasAttemptedSearch to true if we've cleared filters manually
+                if (!filters.survey && !filters.constituency && !filters.boothNumber) {
+                    setHasAttemptedSearch(false);
+                }
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [filters, isInitialized, surveyData, fetchVoters]);
 
     const handleFilterChange = (field, value) => {
         setFilters(prev => {
@@ -316,9 +336,17 @@ export default function WithVoterId() {
                 newFilters.boothNumber = '';
                 setConstituencyOptions([]);
                 setBoothOptions([]);
+                // Fetch constituencies for the new survey
+                if (value) {
+                    fetchConstituencies(value);
+                }
             } else if (field === 'constituency') {
                 newFilters.boothNumber = '';
                 setBoothOptions([]);
+                // Fetch booths for the new constituency
+                if (value && newFilters.survey) {
+                    fetchBooths(newFilters.survey, value);
+                }
             }
             
             // Update URL parameters
@@ -344,6 +372,7 @@ export default function WithVoterId() {
         setAllVoters([]);
         setVoters([]);
         setShowAdditionalFilters(false);
+        setHasAttemptedSearch(false);
         
         // Clear URL parameters
         setSearchParams(new URLSearchParams());
@@ -382,16 +411,22 @@ export default function WithVoterId() {
 
     const handleVotedToggle = async () => {
         try {
+            const currentVoter = voters.find(voter => voter.id === selectedVoterId);
+            const isCurrentlyVoted = currentVoter?.voted;
+            
             const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
             if (response.status === 200) {
-                showSnackbar('Voter marked as voted!', 'success');
+                showSnackbar(
+                    isCurrentlyVoted ? 'Voter unmarked as voted!' : 'Voter marked as voted!', 
+                    'success'
+                );
                 await fetchVoters(filters);
             } else {
-                showSnackbar('Failed to mark as voted.', 'error');
+                showSnackbar('Failed to update voted status.', 'error');
             }
         } catch (error) {
-            console.error('Error marking voted:', error);
-            showSnackbar('Error marking voted.', 'error');
+            console.error('Error toggling voted status:', error);
+            showSnackbar('Error updating voted status.', 'error');
         } finally {
             handleMenuClose();
         }
@@ -440,6 +475,7 @@ export default function WithVoterId() {
     };
 
     const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
+    const shouldShowLoadingOrResults = shouldShowVoters || hasAttemptedSearch;
 
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
@@ -600,7 +636,10 @@ export default function WithVoterId() {
                 </Box>
 
                 <Grid container spacing={4}>
-                    {loading.search ? (
+                    {!isInitialized ? (
+                        // Show loading skeleton during initial load
+                        renderSkeletonCards()
+                    ) : loading.search ? (
                         renderSkeletonCards()
                     ) : shouldShowVoters && voters.length > 0 ? (
                         voters.map((voter) => (
@@ -649,10 +688,11 @@ export default function WithVoterId() {
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            ml: 1
+                                                            ml: 1,
+                                                            mt: 1
                                                         }}
                                                     >
-                                                        <Check sx={{ fontSize: 14, color: 'white' }} />
+                                                        <Verified sx={{ fontSize: 14, color: 'success' }} />
                                                     </Box>
                                                 )}
                                             </Box>
@@ -708,21 +748,20 @@ export default function WithVoterId() {
                     ) : (
                         <Grid size={{ xs: 12 }}>
                             <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
-                                {shouldShowVoters ? (
+                                {shouldShowVoters && hasAttemptedSearch ? (
                                     <Typography variant="h6">
                                         No voters found matching your criteria.
                                     </Typography>
-                                ) : (
+                                ) : !shouldShowVoters ? (
                                     <Typography variant="h6">
                                         Please select survey, constituency, and booth to search for voter details.
                                     </Typography>
-                                )}
+                                ) : null}
                             </Box>
                         </Grid>
                     )}
                 </Grid>
 
-                {selectedVoter?.voted === false && 
                 <Menu
                     anchorEl={anchorEl}
                     open={Boolean(anchorEl)}
@@ -741,10 +780,9 @@ export default function WithVoterId() {
                     }}
                 >
                     <MenuItemComponent onClick={handleVotedToggle}>
-                        Mark Voted
+                        {selectedVoter?.voted ? 'Unmark Voted' : 'Mark Voted'}
                     </MenuItemComponent>
                 </Menu>
-                }
 
                 <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={handleSnackbarClose}>
                     <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>

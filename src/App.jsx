@@ -99,7 +99,7 @@ export default function App() {
           <Route path="statistics" element={<Statistics />} />
           <Route path="survey/with-voter-id" element={<WithVoterId from="admin" />} />
           <Route path="survey/without-voter-id" element={<WithoutVoterId from="admin" />} />
-          <Route path="without-voter-id/form" element={<SurveyWithoutVoterId />} />
+          <Route path="without-voter-id/form/*" element={<SurveyWithoutVoterId />} />
           <Route path="with-voter-id/form/:id" element={<SurveyWithVoterId />} />
         </Route>
 
@@ -111,7 +111,7 @@ export default function App() {
           <Route path="home" element={<Landing />} />
           <Route path="survey/with-voter-id" element={<WithVoterId from="surveyor" />} />
           <Route path="survey/without-voter-id" element={<WithoutVoterId from="surveyor" />} />
-          <Route path="without-voter-id/form" element={<SurveyWithoutVoterId />} />
+          <Route path="without-voter-id/form/*" element={<SurveyWithoutVoterId />} />
           <Route path="with-voter-id/form/:id" element={<SurveyWithVoterId />} />
         </Route>
 

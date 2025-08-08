@@ -190,7 +190,6 @@ export default function SurveyWithVoterId() {
       let response;
       
       if (voter?.voted) {
-        // Update existing survey
         if (!voter?.surveyName) {
           setAlert({ open: true, type: "error", message: "Survey name is missing. Cannot update survey." });
           return;
@@ -221,6 +220,7 @@ export default function SurveyWithVoterId() {
           surveyName: voter.surveyName,
           userId: user?.id || null,
           updatedBy: user?.name,
+          role: user?.role
         };
         console.log(updatePayload);
         const updateUrl = `/survey/update-by-fileid?surveyName=${voter.surveyName}&fileDataId=${voter.id}`;
@@ -230,10 +230,9 @@ export default function SurveyWithVoterId() {
         
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
         
-        await handleFetchVoterData();
+        handleBack();
         
       } else {
-        // Submit new survey
         const submitPayload = {
           fileDataId: voter?.id,
           phoneNumber: form.phoneNumber,
@@ -254,7 +253,8 @@ export default function SurveyWithVoterId() {
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
-          
+          createdBy: user?.name,
+          role: user?.role
         };
 
         response = await axiosInstance.post('/survey/submit', submitPayload);
@@ -278,6 +278,7 @@ export default function SurveyWithVoterId() {
       }
       
       setAlert({ open: true, type: "error", message: errorMessage });
+      handleBack();
     }
   }, [voter, form, user?.id, handleFetchVoterData]);
 
@@ -296,7 +297,6 @@ export default function SurveyWithVoterId() {
     });
   }, []);
 
-  // Fixed back navigation to preserve search params
   const handleBack = useCallback(() => {
     const currentPath = location.pathname;
     const currentParams = searchParams.toString();
