@@ -26,9 +26,9 @@ const MemoizedTextField = memo(({ label, field, value, onChange }) => (
     onChange={(e) => onChange(field, e.target.value)}
     margin="normal"
     type="tel"
-    slotProps={{ 
+    slotProps={{
       input: {
-        pattern: "[0-9]{10}", maxLength: 10 
+        pattern: "[0-9]{10}", maxLength: 10
       }
     }}
   />
@@ -68,7 +68,7 @@ const MemoizedRadioGroup = memo(({ label, field, options, value, onChange }) => 
 
 MemoizedRadioGroup.displayName = 'MemoizedRadioGroup';
 
-const FormField = memo(({ label, field, options, isInput, value, onChange }) => (
+const FormField = memo(({ label, field, options, isInput, value, onChange, required }) => (
   <Grid size={{ xs: 12 }}>
     <Card>
       <CardContent>
@@ -83,13 +83,25 @@ const FormField = memo(({ label, field, options, isInput, value, onChange }) => 
             />
           </div>
         ) : (
-          <MemoizedRadioGroup
-            label={label}
-            field={field}
-            options={options}
-            value={value}
-            onChange={onChange}
-          />
+          <div style={{ marginBottom: '16px' }}>
+            <Typography
+              fontWeight={600}
+              mb={1}
+              component="div"
+              variant="body1"
+            >
+              {label}
+              {required && <span style={{ color: 'red', marginLeft: '4px',fontSize:'25px' }}>*</span>}
+            </Typography>
+
+            <MemoizedRadioGroup
+              field={field}
+              options={options}
+              value={value}
+              onChange={onChange}
+              required={required}
+            />
+          </div>
         )}
       </CardContent>
     </Card>
@@ -116,6 +128,7 @@ VoterDetails.displayName = 'VoterDetails';
 export default function SurveyWithVoterId() {
   const [voter, setVoter] = useState(null);
   const [surveyData, setSurveyData] = useState(null);
+  const [isVerified, setIsVerified] = useState();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -137,39 +150,79 @@ export default function SurveyWithVoterId() {
 
   const [alert, setAlert] = useState({ open: false, type: "success", message: "" });
 
-  const handleFetchSurveyData = useCallback(async (fileDataId) => {
-    try {
-      const response = await axiosInstance.get(`/survey/survey-by-fileid?fileDataId=${fileDataId}`);
-      const surveyData = response.data;
-      setSurveyData(surveyData);
-      
-      setForm({
-        ques1: surveyData.ques1 || "",
-        ques2: surveyData.ques2 || "",
-        ques3: surveyData.ques3 || "",
-        ques4: surveyData.ques4 || "",
-        ques5: surveyData.ques5 || "",
-        ques6: surveyData.ques6 || "",
-        phoneNumber: surveyData.phoneNumber || "",
-        whatsappNumber: surveyData.whatsappNumber || "",
-        voterStatus: surveyData.voterStatus || "",
-        voterType: surveyData.voter_type || "",
-        userId: user?.id
-      });
-    } catch (error) {
-      console.error("Error fetching survey data:", error);
-      setSurveyData(null);
+  useEffect(() => {
+    const fileDataId = voter?.id;  // Retrieve fileDataId from the voter object
+
+    if (!fileDataId) return;  // If fileDataId is not available, don't proceed
+
+    const fetchVerificationStatus = async () => {
+      try {
+        // Fetch the verification status using fileDataId in query parameter
+        const response = await axiosInstance.get(`/survey/voters/${fileDataId}`);
+        console.log("Response:", response.data);  // Log full response to verify
+
+        // Extract the verified status from the response data
+        const verifiedStatus = response.data.isVerified;
+
+        // Set the verification status to state
+        setIsVerified(verifiedStatus);
+        console.log("Verified Status:", verifiedStatus);  // Log the verified status
+      } catch (error) {
+        console.error("Error fetching verification status:", error);
+        setIsVerified(false);  // Default to false if there's an error
+      }
+    };
+
+    fetchVerificationStatus();  // Call the function to fetch verification status
+  }, [voter?.id]);
+
+
+  const handleFetchSurveyData = useCallback(async () => {
+    const fileDataId = voter?.id;  // Retrieve fileDataId from the voter object
+
+    if (fileDataId) {
+      try {
+        // Use query parameter for fileDataId
+        const response = await axiosInstance.get(`/survey/survey-by-fileid?fileDataId=${fileDataId}`);
+
+        console.log("surveyData for the user", response.data);
+
+        setForm({
+          ques1: response.data.ques1 || "",
+          ques2: response.data.ques2 || "",
+          ques3: response.data.ques3 || "",
+          ques4: response.data.ques4 || "",
+          ques5: response.data.ques5 || "",
+          ques6: response.data.ques6 || "",
+          phoneNumber: response.data.phoneNumber || "",
+          whatsappNumber: response.data.whatsappNumber || "",
+          voterStatus: response.data.voterStatus || "",
+          voterType: response.data.voter_type || "",
+          userId: user?.id
+        });
+
+        console.log("Form state after fetching data:", form);
+      } catch (error) {
+        console.error("Error fetching survey data:", error);
+      }
     }
-  }, [user?.id]);
+  }, [voter?.id, user?.id]);  // Use `voter?.id` instead of `voter?.fileDataId` for clarity
+
+  useEffect(() => {
+    if (voter?.id) {
+      handleFetchSurveyData(); // Call it once the voter data is available
+    }
+  }, [voter, handleFetchSurveyData]);
 
   const handleFetchVoterData = useCallback(async () => {
     try {
       const response = await axiosInstance.get(`/file/getFileData/${id}`);
       console.log(response.data);
       setVoter(response.data);
-      
+
+      // If the voter has voted, we fetch the survey data
       if (response.data?.voted) {
-        await handleFetchSurveyData(response.data.id);
+        handleFetchSurveyData(); // No need to pass `response.data.id` since it's already in `voter.id`
       }
     } catch (error) {
       console.error("Error fetching voter data:", error);
@@ -178,107 +231,137 @@ export default function SurveyWithVoterId() {
   }, [id, handleFetchSurveyData]);
 
   useEffect(() => {
-    handleFetchVoterData();
+    handleFetchVoterData(); // Trigger on component mount
   }, [handleFetchVoterData]);
+
 
   const handleChange = useCallback((field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const handleSubmit = useCallback(async () => {
+    console.log("User name:", user?.name);
     try {
       let response;
-      
-      if (voter?.voted) {
-        if (!voter?.surveyName) {
-          setAlert({ open: true, type: "error", message: "Survey name is missing. Cannot update survey." });
-          return;
-        }
-        
-        if (!voter?.id) {
-          setAlert({ open: true, type: "error", message: "Voter ID is missing. Cannot update survey." });
-          return;
-        }
-        
+
+      // Validate phone number is exactly 10 digits
+      const phoneNumberPattern = /^[0-9]{10}$/;
+      if (!phoneNumberPattern.test(form.phoneNumber)) {
+        setAlert({ open: true, type: "error", message: "Phone number must be exactly 10 digits." });
+        return;
+      }
+
+      // Validate WhatsApp number is exactly 10 digits
+      if (!phoneNumberPattern.test(form.whatsappNumber)) {
+        setAlert({ open: true, type: "error", message: "WhatsApp number must be exactly 10 digits." });
+        return;
+      }
+
+      if (!form.voterStatus) {
+      setAlert({ open: true, type: "error", message: "Voter status is required. Please select one." });
+      return;
+    }
+
+      const fileDataId = voter?.id;  // Assuming fileDataId is available from the voter object
+
+      // If fileDataId is missing, show error and return
+      if (!fileDataId) {
+        setAlert({ open: true, type: "error", message: "FileDataId is missing." });
+        return;
+      }
+
+
+      if (isVerified) {
+        // If voter is verified, update the survey
         const updatePayload = {
           phoneNumber: form.phoneNumber,
-          voter_type: form.voterType, 
+          voter_type: form.voterType,
           booth: voter?.booth,
           constituency: voter?.assemblyConstituency,
           houseNumber: voter?.houseNumber,
           gender: voter?.gender,
           name: voter?.name,
           voterId: voter?.voterID,
-          voterStatus: form.voterStatus, 
-          whatsappNumber: form.whatsappNumber, 
+          voterStatus: form.voterStatus,
+          updated_by: user?.name,
+          whatsappNumber: form.whatsappNumber,
           ques1: form.ques1,
           ques2: form.ques2,
           ques3: form.ques3,
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
-          surveyName: voter.surveyName,
+          role: user?.role,
+          surveyName: voter?.surveyName,
           userId: user?.id || null,
-          updatedBy: user?.name,
-          role: user?.role
+          created_by: user?.name,
+          age:voter?.age,
         };
-        console.log(updatePayload);
-        const updateUrl = `/survey/update-by-fileid?surveyName=${voter.surveyName}&fileDataId=${voter.id}`;
-        
+
+        const updateUrl = `/survey/update-by-fileid?surveyName=${encodeURIComponent(voter.surveyName)}&fileDataId=${voter.id}`;
+
         response = await axiosInstance.put(updateUrl, updatePayload);
-        console.log(response.data);
-        
+
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
-        
-        handleBack();
-        
+        await handleFetchVoterData();
       } else {
+        // If voter is not verified, submit the survey
         const submitPayload = {
           fileDataId: voter?.id,
           phoneNumber: form.phoneNumber,
-          voter_type: form.voterType, 
-          userId: user?.id || null, 
-          verified: true, 
+          voter_type: form.voterType,
+          userId: user?.id || null,
+          verified: true,  // Mark the survey as verified
           booth: voter?.booth,
           constituency: voter?.assemblyConstituency,
           houseNumber: voter?.houseNumber,
           gender: voter?.gender,
           name: voter?.name,
           voterId: voter?.voterID,
-          voterStatus: form.voterStatus, 
-          whatsappNumber: form.whatsappNumber, 
+          voterStatus: form.voterStatus,
+          whatsappNumber: form.whatsappNumber,
+          surveyName: voter?.surveyName,
+          created_by: user?.name,
+          updated_by: user?.name,
+          role: user?.role,
           ques1: form.ques1,
           ques2: form.ques2,
           ques3: form.ques3,
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
-          createdBy: user?.name,
-          role: user?.role
+          age:voter?.age,
         };
 
         response = await axiosInstance.post('/survey/submit', submitPayload);
-        console.log(response.data);
 
         setAlert({ open: true, type: "success", message: "Survey submitted successfully!" });
-        
+        console.log("Payload being submitted:", submitPayload);
         await handleFetchVoterData();
       }
-      
+
+      // Navigate based on user role after submission or update
+      if (user?.role === 'Surveyor') {
+        navigate('/surveyor/survey/with-voter-id');  // Redirect to the surveyor page
+      } else if (user?.role === 'Admin') {
+        navigate('/admin/survey/with-voter-id');  // Redirect to the admin page
+      } else {
+        console.log('Unknown role, cannot navigate.');
+      }
+
     } catch (e) {
       console.error("API Error:", e);
-      
+
       let errorMessage;
       if (e.response?.status === 404) {
         errorMessage = "Survey record not found. Please check if the survey exists.";
       } else if (e.response?.status === 400) {
         errorMessage = "Invalid data provided. Please check your inputs.";
       } else {
-        errorMessage = voter?.voted ? "Error updating survey. Please try again." : "Error submitting survey. Please try again.";
+        errorMessage = "Error processing the survey. Please try again.";
       }
-      
+
       setAlert({ open: true, type: "error", message: errorMessage });
-      handleBack();
     }
   }, [voter, form, user?.id, handleFetchVoterData]);
 
@@ -335,7 +418,8 @@ export default function SurveyWithVoterId() {
         "Moved to different constituency",
         "Working abroad",
         "Passed away"
-      ]
+      ],
+      required: true
     },
     {
       label: "Voter Type",
@@ -383,8 +467,8 @@ export default function SurveyWithVoterId() {
     }
   ], []);
 
-  const buttonText = voter?.voted ? "Update" : "Submit";
-  const buttonColor = voter?.voted ? "warning" : "primary";
+  const buttonText = isVerified ? "Update" : "Submit";
+  const buttonColor = isVerified ? "warning" : "primary";
 
   return (
     <Box p={2} maxWidth="md" mx="auto">
@@ -395,13 +479,14 @@ export default function SurveyWithVoterId() {
       <VoterDetails voter={voter} />
 
       <Grid container spacing={2}>
-        {formFields.map(({ label, field, options, isInput }) => (
+        {formFields.map(({ label, field, options, isInput, required }) => (
           <FormField
             key={field}
             label={label}
             field={field}
             options={options}
             isInput={isInput}
+            required={required}
             value={form[field]}
             onChange={handleChange}
           />

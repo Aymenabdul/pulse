@@ -89,6 +89,13 @@ export default function WithVoterId() {
         houseNo: searchParams.get('houseNo') || ''
     });
 
+    useEffect(() => {
+        const savedFilters = localStorage.getItem('filters');
+        if (savedFilters) {
+            setFilters(JSON.parse(savedFilters));
+        }
+    }, []);
+
     const [loading, setLoading] = useState({
         surveys: false,
         constituencies: false,
@@ -326,10 +333,10 @@ export default function WithVoterId() {
         return () => clearTimeout(delayDebounceFn);
     }, [filters, isInitialized, surveyData, fetchVoters]);
 
-    const handleFilterChange = (field, value) => {
+   const handleFilterChange = (field, value) => {
         setFilters(prev => {
             const newFilters = { ...prev, [field]: value };
-            
+
             // Reset dependent fields when parent fields change
             if (field === 'survey') {
                 newFilters.constituency = '';
@@ -348,10 +355,13 @@ export default function WithVoterId() {
                     fetchBooths(newFilters.survey, value);
                 }
             }
+
+            // Save to localStorage
+            localStorage.setItem('filters', JSON.stringify(newFilters));
             
             // Update URL parameters
             updateURLParams(newFilters);
-            
+
             return newFilters;
         });
     };
@@ -365,7 +375,7 @@ export default function WithVoterId() {
             name: '',
             houseNo: ''
         };
-        
+
         setFilters(clearedFilters);
         setConstituencyOptions([]);
         setBoothOptions([]);
@@ -376,6 +386,9 @@ export default function WithVoterId() {
         
         // Clear URL parameters
         setSearchParams(new URLSearchParams());
+        
+        // Clear from localStorage
+        localStorage.removeItem('filters');
     };
 
     const handleMenuOpen = (event, voterId) => {
