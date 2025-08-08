@@ -120,6 +120,9 @@ export default function SurveyWithVoterId() {
   const { id } = useParams();
   const { user } = useAuth();
 
+
+  
+
   const [form, setForm] = useState({
     ques1: "",
     ques2: "",
@@ -182,9 +185,21 @@ export default function SurveyWithVoterId() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
+    console.log("User name:", user?.name);
     try {
       let response;
-      
+      // Validate phone number is exactly 10 digits
+      const phoneNumberPattern = /^[0-9]{10}$/;
+      if (!phoneNumberPattern.test(form.phoneNumber)) {
+        setAlert({ open: true, type: "error", message: "Phone number must be exactly 10 digits." });
+        return;
+      }
+
+      // Validate WhatsApp number is exactly 10 digits
+      if (!phoneNumberPattern.test(form.whatsappNumber)) {
+        setAlert({ open: true, type: "error", message: "WhatsApp number must be exactly 10 digits." });
+        return;
+      }
       if (voter?.voted) {
         if (!voter?.surveyName) {
           setAlert({ open: true, type: "error", message: "Survey name is missing. Cannot update survey." });
@@ -206,6 +221,7 @@ export default function SurveyWithVoterId() {
           name: voter?.name,
           voterId: voter?.voterID,
           voterStatus: form.voterStatus, 
+          updated_by:user?.name,
           whatsappNumber: form.whatsappNumber, 
           ques1: form.ques1,
           ques2: form.ques2,
@@ -213,8 +229,10 @@ export default function SurveyWithVoterId() {
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
+          role: user?.role,
           surveyName: voter?.surveyName,
-          userId: user?.id || null
+          userId: user?.id || null,
+          created_by: user?.name,
         };
 
         const updateUrl = `/survey/update-by-fileid?surveyName=${encodeURIComponent(voter.surveyName)}&fileDataId=${voter.id}`;
@@ -231,7 +249,7 @@ export default function SurveyWithVoterId() {
           phoneNumber: form.phoneNumber,
           voter_type: form.voterType, 
           userId: user?.id || null, 
-          verified: false, 
+          verified: true, 
           booth: voter?.booth,
           constituency: voter?.assemblyConstituency,
           houseNumber: voter?.houseNumber,
@@ -240,6 +258,10 @@ export default function SurveyWithVoterId() {
           voterId: voter?.voterID,
           voterStatus: form.voterStatus, 
           whatsappNumber: form.whatsappNumber, 
+          surveyName: voter?.surveyName,
+          created_by: user?.name,
+          updated_by: user?.name,
+          role: user?.role,
           ques1: form.ques1,
           ques2: form.ques2,
           ques3: form.ques3,
@@ -247,14 +269,13 @@ export default function SurveyWithVoterId() {
           ques5: form.ques5,
           ques6: form.ques6
         };
-
         response = await axiosInstance.post('/survey/submit', submitPayload);
         
         setAlert({ open: true, type: "success", message: "Survey submitted successfully!" });
-        
+        console.log("Payload being submitted:", submitPayload);
         await handleFetchVoterData();
       }
-      
+      navigate('admin/survey/with-voter-id');
     } catch (e) {
       console.error("API Error:", e);
       
@@ -322,7 +343,8 @@ export default function SurveyWithVoterId() {
         "Moved to different constituency",
         "Working abroad",
         "Passed away"
-      ]
+      ],
+      isRequired: true,
     },
     {
       label: "Voter Type",

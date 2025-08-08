@@ -138,7 +138,6 @@ const AuthProvider = ({ children }) => {
   const getUserDetails = async (tokenToUse = null) => {
     const authToken = tokenToUse || Cookies.get("esa-token");
 
-    
     if (!authToken) {
       return null;
     }
