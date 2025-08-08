@@ -14,7 +14,7 @@ import {
   FormControl,
   TextField
 } from "@mui/material";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import axiosInstance from "../../axios/axios";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -115,13 +115,12 @@ VoterDetails.displayName = 'VoterDetails';
 
 export default function SurveyWithVoterId() {
   const [voter, setVoter] = useState(null);
+  const [surveyData, setSurveyData] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
   const { user } = useAuth();
-
-
-  
+  const [searchParams] = useSearchParams();
 
   const [form, setForm] = useState({
     ques1: "",
@@ -138,10 +137,11 @@ export default function SurveyWithVoterId() {
 
   const [alert, setAlert] = useState({ open: false, type: "success", message: "" });
 
-  const handleFetchSurveyData = useCallback(async (voterId) => {
+  const handleFetchSurveyData = useCallback(async (fileDataId) => {
     try {
-      const response = await axiosInstance.get(`/api2/survey/${voterId}`);
+      const response = await axiosInstance.get(`/survey/survey-by-fileid?fileDataId=${fileDataId}`);
       const surveyData = response.data;
+      setSurveyData(surveyData);
       
       setForm({
         ques1: surveyData.ques1 || "",
@@ -151,13 +151,14 @@ export default function SurveyWithVoterId() {
         ques5: surveyData.ques5 || "",
         ques6: surveyData.ques6 || "",
         phoneNumber: surveyData.phoneNumber || "",
-        whatsappNumber: surveyData.WhatsappNumber || "",
-        voterStatus: surveyData.VoterStatus || "",
-        voterType: surveyData.Voter_type || "",
+        whatsappNumber: surveyData.whatsappNumber || "",
+        voterStatus: surveyData.voterStatus || "",
+        voterType: surveyData.voter_type || "",
         userId: user?.id
       });
     } catch (error) {
       console.error("Error fetching survey data:", error);
+      setSurveyData(null);
     }
   }, [user?.id]);
 
@@ -168,7 +169,7 @@ export default function SurveyWithVoterId() {
       setVoter(response.data);
       
       if (response.data?.voted) {
-        handleFetchSurveyData(response.data.id);
+        await handleFetchSurveyData(response.data.id);
       }
     } catch (error) {
       console.error("Error fetching voter data:", error);
@@ -185,22 +186,11 @@ export default function SurveyWithVoterId() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    console.log("User name:", user?.name);
     try {
       let response;
-      // Validate phone number is exactly 10 digits
-      const phoneNumberPattern = /^[0-9]{10}$/;
-      if (!phoneNumberPattern.test(form.phoneNumber)) {
-        setAlert({ open: true, type: "error", message: "Phone number must be exactly 10 digits." });
-        return;
-      }
-
-      // Validate WhatsApp number is exactly 10 digits
-      if (!phoneNumberPattern.test(form.whatsappNumber)) {
-        setAlert({ open: true, type: "error", message: "WhatsApp number must be exactly 10 digits." });
-        return;
-      }
+      
       if (voter?.voted) {
+        // Update existing survey
         if (!voter?.surveyName) {
           setAlert({ open: true, type: "error", message: "Survey name is missing. Cannot update survey." });
           return;
@@ -221,7 +211,6 @@ export default function SurveyWithVoterId() {
           name: voter?.name,
           voterId: voter?.voterID,
           voterStatus: form.voterStatus, 
-          updated_by:user?.name,
           whatsappNumber: form.whatsappNumber, 
           ques1: form.ques1,
           ques2: form.ques2,
@@ -229,21 +218,22 @@ export default function SurveyWithVoterId() {
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
-          role: user?.role,
-          surveyName: voter?.surveyName,
+          surveyName: voter.surveyName,
           userId: user?.id || null,
-          created_by: user?.name,
+          updatedBy: user?.name,
         };
-
-        const updateUrl = `/survey/update-by-fileid?surveyName=${encodeURIComponent(voter.surveyName)}&fileDataId=${voter.id}`;
+        console.log(updatePayload);
+        const updateUrl = `/survey/update-by-fileid?surveyName=${voter.surveyName}&fileDataId=${voter.id}`;
         
         response = await axiosInstance.put(updateUrl, updatePayload);
+        console.log(response.data);
         
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
         
         await handleFetchVoterData();
         
       } else {
+        // Submit new survey
         const submitPayload = {
           fileDataId: voter?.id,
           phoneNumber: form.phoneNumber,
@@ -258,24 +248,23 @@ export default function SurveyWithVoterId() {
           voterId: voter?.voterID,
           voterStatus: form.voterStatus, 
           whatsappNumber: form.whatsappNumber, 
-          surveyName: voter?.surveyName,
-          created_by: user?.name,
-          updated_by: user?.name,
-          role: user?.role,
           ques1: form.ques1,
           ques2: form.ques2,
           ques3: form.ques3,
           ques4: form.ques4,
           ques5: form.ques5,
-          ques6: form.ques6
+          ques6: form.ques6,
+          
         };
+
         response = await axiosInstance.post('/survey/submit', submitPayload);
-        
+        console.log(response.data);
+
         setAlert({ open: true, type: "success", message: "Survey submitted successfully!" });
-        console.log("Payload being submitted:", submitPayload);
+        
         await handleFetchVoterData();
       }
-      navigate('admin/survey/with-voter-id');
+      
     } catch (e) {
       console.error("API Error:", e);
       
@@ -307,17 +296,20 @@ export default function SurveyWithVoterId() {
     });
   }, []);
 
+  // Fixed back navigation to preserve search params
   const handleBack = useCallback(() => {
     const currentPath = location.pathname;
+    const currentParams = searchParams.toString();
+    const paramString = currentParams ? `?${currentParams}` : '';
 
     if (currentPath.includes('/admin')) {
-      navigate('/admin/survey/with-voter-id');
+      navigate(`/admin/survey/with-voter-id${paramString}`);
     } else if (currentPath.includes('/surveyor')) {
-      navigate('/surveyor/survey/with-voter-id');
+      navigate(`/surveyor/survey/with-voter-id${paramString}`);
     } else {
-      navigate('/');
+      navigate(`/${paramString}`);
     }
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, searchParams]);
 
   const handleCloseAlert = useCallback(() => {
     setAlert(prev => ({ ...prev, open: false }));
@@ -343,8 +335,7 @@ export default function SurveyWithVoterId() {
         "Moved to different constituency",
         "Working abroad",
         "Passed away"
-      ],
-      isRequired: true,
+      ]
     },
     {
       label: "Voter Type",

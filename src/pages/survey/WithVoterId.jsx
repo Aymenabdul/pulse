@@ -30,7 +30,7 @@ import {
     FilterList,
     Delete
 } from "@mui/icons-material";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import axiosInstance from "../../axios/axios";
 
 // Skeleton component for voter cards
@@ -76,14 +76,16 @@ const VoterCardSkeleton = () => (
 export default function WithVoterId() {
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
 
+    // Initialize filters from URL parameters
     const [filters, setFilters] = useState({
-        survey: '',
-        constituency: '',
-        boothNumber: '',
-        district: '',
-        name: '',
-        houseNo: ''
+        survey: searchParams.get('survey') || '',
+        constituency: searchParams.get('constituency') || '',
+        boothNumber: searchParams.get('boothNumber') || '',
+        district: searchParams.get('district') || '',
+        name: searchParams.get('name') || '',
+        houseNo: searchParams.get('houseNo') || ''
     });
 
     const [loading, setLoading] = useState({
@@ -96,18 +98,33 @@ export default function WithVoterId() {
     const [surveyOptions, setSurveyOptions] = useState([]);
     const [constituencyOptions, setConstituencyOptions] = useState([]);
     const [boothOptions, setBoothOptions] = useState([]);
-    const [surveyData, setSurveyData] = useState([]); // Store all survey data for verification checks
+    const [surveyData, setSurveyData] = useState([]);
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedVoterId, setSelectedVoterId] = useState(null);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-    const [showAdditionalFilters, setShowAdditionalFilters] = useState(false);
+    const [showAdditionalFilters, setShowAdditionalFilters] = useState(
+        Boolean(searchParams.get('name') || searchParams.get('houseNo'))
+    );
     const [allVoters, setAllVoters] = useState([]);
     const [voters, setVoters] = useState([]);
 
     const selectedVoter = voters.find(voter => voter.id === selectedVoterId);
+
+    // Update URL parameters when filters change
+    const updateURLParams = useCallback((newFilters) => {
+        const params = new URLSearchParams();
+        
+        Object.entries(newFilters).forEach(([key, value]) => {
+            if (value && value.trim()) {
+                params.set(key, value);
+            }
+        });
+
+        setSearchParams(params);
+    }, [setSearchParams]);
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbarMessage(message);
@@ -138,6 +155,7 @@ export default function WithVoterId() {
     }, []);
 
     const fetchConstituencies = useCallback(async (surveyName) => {
+        if (!surveyName) return;
         setLoading(prev => ({ ...prev, constituencies: true }));
         try {
             const response = await axiosInstance.get(`/file/distinct-constituencies?surveyName=${encodeURIComponent(surveyName)}`);
@@ -151,6 +169,7 @@ export default function WithVoterId() {
     }, []);
 
     const fetchBooths = useCallback(async (surveyName, constituency) => {
+        if (!surveyName || !constituency) return;
         setLoading(prev => ({ ...prev, booths: true }));
         try {
             const response = await axiosInstance.get(`/file/distinct-booths?surveyName=${encodeURIComponent(surveyName)}&Constituency=${encodeURIComponent(constituency)}`);
@@ -165,16 +184,9 @@ export default function WithVoterId() {
 
     // Helper function to check if a voter is verified
     const isVoterVerified = useCallback((voterId) => {
-        // Find survey record that matches this voter's fileDataId and has verified = true
         const isVerified = surveyData.some(survey => 
             survey.fileDataId === String(voterId) && survey.verified === true
         );
-        
-        // Debug logging to check the verification logic
-        console.log(`Checking verification for voter ID: ${voterId}`);
-        console.log("Survey data:", surveyData);
-        console.log("Is verified:", isVerified);
-        
         return isVerified;
     }, [surveyData]);
 
@@ -206,7 +218,6 @@ export default function WithVoterId() {
             
             const transformedVoters = response.data.map((voter, index) => {
                 const isVerified = isVoterVerified(voter.id);
-                console.log(`Voter ${voter.name} (ID: ${voter.id}) - Verified: ${isVerified}`);
                 
                 return {
                     id: voter.id || index + 1, 
@@ -223,8 +234,6 @@ export default function WithVoterId() {
                     verified: isVerified
                 };
             });
-
-            console.log("Transformed voters with verification:", transformedVoters);
             
             // Apply name and house number filters
             const filtered = transformedVoters.filter(voter => {
@@ -259,16 +268,25 @@ export default function WithVoterId() {
         fetchSurveyData();
     }, [fetchActiveSurveys, fetchSurveyData]);
 
-    // Handle all filter changes and data fetching
+    // Load dependent data when component mounts with URL parameters
     useEffect(() => {
-        const handleFilterChanges = async () => {
-            // Handle survey change
-            if (filters.survey && !constituencyOptions.length) {
+        const loadDependentData = async () => {
+            if (filters.survey) {
                 await fetchConstituencies(filters.survey);
             }
-            
+            if (filters.survey && filters.constituency) {
+                await fetchBooths(filters.survey, filters.constituency);
+            }
+        };
+        
+        loadDependentData();
+    }, []); // Only run once on mount
+
+    // Handle filter changes and data fetching
+    useEffect(() => {
+        const handleFilterChanges = async () => {
             // Handle constituency change
-            if (filters.survey && filters.constituency && !boothOptions.length) {
+            if (filters.survey && filters.constituency && boothOptions.length === 0 && constituencyOptions.includes(filters.constituency)) {
                 await fetchBooths(filters.survey, filters.constituency);
             }
             
@@ -286,7 +304,7 @@ export default function WithVoterId() {
         };
 
         handleFilterChanges();
-    }, [filters, constituencyOptions.length, boothOptions.length, surveyData, fetchConstituencies, fetchBooths, fetchVoters]);
+    }, [filters, boothOptions.length, constituencyOptions, surveyData, fetchBooths, fetchVoters]);
 
     const handleFilterChange = (field, value) => {
         setFilters(prev => {
@@ -303,24 +321,32 @@ export default function WithVoterId() {
                 setBoothOptions([]);
             }
             
+            // Update URL parameters
+            updateURLParams(newFilters);
+            
             return newFilters;
         });
     };
 
     const handleClearFilters = () => {
-        setFilters({
+        const clearedFilters = {
             survey: '',
             constituency: '',
             boothNumber: '',
             district: '',
             name: '',
             houseNo: ''
-        });
+        };
+        
+        setFilters(clearedFilters);
         setConstituencyOptions([]);
         setBoothOptions([]);
         setAllVoters([]);
         setVoters([]);
         setShowAdditionalFilters(false);
+        
+        // Clear URL parameters
+        setSearchParams(new URLSearchParams());
     };
 
     const handleMenuOpen = (event, voterId) => {
@@ -359,7 +385,6 @@ export default function WithVoterId() {
             const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
             if (response.status === 200) {
                 showSnackbar('Voter marked as voted!', 'success');
-                // Reload the voter data to reflect changes
                 await fetchVoters(filters);
             } else {
                 showSnackbar('Failed to mark as voted.', 'error');
@@ -384,33 +409,38 @@ export default function WithVoterId() {
         handleMenuClose();
     };
 
+    // Fixed back navigation to preserve search params
     const handleBack = () => {
         const currentPath = location.pathname;
+        const currentParams = searchParams.toString();
+        const paramString = currentParams ? `?${currentParams}` : '';
 
         if (currentPath.includes('/admin')) {
-            navigate('/admin/dashboard');
+            navigate(`/admin/dashboard${paramString}`);
         } else if (currentPath.includes('/surveyor')) {
-            navigate('/surveyor/home');
+            navigate(`/surveyor/home${paramString}`);
         } else {
-            navigate('/');
+            navigate(`/${paramString}`);
         }
     };
 
+    // Fixed navigation to form to preserve search params
     const handleNavigateToSurvey = (id) => {
         const currentPath = location.pathname;
+        const currentParams = searchParams.toString();
+        const paramString = currentParams ? `?${currentParams}` : '';
 
         if (currentPath.includes('/admin')) {
-            navigate(`/admin/with-voter-id/form/${id}`);
+            navigate(`/admin/with-voter-id/form/${id}${paramString}`);
         } else if (currentPath.includes('/surveyor')) {
-            navigate(`/surveyor/with-voter-id/form/${id}`);
+            navigate(`/surveyor/with-voter-id/form/${id}${paramString}`);
         } else {
-            navigate('/');
+            navigate(`/${paramString}`);
         }
     };
 
     const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
 
-    // Render skeleton cards while loading
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
             <VoterCardSkeleton key={`skeleton-${index}`} />
@@ -571,7 +601,6 @@ export default function WithVoterId() {
 
                 <Grid container spacing={4}>
                     {loading.search ? (
-                        // Show skeleton cards while loading
                         renderSkeletonCards()
                     ) : shouldShowVoters && voters.length > 0 ? (
                         voters.map((voter) => (
