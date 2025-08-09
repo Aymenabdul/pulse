@@ -19,7 +19,9 @@ import {
     Snackbar,
     Alert,
     CircularProgress,
-    Skeleton
+    Skeleton,
+    Pagination,
+    Stack
 } from "@mui/material";
 import {
     ArrowBack,
@@ -34,7 +36,6 @@ import {
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import axiosInstance from "../../axios/axios";
 
-// Skeleton component for voter cards
 const VoterCardSkeleton = () => (
     <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
         <Card
@@ -44,7 +45,7 @@ const VoterCardSkeleton = () => (
                 border: '1px solid rgba(255, 255, 255, 0.3)',
                 borderRadius: 3,
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                height: '240px',
+                minHeight: '240px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -79,7 +80,6 @@ export default function WithVoterId() {
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Initialize filters from URL parameters
     const [filters, setFilters] = useState({
         survey: searchParams.get('survey') || '',
         constituency: searchParams.get('constituency') || '',
@@ -88,6 +88,9 @@ export default function WithVoterId() {
         name: searchParams.get('name') || '',
         houseNo: searchParams.get('houseNo') || ''
     });
+    const [isUpdatingPage, setIsUpdatingPage] = useState(false);
+    const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page')) || 1);
+    const itemsPerPage = 15;
 
     useEffect(() => {
         const savedFilters = localStorage.getItem('filters');
@@ -119,14 +122,16 @@ export default function WithVoterId() {
     const [allVoters, setAllVoters] = useState([]);
     const [voters, setVoters] = useState([]);
 
-    // Track initialization state
     const [isInitialized, setIsInitialized] = useState(false);
     const [hasAttemptedSearch, setHasAttemptedSearch] = useState(false);
 
     const selectedVoter = voters.find(voter => voter.id === selectedVoterId);
+    const totalPages = Math.ceil(voters.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentPageVoters = voters.slice(startIndex, endIndex);
 
-    // Update URL parameters when filters change
-    const updateURLParams = useCallback((newFilters) => {
+    const updateURLParams = useCallback((newFilters, page = currentPage) => {
         const params = new URLSearchParams();
         
         Object.entries(newFilters).forEach(([key, value]) => {
@@ -135,8 +140,20 @@ export default function WithVoterId() {
             }
         });
 
+        if (page > 1) {
+            params.set('page', page.toString());
+        }
+
         setSearchParams(params);
-    }, [setSearchParams]);
+    }, [setSearchParams, currentPage]);
+
+    const handlePageChange = (event, page) => {
+        setIsUpdatingPage(true);
+        setCurrentPage(page);
+        updateURLParams(filters, page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => setIsUpdatingPage(false), 100);
+    };
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbarMessage(message);
@@ -194,7 +211,6 @@ export default function WithVoterId() {
         }
     }, []);
 
-    // Helper function to check if a voter is verified
     const isVoterVerified = useCallback((voterId) => {
         const isVerified = surveyData.some(survey => 
             survey.fileDataId === String(voterId) && survey.verified === true
@@ -207,6 +223,7 @@ export default function WithVoterId() {
 
         if (!survey || !constituency || !boothNumber) {
             setVoters([]);
+            setCurrentPage(1);
             return;
         }
 
@@ -247,7 +264,6 @@ export default function WithVoterId() {
                 };
             });
             
-            // Apply name and house number filters
             const filtered = transformedVoters.filter(voter => {
                 const matchesName = name.trim()
                     ? voter.name.toLowerCase().includes(name.trim().toLowerCase())
@@ -262,19 +278,29 @@ export default function WithVoterId() {
 
             setAllVoters(transformedVoters);
             setVoters(filtered);
+            
+            const urlPage = parseInt(searchParams.get('page')) || 1;
+            const maxPage = Math.ceil(filtered.length / itemsPerPage);
+
+            if (urlPage > maxPage && maxPage > 0) {
+                setCurrentPage(maxPage);
+                updateURLParams(currentFilters, maxPage);
+            } else if (urlPage <= maxPage) {
+                setCurrentPage(urlPage);
+            }
         } catch (error) {
             console.error('Error searching voters:', error);
             if (error.response?.status === 404) {
                 setVoters([]);
+                setCurrentPage(1);
             } else {
                 showSnackbar('Error searching voters. Please try again.', 'error');
             }
         } finally {
             setLoading(prev => ({ ...prev, search: false }));
         }
-    }, [isVoterVerified]);
+    }, [isVoterVerified, updateURLParams]);
 
-    // Initial data loading
     useEffect(() => {
         const initializeData = async () => {
             await fetchActiveSurveys();
@@ -285,12 +311,10 @@ export default function WithVoterId() {
         initializeData();
     }, [fetchActiveSurveys, fetchSurveyData]);
 
-    // Handle initial loading of dependent data from URL parameters
     useEffect(() => {
         const loadInitialData = async () => {
             if (!isInitialized) return;
 
-            // Load constituencies if survey is selected
             if (filters.survey && !constituencyOptions.length) {
                 await fetchConstituencies(filters.survey);
             }
@@ -299,7 +323,6 @@ export default function WithVoterId() {
         loadInitialData();
     }, [isInitialized, filters.survey, constituencyOptions.length, fetchConstituencies]);
 
-    // Handle loading booths when constituency changes or is loaded from URL
     useEffect(() => {
         const loadBooths = async () => {
             if (!isInitialized) return;
@@ -312,7 +335,6 @@ export default function WithVoterId() {
         loadBooths();
     }, [isInitialized, filters.survey, filters.constituency, boothOptions.length, fetchBooths]);
 
-    // Handle voter fetching with debounce
     useEffect(() => {
         if (!isInitialized) return;
 
@@ -323,7 +345,7 @@ export default function WithVoterId() {
             } else {
                 setVoters([]);
                 setAllVoters([]);
-                // Only set hasAttemptedSearch to true if we've cleared filters manually
+                setCurrentPage(1);
                 if (!filters.survey && !filters.constituency && !filters.boothNumber) {
                     setHasAttemptedSearch(false);
                 }
@@ -333,34 +355,30 @@ export default function WithVoterId() {
         return () => clearTimeout(delayDebounceFn);
     }, [filters, isInitialized, surveyData, fetchVoters]);
 
-   const handleFilterChange = (field, value) => {
+    const handleFilterChange = (field, value) => {
         setFilters(prev => {
             const newFilters = { ...prev, [field]: value };
 
-            // Reset dependent fields when parent fields change
             if (field === 'survey') {
                 newFilters.constituency = '';
                 newFilters.boothNumber = '';
                 setConstituencyOptions([]);
                 setBoothOptions([]);
-                // Fetch constituencies for the new survey
                 if (value) {
                     fetchConstituencies(value);
                 }
             } else if (field === 'constituency') {
                 newFilters.boothNumber = '';
                 setBoothOptions([]);
-                // Fetch booths for the new constituency
                 if (value && newFilters.survey) {
                     fetchBooths(newFilters.survey, value);
                 }
             }
 
-            // Save to localStorage
             localStorage.setItem('filters', JSON.stringify(newFilters));
             
-            // Update URL parameters
-            updateURLParams(newFilters);
+            setCurrentPage(1);
+            updateURLParams(newFilters, 1);
 
             return newFilters;
         });
@@ -383,11 +401,8 @@ export default function WithVoterId() {
         setVoters([]);
         setShowAdditionalFilters(false);
         setHasAttemptedSearch(false);
-        
-        // Clear URL parameters
+        setCurrentPage(1);
         setSearchParams(new URLSearchParams());
-        
-        // Clear from localStorage
         localStorage.removeItem('filters');
     };
 
@@ -457,7 +472,6 @@ export default function WithVoterId() {
         handleMenuClose();
     };
 
-    // Fixed back navigation to preserve search params
     const handleBack = () => {
         const currentPath = location.pathname;
         const currentParams = searchParams.toString();
@@ -472,7 +486,6 @@ export default function WithVoterId() {
         }
     };
 
-    // Fixed navigation to form to preserve search params
     const handleNavigateToSurvey = (id) => {
         const currentPath = location.pathname;
         const currentParams = searchParams.toString();
@@ -646,6 +659,17 @@ export default function WithVoterId() {
                     >
                         Voter Details
                     </Typography>
+                    {voters.length > 0 && (
+                        <Typography
+                            variant="body1"
+                            sx={{
+                                color: 'rgba(0, 0, 0, 0.6)',
+                                mb: 2
+                            }}
+                        >
+                            Showing {startIndex + 1}-{Math.min(endIndex, voters.length)} of {voters.length} voters
+                        </Typography>
+                    )}
                 </Box>
 
                 <Grid container spacing={4}>
@@ -654,8 +678,8 @@ export default function WithVoterId() {
                         renderSkeletonCards()
                     ) : loading.search ? (
                         renderSkeletonCards()
-                    ) : shouldShowVoters && voters.length > 0 ? (
-                        voters.map((voter) => (
+                    ) : shouldShowVoters && currentPageVoters.length > 0 ? (
+                        currentPageVoters.map((voter) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
                                 <Card
                                     onClick={() => handleNavigateToSurvey(voter?.id)}
@@ -666,8 +690,9 @@ export default function WithVoterId() {
                                         borderRadius: 3,
                                         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
                                         cursor: 'pointer',
-                                        transition: 'all 0.3s ease',
-                                        height: '240px',
+                                        opacity: loading.search ? 0 : 1,
+                                        transition: 'all 0.3s ease, opacity 0.2s ease',
+                                        minHeight: '240px',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         justifyContent: 'space-between',
@@ -739,7 +764,13 @@ export default function WithVoterId() {
 
                                         <Box>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
-                                                <strong>Voter ID:</strong> {voter?.voterId}
+                                                <strong>Booth No:</strong> {voter.boothNo}
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
+                                                <strong>House No:</strong> {voter.houseNo}
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
+                                            <strong>Voter ID:</strong> {voter?.voterId}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
                                                 <strong>Serial Number:</strong> {voter?.serialNumber}
@@ -747,12 +778,7 @@ export default function WithVoterId() {
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
                                                 <strong>Relative:</strong> {voter.relative}
                                             </Typography>
-                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
-                                                <strong>Booth No:</strong> {voter.boothNo}
-                                            </Typography>
-                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)' }}>
-                                                <strong>House No:</strong> {voter.houseNo}
-                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}></Typography>
                                         </Box>
                                     </CardContent>
                                 </Card>
@@ -774,6 +800,38 @@ export default function WithVoterId() {
                         </Grid>
                     )}
                 </Grid>
+
+                {voters.length > 0 && totalPages > 1 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6, mb: 4 }}>
+                        <Stack spacing={2} alignItems="center">
+                            <Pagination
+                                count={totalPages}
+                                page={currentPage}
+                                onChange={handlePageChange}
+                                color="primary"
+                                size="large"
+                                showFirstButton
+                                showLastButton
+                                sx={{
+                                    '& .MuiPaginationItem-root': {
+                                        fontSize: '1rem',
+                                        fontWeight: 500,
+                                        '&.Mui-selected': {
+                                            backgroundColor: 'primary.main',
+                                            color: 'white',
+                                            '&:hover': {
+                                                backgroundColor: 'primary.dark',
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
+                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.6)' }}>
+                                Page {currentPage} of {totalPages}
+                            </Typography>
+                        </Stack>
+                    </Box>
+                )}
 
                 <Menu
                     anchorEl={anchorEl}
