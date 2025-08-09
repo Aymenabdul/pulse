@@ -28,7 +28,7 @@ const headCells = [
   { id: "createdAt", label: "Created At", sortable: true },
   { id: "status", label: "Status", sortable: false },
   { id: "activity", label: "Activity", sortable: false },
-  { id: "actions", label: "Actions", sortable: false },
+  // { id: "actions", label: "Actions", sortable: false },
 ];
 
 export default function SurveyTable({ data, loading }) {
@@ -266,28 +266,28 @@ export default function SurveyTable({ data, loading }) {
     handleFilterClose();
   };
 
-  const handleDelete = (surveyName) => {
-    const updated = tableData.filter((s) => s.surveyName !== surveyName);
-    setTableData(updated);
+  // const handleDelete = (surveyName) => {
+  //   const updated = tableData.filter((s) => s.surveyName !== surveyName);
+  //   setTableData(updated);
     
-    setSelected(prevSelected => {
-      const newSelected = new Set(prevSelected);
-      newSelected.delete(surveyName);
-      return newSelected;
-    });
+  //   setSelected(prevSelected => {
+  //     const newSelected = new Set(prevSelected);
+  //     newSelected.delete(surveyName);
+  //     return newSelected;
+  //   });
     
-    showSnackbar("Survey deleted successfully", "success");
-    console.log("Survey deleted locally:", surveyName);
-  };
+  //   showSnackbar("Survey deleted successfully", "success");
+  //   console.log("Survey deleted locally:", surveyName);
+  // };
 
-  const handleBulkDelete = () => {
-    const selectedSurveyNames = Array.from(selected);
-    selectedSurveyNames.forEach((surveyName) => {
-      handleDelete(surveyName);
-    });
-    setSelected(new Set());
-    showSnackbar(`${selectedSurveyNames.length} survey(s) deleted`, "success");
-  };
+  // const handleBulkDelete = () => {
+  //   const selectedSurveyNames = Array.from(selected);
+  //   selectedSurveyNames.forEach((surveyName) => {
+  //     handleDelete(surveyName);
+  //   });
+  //   setSelected(new Set());
+  //   showSnackbar(`${selectedSurveyNames.length} survey(s) deleted`, "success");
+  // };
 
   const filteredData = useMemo(() => {
     if (!Array.isArray(tableData)) return [];
@@ -345,12 +345,12 @@ export default function SurveyTable({ data, loading }) {
             >
               {getSelectedStatus() === 'mixed' ? 'Toggle Status' : getSelectedStatus() ? 'Deactivate All' : 'Activate All'} ({selected.size})
             </Button>
-            <IconButton
+            {/* <IconButton
               color="error"
               onClick={handleBulkDelete}
             >
               <Delete />
-            </IconButton>
+            </IconButton> */}
           </>
         )}
       </Toolbar>
@@ -454,7 +454,7 @@ export default function SurveyTable({ data, loading }) {
                         {row.isActive ? "Deactivate" : "Activate"}
                       </Button>
                     </TableCell>
-                    <TableCell align="center">
+                    {/* <TableCell align="center">
                       <IconButton
                         color="error"
                         onClick={(e) => {
@@ -464,7 +464,7 @@ export default function SurveyTable({ data, loading }) {
                       >
                         <Delete fontSize="small" />
                       </IconButton>
-                    </TableCell>
+                    </TableCell> */}
                   </TableRow>
                 );
               })

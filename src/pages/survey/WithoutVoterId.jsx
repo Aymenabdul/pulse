@@ -81,7 +81,6 @@ export default function WithoutVoterId() {
             try {
                 setLoading(true);
                 const response = await axiosInstance.get(`/survey/votersbyId?surveyName=${filters.surveyName}&userId=${user?.id}`);
-                console.log(response.data);
                 setTableData(response.data || []);
                 setSnackbarMessage('Data loaded successfully!');
                 setSnackbarSeverity('success');

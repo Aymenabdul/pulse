@@ -19,7 +19,6 @@ export default function Files() {
         try {
             const response = await axiosInstance.get("/file/survey-stats");
             setData(response.data);
-            console.log(response.data);
         } catch (error) {
             console.error(error);
         } finally {

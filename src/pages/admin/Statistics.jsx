@@ -118,7 +118,7 @@ export default function Statistics() {
     });
 
     const [statistics, setStatistics] = useState(initialStatistics);
-    const [animatedStats, setAnimatedStats] = useState(initialStatistics);
+    // const [animatedStats, setAnimatedStats] = useState(initialStatistics);
     const [loading, setLoading] = useState({
         statistics: false,
         surveys: false,
@@ -133,7 +133,7 @@ export default function Statistics() {
     const [surveyOptions, setSurveyOptions] = useState([]);
     const [constituencyOptions, setConstituencyOptions] = useState([]);
     const [boothOptions, setBoothOptions] = useState([]);
-    const [currentlyAnimating, setCurrentlyAnimating] = useState(false);
+    // const [currentlyAnimating, setCurrentlyAnimating] = useState(false);
     const [responseData, setResponseData] = useState({});
     const [displayModes, setDisplayModes] = useState({
         ques1: 'count',
@@ -141,7 +141,6 @@ export default function Statistics() {
         ques3: 'count'
     });
 
-    // Animated Counter Hook
     const useAnimatedCounter = (targetValue, duration = 2000) => {
         const [count, setCount] = useState(0);
         
@@ -175,7 +174,6 @@ export default function Statistics() {
         return count;
     };
 
-    // Use the animated counter hook
     const animatedConstituenciesCount = useAnimatedCounter(statistics.totalConstituencies);
     const animatedBoothsCount = useAnimatedCounter(statistics.totalBooths);
     const animatedVotersCount = useAnimatedCounter(statistics.totalVoters);
@@ -291,7 +289,8 @@ export default function Statistics() {
 
     useEffect(() => {
         fetchStatistics();
-        fetchResponses();
+        if (filters.surveyName !== '' || filters.constituency !== '' || filters.boothNumber !== '')
+            fetchResponses();
     }, [filters.surveyName, filters.constituency, filters.boothNumber]);
 
     const handleFilterChange = (field, value) => {
@@ -704,7 +703,6 @@ export default function Statistics() {
         return titles[questionKey] || questionKey;
     };
 
-    // CounterBox component
     const CounterBox = ({ title, count, icon, color }) => (
         <Paper
             elevation={3}

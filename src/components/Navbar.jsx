@@ -11,13 +11,15 @@ import {
     useTheme
 } from "@mui/material";
 import MenuIcon from '@mui/icons-material/Menu';
+import TranslateIcon from '@mui/icons-material/Translate';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import GoogleTranslateWidget from "./GoogleTranslateWidget";
 
-export default function Navbar({ userRole }) {
+export default function Navbar() {
     const [anchorEl, setAnchorEl] = useState(null);
+    const [translateAnchorEl, setTranslateAnchorEl] = useState(null);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -31,6 +33,14 @@ export default function Navbar({ userRole }) {
 
     const handleMenuClose = () => {
         setAnchorEl(null);
+    };
+
+    const handleTranslateMenuOpen = (event) => {
+        setTranslateAnchorEl(event.currentTarget);
+    };
+
+    const handleTranslateMenuClose = () => {
+        setTranslateAnchorEl(null);
     };
 
     useEffect(() => {
@@ -131,6 +141,60 @@ export default function Navbar({ userRole }) {
                 )}
 
                 <Box sx={{ flexGrow: isMobile ? 1 : 0, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 2 }}>
+                    {/* Google Translate Widget - Desktop */}
+                    {!isMobile && (
+                        <Box sx={{
+                            '& #google_translate_element': {
+                                '& .goog-te-gadget': {
+                                    fontFamily: 'inherit !important',
+                                    color: 'transparent !important'
+                                },
+                                '& .goog-te-gadget-simple': {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.25) !important',
+                                    border: '1px solid rgba(255, 255, 255, 0.2) !important',
+                                    borderRadius: '8px !important',
+                                    padding: '4px 8px !important',
+                                    fontSize: '12px !important',
+                                    backdropFilter: 'blur(10px)',
+                                    color: '#333 !important'
+                                },
+                                '& .goog-te-gadget-simple .goog-te-menu-value': {
+                                    color: '#333 !important',
+                                    fontSize: '12px !important'
+                                },
+                                '& .goog-te-gadget-simple .goog-te-menu-value:hover': {
+                                    color: '#555 !important'
+                                },
+                                '& .goog-te-gadget-icon': {
+                                    display: 'none !important'
+                                }
+                            }
+                        }}>
+                            <GoogleTranslateWidget />
+                        </Box>
+                    )}
+
+                    {/* Translate Icon Button for Mobile */}
+                    {isMobile && (
+                        <IconButton
+                            onClick={handleTranslateMenuOpen}
+                            sx={{
+                                color: "#333",
+                                backgroundColor: "rgba(255, 255, 255, 0.25)",
+                                borderRadius: 2,
+                                backdropFilter: "blur(10px)",
+                                border: "1px solid rgba(255, 255, 255, 0.2)",
+                                "&:hover": {
+                                    backgroundColor: "rgba(255, 255, 255, 0.35)",
+                                    transform: "translateY(-1px)"
+                                },
+                                transition: "all 0.3s ease"
+                            }}
+                        >
+                            <TranslateIcon />
+                        </IconButton>
+                    )}
+
                     {!isMobile && (
                         <Typography
                             variant="body2"
@@ -188,6 +252,7 @@ export default function Navbar({ userRole }) {
                 )}
             </Toolbar>
 
+            {/* Main Navigation Menu for Mobile */}
             <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
@@ -222,9 +287,6 @@ export default function Navbar({ userRole }) {
                         {item.label}
                     </MenuItem>
                 ))}
-                <Box sx={{ display: "flex", alignItems: "center", marginLeft: "auto" }}>
-                    <GoogleTranslateWidget />
-                </Box>
                 <MenuItem
                     sx={{
                         color: "#555",
@@ -234,8 +296,55 @@ export default function Navbar({ userRole }) {
                         opacity: 0.8
                     }}
                 >
-                    Role: {userRole === "admin" ? "Admin" : "Surveyor"}
+                    Role: {user?.role || "User"}
                 </MenuItem>
+            </Menu>
+
+            {/* Translate Menu for Mobile */}
+            <Menu
+                anchorEl={translateAnchorEl}
+                open={Boolean(translateAnchorEl)}
+                onClose={handleTranslateMenuClose}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            background: "rgba(255, 255, 255, 0.95)",
+                            backdropFilter: "blur(20px)",
+                            minWidth: 200,
+                            mt: 1,
+                            borderRadius: 2,
+                            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
+                            border: "1px solid rgba(255, 255, 255, 0.2)",
+                            '& #google_translate_element': {
+                                padding: '16px',
+                                '& .goog-te-gadget': {
+                                    fontFamily: 'inherit !important',
+                                    color: 'transparent !important'
+                                },
+                                '& .goog-te-gadget-simple': {
+                                    backgroundColor: 'transparent !important',
+                                    border: 'none !important',
+                                    borderRadius: '8px !important',
+                                    padding: '8px !important',
+                                    fontSize: '14px !important',
+                                    color: '#333 !important',
+                                    width: '100% !important'
+                                },
+                                '& .goog-te-gadget-simple .goog-te-menu-value': {
+                                    color: '#333 !important',
+                                    fontSize: '14px !important'
+                                },
+                                '& .goog-te-gadget-icon': {
+                                    display: 'none !important'
+                                }
+                            }
+                        }
+                    }
+                }}
+            >
+                <Box>
+                    <GoogleTranslateWidget />
+                </Box>
             </Menu>
         </AppBar>
     );

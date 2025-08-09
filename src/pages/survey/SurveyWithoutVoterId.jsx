@@ -136,7 +136,6 @@ export default function SurveyWithoutVoterId() {
   const location = useLocation();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const { id } = useParams();
 
   const [form, setForm] = useState({
     name: "",
@@ -189,8 +188,8 @@ export default function SurveyWithoutVoterId() {
       const response = await axiosInstance.get('/file/active');
       setActiveSurveys(response.data);
     } catch (error) {
-      console.error("Error fetching active surveys:", error);
-      setAlert({ open: true, type: "error", message: "Error loading active surveys." });
+      let message = error?.response ? error?.response?.data.message : "Error loading active surveys." 
+      setAlert({ open: true, type: "error", message: message });
     }
   }, []);
 
@@ -199,7 +198,6 @@ export default function SurveyWithoutVoterId() {
     
     try {
       const response = await axiosInstance.get(`/survey/survey-by-id?id=${id}`);
-      console.log("Existing survey data:", response.data);
       
       if (response.data) {
         setExistingSurvey(response.data);
@@ -228,7 +226,6 @@ export default function SurveyWithoutVoterId() {
         }
       }
     } catch (error) {
-      console.error("Error fetching existing survey:", error);
       if (error.response?.status !== 404) {
         setAlert({ open: true, type: "error", message: "Error loading existing survey data." });
       }
@@ -241,7 +238,6 @@ export default function SurveyWithoutVoterId() {
 
   useEffect(() => {
     if (idFromParams) {
-      console.log("ID from URL params: ", idFromParams);
       fetchExistingSurvey(idFromParams);
     }
   }, [idFromParams, fetchExistingSurvey]);
@@ -292,8 +288,6 @@ export default function SurveyWithoutVoterId() {
     }
 
     try {
-      let response;
-      
       if (isEditing && existingSurvey && idFromParams) {
         const updatePayload = {
           name: form.name,
@@ -320,11 +314,9 @@ export default function SurveyWithoutVoterId() {
           id: existingSurvey.id
         };
         
-        console.log("Update payload:", updatePayload);
         const updateUrl = `/survey/update-by-id?surveyName=${selectedSurveyName}&id=${idFromParams}`;
         
-        response = await axiosInstance.put(updateUrl, updatePayload);
-        console.log("Update response:", response.data);
+        await axiosInstance.put(updateUrl, updatePayload);
         
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
 
@@ -352,9 +344,7 @@ export default function SurveyWithoutVoterId() {
           voted: false
         };
 
-        console.log("Submit payload:", submitPayload);
-        response = await axiosInstance.post('/survey/submit', submitPayload);
-        console.log("Submit response:", response.data);
+        await axiosInstance.post('/survey/submit', submitPayload);
 
         setAlert({ open: true, type: "success", message: "Survey submitted successfully!" });
         
@@ -362,7 +352,6 @@ export default function SurveyWithoutVoterId() {
       }
       
     } catch (e) {
-      console.error("API Error:", e);
       
       let errorMessage;
       if (e.response?.status === 404) {
