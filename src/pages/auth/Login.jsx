@@ -1,12 +1,12 @@
 import {
-    Box, 
+    Box,
     Button,
     Container,
     FormControl,
     IconButton,
     InputAdornment,
     InputLabel,
-    Menu, 
+    Menu,
     MenuItem,
     Select,
     TextField,
@@ -26,7 +26,7 @@ export default function Login() {
     const { login, getUserDetails } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    
+
     const [showPassword, setShowPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -34,9 +34,9 @@ export default function Login() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isResetMode, setIsResetMode] = useState(false);
-    
+
     const [formData, setFormData] = useState({
-        email: '', 
+        email: '',
         password: '',
     });
 
@@ -58,7 +58,7 @@ export default function Login() {
             ...formData,
             [field]: event.target.value
         });
-        setError(''); 
+        setError('');
         setSuccess('');
     };
 
@@ -123,30 +123,35 @@ export default function Login() {
         setSuccess("");
 
         try {
-            // Request for password reset.
-            const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/reset-password`, {
-                email: resetData.email,
+            // Construct the URL with the email as a query parameter
+            const resetUrl = `${import.meta.env.VITE_BASE_URL}/reset-password?email=${resetData.email}`;
+
+            // Send the newPassword in the request body
+            const response = await axios.put(resetUrl, {
                 newPassword: resetData.newPassword
             });
 
-            if (response.data.success) {
+            // The key change is here: check for a successful HTTP status code (200)
+            if (response.status === 200) {
                 setSuccess("Password reset successfully! You can now login with your new password.");
                 setResetData({
                     email: '',
                     newPassword: '',
                     confirmPassword: ''
                 });
-                // Optionally redirect to login after a delay
+                // Redirect to login page after a delay
                 setTimeout(() => {
                     handleBackToLogin();
-                }, 3000);
+                }, 2000);
             } else {
-                setError(response.data.message || "Password reset failed");
+                // This block handles other successful status codes if necessary, though 200 is expected.
+                setError(response.data || "Password reset failed");
             }
         } catch (err) {
             console.error("Password reset error:", err);
-            if (err.response?.data?.message) {
-                setError(err.response.data.message);
+            if (err.response?.data) {
+                // If the backend returns an error message in a non-2xx response
+                setError(err.response.data);
             } else {
                 setError("Network error. Please check your internet connection.");
             }
@@ -187,19 +192,19 @@ export default function Login() {
     };
 
     return (
-        <Box 
-            sx={{ 
+        <Box
+            sx={{
                 minHeight: "100vh",
-                display: "flex", 
-                justifyContent: "center", 
+                display: "flex",
+                justifyContent: "center",
                 alignItems: "center",
                 padding: { xs: 2, md: 4 },
                 background: "linear-gradient(135deg, #a8edea, #fed6e3)"
             }}
         >
-            <Box 
-                sx={{ 
-                    display: "flex", 
+            <Box
+                sx={{
+                    display: "flex",
                     flexDirection: { xs: "column", md: "row" },
                     bgcolor: "white",
                     width: { xs: "100%", sm: "90%", md: "800px" },
@@ -209,7 +214,7 @@ export default function Login() {
                     overflow: "hidden"
                 }}
             >
-                <Box 
+                <Box
                     sx={{
                         flex: 1,
                         background: "linear-gradient(135deg, #a8edea, #fed6e3)",
@@ -222,9 +227,9 @@ export default function Login() {
                         textAlign: "center"
                     }}
                 >
-                    <Typography 
-                        variant="h3" 
-                        sx={{ 
+                    <Typography
+                        variant="h3"
+                        sx={{
                             fontWeight: 700,
                             mb: 2,
                             fontSize: { xs: "2rem", md: "3rem" }
@@ -232,21 +237,21 @@ export default function Login() {
                     >
                         {isResetMode ? "Reset Password" : "Welcome Back"}
                     </Typography>
-                    <Typography 
-                        variant="body1" 
-                        sx={{ 
+                    <Typography
+                        variant="body1"
+                        sx={{
                             opacity: 0.8,
                             lineHeight: 1.6,
                             fontSize: { xs: "1rem", md: "1.1rem" },
                             maxWidth: "300px"
                         }}
                     >
-                        {isResetMode 
-                            ? "Enter your details to reset your password securely." 
+                        {isResetMode
+                            ? "Enter your details to reset your password securely."
                             : "Sign in to continue your journey with us. We're excited to have you back!"
                         }
                     </Typography>
-                    <Box 
+                    <Box
                         sx={{
                             width: 60,
                             height: 4,
@@ -257,7 +262,7 @@ export default function Login() {
                     />
                 </Box>
 
-                <Box 
+                <Box
                     sx={{
                         flex: 1,
                         display: "flex",
@@ -284,9 +289,9 @@ export default function Login() {
                         </Box>
                     )}
 
-                    <Typography 
-                        variant="h4" 
-                        sx={{ 
+                    <Typography
+                        variant="h4"
+                        sx={{
                             fontWeight: 600,
                             mb: 1,
                             color: "#333",
@@ -295,14 +300,14 @@ export default function Login() {
                     >
                         {isResetMode ? "Reset Password" : "Login"}
                     </Typography>
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
+                    <Typography
+                        variant="body2"
+                        sx={{
                             color: "#666",
                             mb: 4
                         }}
                     >
-                        {isResetMode 
+                        {isResetMode
                             ? "Enter your email and new password to reset your account"
                             : "Please enter your credentials to access your account"
                         }
@@ -319,13 +324,13 @@ export default function Login() {
                             {success}
                         </Alert>
                     )}
-                    
+
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                         {isResetMode ? (
                             // Reset Password Form
                             <>
                                 <FormControl fullWidth>
-                                    <TextField 
+                                    <TextField
                                         label="Email"
                                         variant="outlined"
                                         type="email"
@@ -348,7 +353,7 @@ export default function Login() {
                                 </FormControl>
 
                                 <FormControl fullWidth>
-                                    <TextField 
+                                    <TextField
                                         label="New Password"
                                         variant="outlined"
                                         value={resetData.newPassword}
@@ -371,8 +376,8 @@ export default function Login() {
                                             input: {
                                                 endAdornment: (
                                                     <InputAdornment position="end">
-                                                        <IconButton 
-                                                            onClick={handleClickShowNewPassword} 
+                                                        <IconButton
+                                                            onClick={handleClickShowNewPassword}
                                                             edge="end"
                                                             disabled={loading}
                                                         >
@@ -386,7 +391,7 @@ export default function Login() {
                                 </FormControl>
 
                                 <FormControl fullWidth>
-                                    <TextField 
+                                    <TextField
                                         label="Confirm Password"
                                         variant="outlined"
                                         value={resetData.confirmPassword}
@@ -409,8 +414,8 @@ export default function Login() {
                                             input: {
                                                 endAdornment: (
                                                     <InputAdornment position="end">
-                                                        <IconButton 
-                                                            onClick={handleClickShowConfirmPassword} 
+                                                        <IconButton
+                                                            onClick={handleClickShowConfirmPassword}
                                                             edge="end"
                                                             disabled={loading}
                                                         >
@@ -427,7 +432,7 @@ export default function Login() {
                                     variant="contained"
                                     fullWidth
                                     disabled={loading}
-                                    sx={{ 
+                                    sx={{
                                         mt: 2,
                                         py: 1.5,
                                         borderRadius: 2,
@@ -460,7 +465,7 @@ export default function Login() {
                             // Login Form
                             <>
                                 <FormControl fullWidth>
-                                    <TextField 
+                                    <TextField
                                         label="Email"
                                         variant="outlined"
                                         type="email"
@@ -481,9 +486,9 @@ export default function Login() {
                                         }}
                                     />
                                 </FormControl>
-                                
+
                                 <FormControl fullWidth>
-                                    <TextField 
+                                    <TextField
                                         label="Password"
                                         variant="outlined"
                                         value={formData.password}
@@ -506,8 +511,8 @@ export default function Login() {
                                             input: {
                                                 endAdornment: (
                                                     <InputAdornment position="end">
-                                                        <IconButton 
-                                                            onClick={handleClickShowPassword} 
+                                                        <IconButton
+                                                            onClick={handleClickShowPassword}
                                                             edge="end"
                                                             disabled={loading}
                                                         >
@@ -521,12 +526,12 @@ export default function Login() {
                                 </FormControl>
 
                                 <Box sx={{ textAlign: 'right', mt: -1 }}>
-                                    <Typography 
-                                        variant="body2" 
+                                    <Typography
+                                        variant="body2"
                                         onClick={handleResetPasswordClick}
-                                        sx={{ 
-                                            color: "#a8edea", 
-                                            cursor: "pointer", 
+                                        sx={{
+                                            color: "#a8edea",
+                                            cursor: "pointer",
                                             fontWeight: 500,
                                             fontSize: "0.875rem",
                                             '&:hover': {
@@ -537,12 +542,12 @@ export default function Login() {
                                         Forgot Password?
                                     </Typography>
                                 </Box>
-                                
+
                                 <Button
                                     variant="contained"
                                     fullWidth
                                     disabled={loading}
-                                    sx={{ 
+                                    sx={{
                                         mt: 2,
                                         py: 1.5,
                                         borderRadius: 2,
@@ -573,11 +578,11 @@ export default function Login() {
                             </>
                         )}
                     </Box>
-                    
+
                     {!isResetMode && (
-                        <Typography 
-                            variant="body2" 
-                            sx={{ 
+                        <Typography
+                            variant="body2"
+                            sx={{
                                 textAlign: "center",
                                 mt: 3,
                                 color: "#666"

@@ -52,6 +52,7 @@ import CPI from "../../assets/cpi.png";
 import CPM from "../../assets/cpi.png";
 import PMK from "../../assets/pmk.jpg";
 import DMDK from "../../assets/dmdk.png";
+import NOTA from "../../assets/nota.png"
 
 const initialStatistics = {
     totalConstituencies: 0,
@@ -73,10 +74,10 @@ const partyLogos = {
     "CPM": CPM,
     "PMK": PMK,
     "DMDK": DMDK,
+    "NOTA" : NOTA,
     "MUSLIM PARTIES (SPECIFY)": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
     "OTHERS (SPECIFY)": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
     "INDEPENDENT (SPECIFY)": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-    "NOTA": "https://upload.wikimedia.org/wikipedia/commons/e/e4/NOTA_Option_Logo.png"
 };
 
 const partyColors = {
