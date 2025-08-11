@@ -108,7 +108,7 @@ export default function Navbar() {
                         mr: 4
                     }}
                 >
-                    ESA
+                    Pulz
                 </Typography>
 
                 {!isMobile && (

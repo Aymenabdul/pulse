@@ -1,5 +1,5 @@
 import {
-    Box, 
+    Box,
     Button,
     Container,
     FormControl,
@@ -23,6 +23,7 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export default function Signup() {
     const [showPassword, setShowPassword] = useState(false);
+    const [constituencies, setConstituencies] = useState([]);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -36,7 +37,7 @@ export default function Signup() {
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
-        severity: 'success' 
+        severity: 'success'
     });
 
     const navigate = useNavigate();
@@ -44,99 +45,108 @@ export default function Signup() {
     const handleClickShowPassword = () => {
         setShowPassword((prev) => !prev);
     };
-
+    useEffect(() => {
+        // Fetch the constituencies when the component mounts
+        axios.get(`${BASE_URL}/file/constituencies`)
+            .then((response) => {
+                setConstituencies(response.data);  // Update the constituencies state
+            })
+            .catch((error) => {
+                console.error('There was an error fetching constituencies!', error);
+            });
+    }, []);
     // Phone number validation function
     const validatePhoneNumber = (number) => {
         if (!number) return "Phone number is required";
-        
+
         if (!/^\d{10}$/.test(number)) {
             return "Phone number must be exactly 10 digits";
         }
-        
+
         return null;
     };
 
     // Password validation function
     const validatePassword = (password) => {
         if (!password) return "Password is required";
-        
+
         if (password.length < 8) {
             return "Password must be at least 8 characters long";
         }
-        
+
         if (!/[A-Z]/.test(password)) {
             return "Password must contain at least 1 uppercase letter";
         }
-        
+
         if (!/[0-9]/.test(password)) {
             return "Password must contain at least 1 number";
         }
-        
+
         if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
             return "Password must contain at least 1 special character";
         }
-        
+
         return null;
     };
 
     // Email validation function
     const validateEmail = (email) => {
         if (!email) return "Email is required";
-        
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             return "Please enter a valid email address";
         }
-        
+
         return null;
     };
 
     // Update validation errors when form changes (only for touched fields)
     useEffect(() => {
         const errors = {};
-        
+
         // Only validate fields that have been touched
         if (touchedFields.name && formData.name && !formData.name.trim()) {
             errors.name = "Name is required";
         }
-        
+
         if (touchedFields.email) {
             const emailError = validateEmail(formData.email);
             if (emailError) errors.email = emailError;
         }
-        
+
         if (touchedFields.password) {
             const passwordError = validatePassword(formData.password);
             if (passwordError) errors.password = passwordError;
         }
-        
+
         if (touchedFields.phoneNumber) {
             const phoneError = validatePhoneNumber(formData.phoneNumber);
             if (phoneError) errors.phoneNumber = phoneError;
         }
-        
+
         if (touchedFields.constituency && formData.constituency && !formData.constituency.trim()) {
             errors.constituency = "Constituency is required";
         }
-        
+
         if (touchedFields.role && formData.role && !formData.role.trim()) {
             errors.role = "Role is required";
         }
-        
+
         setValidationErrors(errors);
     }, [formData, touchedFields]);
 
     const handleInputChange = (field) => (event) => {
         let value = event.target.value;
-        
+
         // Mark field as touched when user interacts with it
         setTouchedFields(prev => ({ ...prev, [field]: true }));
-        
+
         // For phone number field, only allow digits and limit to 10 characters
         if (field === 'phoneNumber') {
             value = value.replace(/\D/g, '').slice(0, 10);
         }
-        
+
         setFormData({
             ...formData,
             [field]: value
@@ -144,8 +154,11 @@ export default function Signup() {
     };
 
     const handleSubmit = async () => {
+        // Define the required fields here
+        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
+
         // Mark all fields as touched when submit is attempted
-        const allFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
+        const allFields = requiredFields;
         setTouchedFields(prev => {
             const newTouched = { ...prev };
             allFields.forEach(field => {
@@ -155,10 +168,10 @@ export default function Signup() {
         });
 
         // Check if all required fields are filled
-        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
         const emptyFields = requiredFields.filter(field => !formData[field]?.trim());
-        
-        if (emptyFields.length > 0) {
+
+        // Admin should not have the constituency as required
+        if (formData.role !== "Admin" && emptyFields.includes('constituency')) {
             setSnackbar({
                 open: true,
                 message: "Please fill in all fields",
@@ -169,15 +182,20 @@ export default function Signup() {
 
         // Validate all fields regardless of touched state for submit
         const errors = {};
-        
+
         const emailError = validateEmail(formData.email);
         if (emailError) errors.email = emailError;
-        
+
         const passwordError = validatePassword(formData.password);
         if (passwordError) errors.password = passwordError;
-        
+
         const phoneError = validatePhoneNumber(formData.phoneNumber);
         if (phoneError) errors.phoneNumber = phoneError;
+
+        // Validate constituency only if role is not "Admin"
+        if (formData.role !== "Admin" && !formData.constituency.trim()) {
+            errors.constituency = "Constituency is required";
+        }
 
         if (Object.keys(errors).length > 0) {
             setValidationErrors(errors);
@@ -217,30 +235,41 @@ export default function Signup() {
     };
 
     const isFormValid = () => {
-        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
+        // Define the required fields here
+        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'role'];
+
+        // If the role is not Admin, make constituency a required field
+        if (formData.role !== 'Admin') {
+            requiredFields.push('constituency');
+        }
+
+        // Check if all required fields are filled
         const allFieldsFilled = requiredFields.every(field => formData[field]?.trim());
-        
+
         // Only check validation errors for touched fields
         const relevantErrors = Object.keys(validationErrors).filter(field => touchedFields[field]);
         const hasValidationErrors = relevantErrors.length > 0;
-        
+
+        // Return whether the form is valid based on fields and validation errors
         return allFieldsFilled && !hasValidationErrors;
     };
 
+
+
     return (
-        <Box 
-            sx={{ 
+        <Box
+            sx={{
                 minHeight: "100%",
-                display: "flex", 
-                justifyContent: "center", 
+                display: "flex",
+                justifyContent: "center",
                 alignItems: "center",
                 padding: { xs: 2, md: 4 },
                 background: "linear-gradient(135deg, #a8edea, #fed6e3)"
             }}
         >
-            <Box 
-                sx={{ 
-                    display: "flex", 
+            <Box
+                sx={{
+                    display: "flex",
                     flexDirection: { xs: "column", md: "row" },
                     bgcolor: "white",
                     width: { xs: "100%", sm: "90%", md: "900px" },
@@ -250,7 +279,7 @@ export default function Signup() {
                     overflow: "hidden"
                 }}
             >
-                <Box 
+                <Box
                     sx={{
                         flex: 1,
                         background: "linear-gradient(135deg, #a8edea, #fed6e3)",
@@ -263,9 +292,9 @@ export default function Signup() {
                         textAlign: "center"
                     }}
                 >
-                    <Typography 
-                        variant="h3" 
-                        sx={{ 
+                    <Typography
+                        variant="h3"
+                        sx={{
                             fontWeight: 700,
                             mb: 2,
                             fontSize: { xs: "2rem", md: "3rem" }
@@ -273,9 +302,9 @@ export default function Signup() {
                     >
                         Join Us Today
                     </Typography>
-                    <Typography 
-                        variant="body1" 
-                        sx={{ 
+                    <Typography
+                        variant="body1"
+                        sx={{
                             opacity: 0.8,
                             lineHeight: 1.6,
                             fontSize: { xs: "1rem", md: "1.1rem" },
@@ -284,7 +313,7 @@ export default function Signup() {
                     >
                         Create your account and start your journey with us. We're excited to have you on board!
                     </Typography>
-                    <Box 
+                    <Box
                         sx={{
                             width: 60,
                             height: 4,
@@ -295,7 +324,7 @@ export default function Signup() {
                     />
                 </Box>
 
-                <Box 
+                <Box
                     sx={{
                         flex: 1,
                         display: "flex",
@@ -304,9 +333,9 @@ export default function Signup() {
                         padding: { xs: 4, md: 6 }
                     }}
                 >
-                    <Typography 
-                        variant="h4" 
-                        sx={{ 
+                    <Typography
+                        variant="h4"
+                        sx={{
                             fontWeight: 600,
                             mb: 1,
                             color: "#333",
@@ -315,19 +344,19 @@ export default function Signup() {
                     >
                         Sign Up
                     </Typography>
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
+                    <Typography
+                        variant="body2"
+                        sx={{
                             color: "#666",
                             mb: 4
                         }}
                     >
                         Please fill in your information to create your account
                     </Typography>
-                    
+
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
                         <FormControl fullWidth>
-                            <TextField 
+                            <TextField
                                 label="Full Name"
                                 variant="outlined"
                                 type="text"
@@ -351,7 +380,7 @@ export default function Signup() {
                         </FormControl>
 
                         <FormControl fullWidth>
-                            <TextField 
+                            <TextField
                                 label="Email Address"
                                 variant="outlined"
                                 type="email"
@@ -373,9 +402,9 @@ export default function Signup() {
                                 }}
                             />
                         </FormControl>
-                        
+
                         <FormControl fullWidth>
-                            <TextField 
+                            <TextField
                                 label="Password"
                                 variant="outlined"
                                 type={showPassword ? 'text' : 'password'}
@@ -400,7 +429,7 @@ export default function Signup() {
                                         endAdornment: (
                                             <InputAdornment position="end">
                                                 <IconButton onClick={handleClickShowPassword} edge="end">
-                                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                    {showPassword ? <VisibilityOff /> : <Visibility />}
                                                 </IconButton>
                                             </InputAdornment>
                                         )
@@ -410,7 +439,7 @@ export default function Signup() {
                         </FormControl>
 
                         <FormControl fullWidth>
-                            <TextField 
+                            <TextField
                                 label="Phone Number"
                                 variant="outlined"
                                 type="tel"
@@ -439,16 +468,13 @@ export default function Signup() {
                             />
                         </FormControl>
 
-                        <FormControl fullWidth>
-                            <TextField 
-                                label="Constituency"
-                                variant="outlined"
-                                type="text"
-                                fullWidth
+                        <FormControl fullWidth error={!!validationErrors.constituency}>
+                            <InputLabel>Constituency</InputLabel>
+                            <Select
                                 value={formData.constituency}
                                 onChange={handleInputChange('constituency')}
-                                error={!!validationErrors.constituency}
-                                helperText={validationErrors.constituency}
+                                disabled={formData.role === "Admin"}
+                                label="Constituency"
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: 2,
@@ -460,11 +486,21 @@ export default function Signup() {
                                         }
                                     }
                                 }}
-                            />
+                            >
+                                {/* Map the fetched constituencies to menu items */}
+                                {constituencies.map((constituency) => (
+                                    <MenuItem key={constituency} value={constituency}>
+                                        {constituency}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                            {validationErrors.constituency && (
+                                <FormHelperText>{validationErrors.constituency}</FormHelperText>
+                            )}
                         </FormControl>
 
                         <FormControl fullWidth error={!!validationErrors.role}>
-                            <InputLabel 
+                            <InputLabel
                                 sx={{
                                     '&.Mui-focused': {
                                         color: '#a8edea',
@@ -499,29 +535,29 @@ export default function Signup() {
                                 </Typography>
                             )}
                         </FormControl>
-                        
+
                         <Button
                             variant="contained"
                             fullWidth
                             onClick={handleSubmit}
                             disabled={!isFormValid()}
-                            sx={{ 
+                            sx={{
                                 mt: 2,
                                 py: 1.5,
                                 borderRadius: 2,
-                                background: isFormValid() 
-                                    ? "linear-gradient(135deg, #a8edea, #fed6e3)" 
+                                background: isFormValid()
+                                    ? "linear-gradient(135deg, #a8edea, #fed6e3)"
                                     : "rgba(0, 0, 0, 0.12)",
                                 color: isFormValid() ? "#333" : "rgba(0, 0, 0, 0.26)",
                                 fontSize: "1.1rem",
                                 fontWeight: 600,
                                 textTransform: "none",
-                                boxShadow: isFormValid() 
-                                    ? "0 4px 15px rgba(168, 237, 234, 0.3)" 
+                                boxShadow: isFormValid()
+                                    ? "0 4px 15px rgba(168, 237, 234, 0.3)"
                                     : "none",
                                 '&:hover': {
-                                    boxShadow: isFormValid() 
-                                        ? "0 6px 20px rgba(168, 237, 234, 0.4)" 
+                                    boxShadow: isFormValid()
+                                        ? "0 6px 20px rgba(168, 237, 234, 0.4)"
                                         : "none",
                                     transform: isFormValid() ? "translateY(-1px)" : "none"
                                 },
@@ -535,10 +571,10 @@ export default function Signup() {
                             Create Account
                         </Button>
                     </Box>
-                    
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
+
+                    <Typography
+                        variant="body2"
+                        sx={{
                             textAlign: "center",
                             mt: 3,
                             color: "#666"

@@ -146,6 +146,7 @@ export default function SurveyWithoutVoterId() {
     whatsappNumber: "",
     voterStatus: "",
     voterType: "",
+    religion: "",
     ques1: "",
     ques2: "",
     ques3: "",
@@ -213,6 +214,7 @@ export default function SurveyWithoutVoterId() {
           whatsappNumber: response.data.whatsappNumber || "",
           voterStatus: response.data.voterStatus || "",
           voterType: response.data.voter_type || "",
+          religion : response.data.religion || "",
           ques1: response.data.ques1 || "",
           ques2: response.data.ques2 || "",
           ques3: response.data.ques3 || "",
@@ -304,6 +306,7 @@ export default function SurveyWithoutVoterId() {
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
+          religion: form.religion,
           surveyName: selectedSurveyName,
           userId: user?.id,
           updated_by: user?.name,
@@ -317,6 +320,9 @@ export default function SurveyWithoutVoterId() {
         const updateUrl = `/survey/update-by-id?surveyName=${selectedSurveyName}&id=${idFromParams}`;
         
         await axiosInstance.put(updateUrl, updatePayload);
+
+        console.log("update payload",updatePayload);
+        
         
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
 
@@ -336,6 +342,7 @@ export default function SurveyWithoutVoterId() {
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
+          religion: form.religion,
           surveyName: selectedSurveyName,
           userId: user?.id,
           verified: true,
@@ -420,6 +427,11 @@ export default function SurveyWithoutVoterId() {
       label: "Gender",
       field: "gender",
       options: ["Male", "Female", "Other"]
+    },
+    {
+      label: "Religion",
+      field: "religion",
+      options: ["Hindu", "Muslim", "christian","others"]
     },
     {
       label: "Phone Number",
