@@ -90,7 +90,10 @@ MemoizedRadioGroup.displayName = 'MemoizedRadioGroup';
 
 const FormField = memo(({ label, field, options, isInput, value, onChange, type, required = false, error, helperText }) => (
   <Grid size={{ xs: 12 }}>
-    <Card>
+    <Card sx={{
+      backgroundColor: "rgba(255, 255, 255, 0.25)",  
+      backdropFilter: "blur(10px)", 
+    }}>
       <CardContent>
         {isInput ? (
           <div>
@@ -160,7 +163,6 @@ export default function SurveyWithoutVoterId() {
 
   const idFromParams = searchParams.get('id');
 
-  // Phone number validation function
   const validatePhoneNumber = useCallback((number, fieldName) => {
     if (!number) return null; // Optional field
     
@@ -171,7 +173,6 @@ export default function SurveyWithoutVoterId() {
     return null;
   }, []);
 
-  // Update validation errors when form changes
   useEffect(() => {
     const errors = {};
     
@@ -532,7 +533,10 @@ export default function SurveyWithoutVoterId() {
       )}
       
       <Box mb={3}>
-        <Card>
+        <Card sx={{
+          backgroundColor: "rgba(255, 255, 255, 0.25)",  
+          backdropFilter: "blur(10px)", 
+        }}>
           <CardContent>
             <FormControl fullWidth>
               <Typography fontWeight={600} mb={1}>Select Survey</Typography>

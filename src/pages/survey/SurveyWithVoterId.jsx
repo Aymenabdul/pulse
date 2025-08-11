@@ -70,7 +70,10 @@ MemoizedRadioGroup.displayName = 'MemoizedRadioGroup';
 
 const FormField = memo(({ label, field, options, isInput, value, onChange, required }) => (
   <Grid size={{ xs: 12 }}>
-    <Card>
+    <Card sx={{
+      backgroundColor: "rgba(255, 255, 255, 0.25)",  
+      backdropFilter: "blur(10px)", 
+    }}>
       <CardContent>
         {isInput ? (
           <div>
@@ -111,7 +114,11 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, requi
 FormField.displayName = 'FormField';
 
 const VoterDetails = memo(({ voter }) => (
-  <Card sx={{ mb: 3, backgroundColor: "#f5f5f5" }}>
+  <Card sx={{ 
+    mb: 3, 
+    backgroundColor: "rgba(255, 255, 255, 0.25)",  
+    backdropFilter: "blur(10px)",  
+  }}>
     <CardContent>
       <Typography variant="h5" textAlign="center">Voter Details</Typography>
       <Typography mt={1}><strong>Voter ID:</strong> {voter?.voterID}</Typography>
@@ -127,7 +134,6 @@ VoterDetails.displayName = 'VoterDetails';
 
 export default function SurveyWithVoterId() {
   const [voter, setVoter] = useState(null);
-  const [surveyData, setSurveyData] = useState(null);
   const [isVerified, setIsVerified] = useState();
   const navigate = useNavigate();
   const location = useLocation();
@@ -151,38 +157,34 @@ export default function SurveyWithVoterId() {
   const [alert, setAlert] = useState({ open: false, type: "success", message: "" });
 
   useEffect(() => {
-    const fileDataId = voter?.id;  // Retrieve fileDataId from the voter object
+    const fileDataId = voter?.id; 
 
-    if (!fileDataId) return;  // If fileDataId is not available, don't proceed
+    if (!fileDataId) return;  
 
     const fetchVerificationStatus = async () => {
       try {
-        // Fetch the verification status using fileDataId in query parameter
         const response = await axiosInstance.get(`/survey/voters/${fileDataId}`);
-        console.log("Response:", response.data);  // Log full response to verify
+        console.log("Response:", response.data);  
 
-        // Extract the verified status from the response data
         const verifiedStatus = response.data.isVerified;
 
-        // Set the verification status to state
         setIsVerified(verifiedStatus);
-        console.log("Verified Status:", verifiedStatus);  // Log the verified status
+        console.log("Verified Status:", verifiedStatus);  
       } catch (error) {
         console.error("Error fetching verification status:", error);
-        setIsVerified(false);  // Default to false if there's an error
+        setIsVerified(false);  
       }
     };
 
-    fetchVerificationStatus();  // Call the function to fetch verification status
+    fetchVerificationStatus();  
   }, [voter?.id]);
 
 
   const handleFetchSurveyData = useCallback(async () => {
-    const fileDataId = voter?.id;  // Retrieve fileDataId from the voter object
+    const fileDataId = voter?.id;  
 
     if (fileDataId) {
       try {
-        // Use query parameter for fileDataId
         const response = await axiosInstance.get(`/survey/survey-by-fileid?fileDataId=${fileDataId}`);
 
         console.log("surveyData for the user", response.data);
@@ -206,11 +208,11 @@ export default function SurveyWithVoterId() {
         console.error("Error fetching survey data:", error);
       }
     }
-  }, [voter?.id, user?.id]);  // Use `voter?.id` instead of `voter?.fileDataId` for clarity
+  }, [voter?.id, user?.id]);  
 
   useEffect(() => {
     if (voter?.id) {
-      handleFetchSurveyData(); // Call it once the voter data is available
+      handleFetchSurveyData(); 
     }
   }, [voter, handleFetchSurveyData]);
 
@@ -220,9 +222,8 @@ export default function SurveyWithVoterId() {
       console.log(response.data);
       setVoter(response.data);
 
-      // If the voter has voted, we fetch the survey data
       if (response.data?.voted) {
-        handleFetchSurveyData(); // No need to pass `response.data.id` since it's already in `voter.id`
+        handleFetchSurveyData(); 
       }
     } catch (error) {
       console.error("Error fetching voter data:", error);

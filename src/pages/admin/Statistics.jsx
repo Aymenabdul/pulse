@@ -531,7 +531,11 @@ export default function Statistics() {
         }
         
         return (
-            <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ 
+                height: '500px', 
+                display: 'flex', 
+                flexDirection: 'column',
+            }}>
                 <Typography
                     variant="h6"
                     component="h2"
@@ -879,14 +883,13 @@ export default function Statistics() {
                     </Grid>
                 </Grid>
 
-                {/* Political Party Bar Charts */}
                 <Paper
                     elevation={3}
                     sx={{
                         p: 3,
                         borderRadius: 2,
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,248,255,0.95) 100%)',
-                        backdropFilter: 'blur(10px)',
+                        backgroundColor: "rgba(255, 255, 255, 0.25)",  
+                        backdropFilter: "blur(10px)",  
                         border: '1px solid rgba(255,255,255,0.3)',
                         mb: 4
                     }}
@@ -904,7 +907,7 @@ export default function Statistics() {
                     </Typography>
                     
                     <Grid container spacing={3}>
-                        {["ques1", "ques2", "ques3"].map((questionKey) => (
+                        {["Vote 2016", "Vote 2021", "Vote 2026"].map((questionKey) => (
                             <Grid size={{xs: 12, md: 4}} key={questionKey}>
                                 {renderBarChart(questionKey, getQuestionTitle(questionKey))}
                             </Grid>
@@ -912,14 +915,13 @@ export default function Statistics() {
                     </Grid>
                 </Paper>
 
-                {/* Performance Rating Pie Charts */}
                 <Paper
                     elevation={3}
                     sx={{
                         p: 3,
                         borderRadius: 2,
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
-                        backdropFilter: 'blur(10px)',
+                        backgroundColor: "rgba(255, 255, 255, 0.25)",  
+                        backdropFilter: "blur(10px)",  
                         border: '1px solid rgba(255,255,255,0.3)',
                         mb: 4
                     }}
@@ -937,7 +939,7 @@ export default function Statistics() {
                     </Typography>
                     
                     <Grid container spacing={3}>
-                        {["ques4", "ques5", "ques6"].map((questionKey) => (
+                        {["CM EPS (2017–2021)", "CM Stalin (2021–2026)", "Current MLA"].map((questionKey) => (
                             <Grid size={{xs: 12, md: 4}} key={questionKey}>
                                 {renderPieChart(questionKey, getQuestionTitle(questionKey))}
                             </Grid>

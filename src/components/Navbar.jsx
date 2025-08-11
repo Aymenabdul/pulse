@@ -12,6 +12,8 @@ import {
 } from "@mui/material";
 import MenuIcon from '@mui/icons-material/Menu';
 import TranslateIcon from '@mui/icons-material/Translate';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
@@ -20,6 +22,7 @@ import GoogleTranslateWidget from "./GoogleTranslateWidget";
 export default function Navbar() {
     const [anchorEl, setAnchorEl] = useState(null);
     const [translateAnchorEl, setTranslateAnchorEl] = useState(null);
+    const [statusAnchorEl, setStatusAnchorEl] = useState(null);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -43,6 +46,14 @@ export default function Navbar() {
         setTranslateAnchorEl(null);
     };
 
+    const handleStatusMenuOpen = (event) => {
+        setStatusAnchorEl(event.currentTarget);
+    };
+
+    const handleStatusMenuClose = () => {
+        setStatusAnchorEl(null);
+    };
+
     useEffect(() => {
         if (!isMobile && anchorEl) {
             setAnchorEl(null);
@@ -58,14 +69,29 @@ export default function Navbar() {
 
     const surveyorNavItems = [
         { label: "Home", href: "/surveyor/home" },
-        // { label: "Survey", href: "/surveyor/home" }
     ];
 
     const navItems = user?.role.toLowerCase() === "admin" ? adminNavItems : surveyorNavItems;
 
+    const statusItems = [
+        {
+            label: "Pool Day",
+            href: user?.role.toLowerCase() === "admin" ? "/admin/status/pool-day" : "/surveyor/status/pool-day"
+        },
+        {
+            label: "Verification Status",
+            href: user?.role.toLowerCase() === "admin" ? "/admin/status/verification-status" : "/surveyor/status/verification-status"
+        }
+    ];
+
     const handleNavClick = (href) => {
         navigate(href);
         handleMenuClose();
+    };
+
+    const handleStatusClick = (href) => {
+        navigate(href);
+        handleStatusMenuClose();
     };
 
     const handleLogout = () => {
@@ -137,6 +163,30 @@ export default function Navbar() {
                                 {item.label}
                             </Button>
                         ))}
+                        
+                        {/* Field Status Dropdown for Desktop */}
+                        <Button
+                            onClick={handleStatusMenuOpen}
+                            endIcon={<ArrowDropDownIcon />}
+                            sx={{
+                                color: "#333",
+                                fontWeight: 600,
+                                fontSize: "1rem",
+                                textTransform: "none",
+                                px: 3,
+                                py: 1,
+                                borderRadius: 2,
+                                transition: "all 0.3s ease",
+                                "&:hover": {
+                                    backgroundColor: "rgba(255, 255, 255, 0.25)",
+                                    transform: "translateY(-1px)",
+                                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                                    backdropFilter: "blur(10px)"
+                                }
+                            }}
+                        >
+                            Status
+                        </Button>
                     </Box>
                 )}
 
@@ -287,6 +337,26 @@ export default function Navbar() {
                         {item.label}
                     </MenuItem>
                 ))}
+                
+                {/* Field Status submenu for mobile */}
+                {statusItems.map((item) => (
+                    <MenuItem
+                        key={item.label}
+                        onClick={() => handleStatusClick(item.href)}
+                        sx={{
+                            color: "#333",
+                            fontWeight: 600,
+                            py: 1.5,
+                            pl: 3,
+                            "&:hover": {
+                                backgroundColor: "rgba(255, 255, 255, 0.25)"
+                            }
+                        }}
+                    >
+                        {item.label}
+                    </MenuItem>
+                ))}
+                
                 <MenuItem
                     sx={{
                         color: "#555",
@@ -300,7 +370,42 @@ export default function Navbar() {
                 </MenuItem>
             </Menu>
 
-            {/* Translate Menu for Mobile */}
+            <Menu
+                anchorEl={statusAnchorEl}
+                open={Boolean(statusAnchorEl)}
+                onClose={handleStatusMenuClose}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            background: "rgba(255, 255, 255, 0.15)",
+                            backdropFilter: "blur(20px)",
+                            minWidth: 180,
+                            mt: 1,
+                            borderRadius: 2,
+                            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
+                            border: "1px solid rgba(255, 255, 255, 0.2)"
+                        }
+                    }
+                }}
+            >
+                {statusItems.map((item) => (
+                    <MenuItem
+                        key={item.label}
+                        onClick={() => handleStatusClick(item.href)}
+                        sx={{
+                            color: "#333",
+                            fontWeight: 600,
+                            py: 1.5,
+                            "&:hover": {
+                                backgroundColor: "rgba(255, 255, 255, 0.25)"
+                            }
+                        }}
+                    >
+                        {item.label}
+                    </MenuItem>
+                ))}
+            </Menu>
+
             <Menu
                 anchorEl={translateAnchorEl}
                 open={Boolean(translateAnchorEl)}

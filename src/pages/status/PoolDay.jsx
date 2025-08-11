@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback } from "react";
 import {
     Box,
@@ -20,47 +19,30 @@ import {
     Snackbar,
     Alert,
     CircularProgress,
-    Skeleton,
     Pagination,
     Stack
 } from "@mui/material";
 import {
     ArrowBack,
-    Search,
-    MoreVert,
-    Check,
     Clear,
     FilterList,
-    Delete,
-    Verified
+    MoreVert
 } from "@mui/icons-material";
-import { useNavigate, useLocation, useSearchParams } from "react-router";
 import axiosInstance from "../../axios/axios";
 import VoterCardSkeleton from "../../components/VoterCardSkeleton";
 
-export default function WithVoterId() {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const [searchParams, setSearchParams] = useSearchParams();
-
+export default function PoolDay() {
     const [filters, setFilters] = useState({
-        survey: searchParams.get('survey') || '',
-        constituency: searchParams.get('constituency') || '',
-        boothNumber: searchParams.get('boothNumber') || '',
-        district: searchParams.get('district') || '',
-        name: searchParams.get('name') || '',
-        houseNo: searchParams.get('houseNo') || ''
+        survey: '',
+        constituency: '',
+        boothNumber: '',
+        name: '',
+        gender: '',
+        votedStatus: ''
     });
-    const [isUpdatingPage, setIsUpdatingPage] = useState(false);
-    const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page')) || 1);
-    const itemsPerPage = 15;
 
-    useEffect(() => {
-        const savedFilters = localStorage.getItem('filters');
-        if (savedFilters) {
-            setFilters(JSON.parse(savedFilters));
-        }
-    }, []);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 15;
 
     const [loading, setLoading] = useState({
         surveys: false,
@@ -72,66 +54,26 @@ export default function WithVoterId() {
     const [surveyOptions, setSurveyOptions] = useState([]);
     const [constituencyOptions, setConstituencyOptions] = useState([]);
     const [boothOptions, setBoothOptions] = useState([]);
-    const [surveyData, setSurveyData] = useState([]);
+    const [allVoters, setAllVoters] = useState([]);
+    const [filteredVoters, setFilteredVoters] = useState([]);
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedVoterId, setSelectedVoterId] = useState(null);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-    const [showAdditionalFilters, setShowAdditionalFilters] = useState(
-        Boolean(searchParams.get('name') || searchParams.get('houseNo'))
-    );
-    const [allVoters, setAllVoters] = useState([]);
-    const [voters, setVoters] = useState([]);
 
-    const [isInitialized, setIsInitialized] = useState(false);
-    const [hasAttemptedSearch, setHasAttemptedSearch] = useState(false);
-
-    const selectedVoter = voters.find(voter => voter.id === selectedVoterId);
-    const totalPages = Math.ceil(voters.length / itemsPerPage);
+    const selectedVoter = allVoters.find(voter => voter.id === selectedVoterId);
+    const totalPages = Math.ceil(filteredVoters.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const currentPageVoters = voters.slice(startIndex, endIndex);
-
-    const updateURLParams = useCallback((newFilters, page = currentPage) => {
-        const params = new URLSearchParams();
-        
-        Object.entries(newFilters).forEach(([key, value]) => {
-            if (value && value.trim()) {
-                params.set(key, value);
-            }
-        });
-
-        if (page > 1) {
-            params.set('page', page.toString());
-        }
-
-        setSearchParams(params);
-    }, [setSearchParams, currentPage]);
-
-    const handlePageChange = (event, page) => {
-        setIsUpdatingPage(true);
-        setCurrentPage(page);
-        updateURLParams(filters, page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setTimeout(() => setIsUpdatingPage(false), 100);
-    };
+    const currentPageVoters = filteredVoters.slice(startIndex, endIndex);
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbarMessage(message);
         setSnackbarSeverity(severity);
         setSnackbarOpen(true);
     };
-
-    const fetchSurveyData = useCallback(async () => {
-        try {
-            const response = await axiosInstance.get('/survey/voters');
-            setSurveyData(response.data || []);
-        } catch (error) {
-            console.error('Error fetching survey data:', error);
-        }
-    }, []);
 
     const fetchActiveSurveys = useCallback(async () => {
         setLoading(prev => ({ ...prev, surveys: true }));
@@ -174,18 +116,12 @@ export default function WithVoterId() {
         }
     }, []);
 
-    const isVoterVerified = useCallback((voterId) => {
-        const isVerified = surveyData.some(survey => 
-            survey.fileDataId === String(voterId) && survey.verified === true
-        );
-        return isVerified;
-    }, [surveyData]);
-
     const fetchVoters = useCallback(async (currentFilters) => {
-        const { survey, constituency, boothNumber, name, houseNo } = currentFilters;
+        const { survey, constituency, boothNumber } = currentFilters;
 
         if (!survey || !constituency || !boothNumber) {
-            setVoters([]);
+            setAllVoters([]);
+            setFilteredVoters([]);
             setCurrentPage(1);
             return;
         }
@@ -199,62 +135,31 @@ export default function WithVoterId() {
                 booth: boothNumber
             });
 
-            if (name.trim()) {
-                params.append('name', name.trim());
-            }
-            if (houseNo.trim()) {
-                params.append('houseNumber', houseNo.trim());
-            }
-
             const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
-            console.log(response.data);
-            const transformedVoters = response.data.map((voter, index) => {
-                const isVerified = isVoterVerified(voter.id);
-                
-                return {
-                    id: voter.id || index + 1, 
-                    name: voter.name || 'N/A',
-                    voterId: voter.voterId || voter.voterID || 'N/A',
-                    serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
-                    relative: voter.relationName || 'N/A',
-                    boothNo: voter.booth,
-                    houseNo: voter.houseNumber || 'N/A',
-                    constituency: voter.constituency || constituency,
-                    survey: voter.survey || voter.surveyName || survey,
-                    district: voter.district || 'N/A',
-                    voted: voter.voted || false,
-                    verified: isVerified
-                };
-            });
             
-            const filtered = transformedVoters.filter(voter => {
-                const matchesName = name.trim()
-                    ? voter.name.toLowerCase().includes(name.trim().toLowerCase())
-                    : true;
-
-                const matchesHouse = houseNo.trim()
-                    ? voter.houseNo.toLowerCase().includes(houseNo.trim().toLowerCase())
-                    : true;
-
-                return matchesName && matchesHouse;
-            });
-
+            const transformedVoters = response.data.map((voter, index) => ({
+                id: voter.id || index + 1, 
+                name: voter.name || 'N/A',
+                voterId: voter.voterId || voter.voterID || 'N/A',
+                serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
+                relative: voter.relationName || 'N/A',
+                boothNo: voter.booth,
+                houseNo: voter.houseNumber || 'N/A',
+                constituency: voter.constituency || voter.assemblyConstituency || constituency,
+                survey: voter.survey || voter.surveyName || survey,
+                district: voter.district || 'N/A',
+                gender: voter.gender || 'N/A',
+                // Fix: Ensure voted is properly converted to boolean
+                voted: Boolean(voter.voted)
+            }));
+            
             setAllVoters(transformedVoters);
-            setVoters(filtered);
-            
-            const urlPage = parseInt(searchParams.get('page')) || 1;
-            const maxPage = Math.ceil(filtered.length / itemsPerPage);
-
-            if (urlPage > maxPage && maxPage > 0) {
-                setCurrentPage(maxPage);
-                updateURLParams(currentFilters, maxPage);
-            } else if (urlPage <= maxPage) {
-                setCurrentPage(urlPage);
-            }
+            setCurrentPage(1);
         } catch (error) {
             console.error('Error searching voters:', error);
             if (error.response?.status === 404) {
-                setVoters([]);
+                setAllVoters([]);
+                setFilteredVoters([]);
                 setCurrentPage(1);
             } else {
                 showSnackbar('Error searching voters. Please try again.', 'error');
@@ -262,61 +167,40 @@ export default function WithVoterId() {
         } finally {
             setLoading(prev => ({ ...prev, search: false }));
         }
-    }, [isVoterVerified, updateURLParams]);
+    }, []);
+
+    const applyFilters = useCallback(() => {
+        let filtered = [...allVoters];
+
+        if (filters.name.trim()) {
+            filtered = filtered.filter(voter => 
+                voter.name.toLowerCase().includes(filters.name.trim().toLowerCase())
+            );
+        }
+
+        if (filters.gender && filters.gender !== '') {
+            filtered = filtered.filter(voter => 
+                voter.gender.toLowerCase() === filters.gender.toLowerCase()
+            );
+        }
+
+        if (filters.votedStatus && filters.votedStatus !== '') {
+            // Fix: Properly handle boolean comparison for voted status
+            const isVoted = filters.votedStatus === 'voted';
+            filtered = filtered.filter(voter => Boolean(voter.voted) === isVoted);
+        }
+
+        setFilteredVoters(filtered);
+        setCurrentPage(1);
+    }, [allVoters, filters.name, filters.gender, filters.votedStatus]);
 
     useEffect(() => {
-        const initializeData = async () => {
-            await fetchActiveSurveys();
-            await fetchSurveyData();
-            setIsInitialized(true);
-        };
-        
-        initializeData();
-    }, [fetchActiveSurveys, fetchSurveyData]);
+        fetchActiveSurveys();
+    }, [fetchActiveSurveys]);
 
     useEffect(() => {
-        const loadInitialData = async () => {
-            if (!isInitialized) return;
-
-            if (filters.survey && !constituencyOptions.length) {
-                await fetchConstituencies(filters.survey);
-            }
-        };
-
-        loadInitialData();
-    }, [isInitialized, filters.survey, constituencyOptions.length, fetchConstituencies]);
-
-    useEffect(() => {
-        const loadBooths = async () => {
-            if (!isInitialized) return;
-
-            if (filters.survey && filters.constituency && !boothOptions.length) {
-                await fetchBooths(filters.survey, filters.constituency);
-            }
-        };
-
-        loadBooths();
-    }, [isInitialized, filters.survey, filters.constituency, boothOptions.length, fetchBooths]);
-
-    useEffect(() => {
-        if (!isInitialized) return;
-
-        const delayDebounceFn = setTimeout(async () => {
-            if (filters.survey && filters.constituency && filters.boothNumber) {
-                setHasAttemptedSearch(true);
-                await fetchVoters(filters);
-            } else {
-                setVoters([]);
-                setAllVoters([]);
-                setCurrentPage(1);
-                if (!filters.survey && !filters.constituency && !filters.boothNumber) {
-                    setHasAttemptedSearch(false);
-                }
-            }
-        }, 500);
-
-        return () => clearTimeout(delayDebounceFn);
-    }, [filters, isInitialized, surveyData, fetchVoters]);
+        applyFilters();
+    }, [applyFilters]);
 
     const handleFilterChange = (field, value) => {
         setFilters(prev => {
@@ -338,13 +222,18 @@ export default function WithVoterId() {
                 }
             }
 
-            localStorage.setItem('filters', JSON.stringify(newFilters));
-            
-            setCurrentPage(1);
-            updateURLParams(newFilters, 1);
+            if (field === 'survey' || field === 'constituency' || field === 'boothNumber') {
+                fetchVoters(newFilters);
+            }
 
+            sessionStorage.setItem('poolDayFilters', JSON.stringify(newFilters));
             return newFilters;
         });
+    };
+
+    const handlePageChange = (event, page) => {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleClearFilters = () => {
@@ -352,28 +241,24 @@ export default function WithVoterId() {
             survey: '',
             constituency: '',
             boothNumber: '',
-            district: '',
             name: '',
-            houseNo: ''
+            gender: '',
+            votedStatus: ''
         };
 
         setFilters(clearedFilters);
         setConstituencyOptions([]);
         setBoothOptions([]);
         setAllVoters([]);
-        setVoters([]);
-        setShowAdditionalFilters(false);
-        setHasAttemptedSearch(false);
+        setFilteredVoters([]);
         setCurrentPage(1);
-        setSearchParams(new URLSearchParams());
-        localStorage.removeItem('filters');
     };
 
-    // const handleMenuOpen = (event, voterId) => {
-    //     event.stopPropagation();
-    //     setAnchorEl(event.currentTarget);
-    //     setSelectedVoterId(voterId);
-    // };
+    const handleMenuOpen = (event, voterId) => {
+        event.stopPropagation();
+        setAnchorEl(event.currentTarget);
+        setSelectedVoterId(voterId);
+    };
 
     const handleMenuClose = () => {
         setAnchorEl(null);
@@ -387,84 +272,36 @@ export default function WithVoterId() {
         setSnackbarOpen(false);
     };
 
-    // const handleDelete = async () => {
-    //     try {
-    //         await axiosInstance.delete(`/file/delete/${selectedVoterId}`);
-    //         setVoters(prev => prev.filter(voter => voter.id !== selectedVoterId));
-    //         showSnackbar('Entry deleted successfully!', 'success');
-    //     } catch (error) {
-    //         console.error('Error deleting voter:', error);
-    //         showSnackbar('Error deleting voter.', 'error');
-    //     } finally {
-    //         handleMenuClose();
-    //     }
-    // };
-
-    // const handleVotedToggle = async () => {
-    //     try {
-    //         const currentVoter = voters.find(voter => voter.id === selectedVoterId);
-    //         const isCurrentlyVoted = currentVoter?.voted;
+    const handleVotedToggle = async () => {
+        try {
+            const currentVoter = allVoters.find(voter => voter.id === selectedVoterId);
+            const isCurrentlyVoted = Boolean(currentVoter?.voted);
             
-    //         const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
-    //         if (response.status === 200) {
-    //             showSnackbar(
-    //                 isCurrentlyVoted ? 'Voter unmarked as voted!' : 'Voter marked as voted!', 
-    //                 'success'
-    //             );
-    //             await fetchVoters(filters);
-    //         } else {
-    //             showSnackbar('Failed to update voted status.', 'error');
-    //         }
-    //     } catch (error) {
-    //         console.error('Error toggling voted status:', error);
-    //         showSnackbar('Error updating voted status.', 'error');
-    //     } finally {
-    //         handleMenuClose();
-    //     }
-    // };
-
-    // const handleVerifiedToggle = () => {
-    //     setVoters(prev =>
-    //         prev.map(voter =>
-    //             voter.id === selectedVoterId
-    //                 ? { ...voter, verified: !voter.verified }
-    //                 : voter
-    //         )
-    //     );
-    //     showSnackbar(selectedVoter?.verified ? 'Voter unmarked as verified.' : 'Voter marked as verified!', 'success');
-    //     handleMenuClose();
-    // };
-
-    const handleBack = () => {
-        const currentPath = location.pathname;
-        const currentParams = searchParams.toString();
-        const paramString = currentParams ? `?${currentParams}` : '';
-
-        if (currentPath.includes('/admin')) {
-            navigate(`/admin/dashboard${paramString}`);
-        } else if (currentPath.includes('/surveyor')) {
-            navigate(`/surveyor/home${paramString}`);
-        } else {
-            navigate(`/${paramString}`);
-        }
-    };
-
-    const handleNavigateToSurvey = (id) => {
-        const currentPath = location.pathname;
-        const currentParams = searchParams.toString();
-        const paramString = currentParams ? `?${currentParams}` : '';
-
-        if (currentPath.includes('/admin')) {
-            navigate(`/admin/with-voter-id/form/${id}${paramString}`);
-        } else if (currentPath.includes('/surveyor')) {
-            navigate(`/surveyor/with-voter-id/form/${id}${paramString}`);
-        } else {
-            navigate(`/${paramString}`);
+            const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
+            if (response.status === 200) {
+                setAllVoters(prev => 
+                    prev.map(voter => 
+                        voter.id === selectedVoterId 
+                            ? { ...voter, voted: !voter.voted }
+                            : voter
+                    )
+                );
+                showSnackbar(
+                    isCurrentlyVoted ? 'Voter unmarked as voted!' : 'Voter marked as voted!', 
+                    'success'
+                );
+            } else {
+                showSnackbar('Failed to update voted status.', 'error');
+            }
+        } catch (error) {
+            console.error('Error toggling voted status:', error);
+            showSnackbar('Error updating voted status.', 'error');
+        } finally {
+            handleMenuClose();
         }
     };
 
     const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
-    const shouldShowLoadingOrResults = shouldShowVoters || hasAttemptedSearch;
 
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
@@ -475,18 +312,6 @@ export default function WithVoterId() {
     return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
             <Container maxWidth="xl">
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<ArrowBack />}
-                        onClick={handleBack}
-                        sx={{ px: 4, py: 1.5, fontWeight: 600, textTransform: 'none' }}
-                    >
-                        Back
-                    </Button>
-                </Box>
-
                 <Box sx={{ mb: 6 }}>
                     <Grid container spacing={3} sx={{ mb: 3 }}>
                         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -549,31 +374,45 @@ export default function WithVoterId() {
                             </FormControl>
                         </Grid>
 
-                        {showAdditionalFilters && (
-                            <>
-                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <TextField
-                                        fullWidth
-                                        label="Name"
-                                        placeholder="Search by name"
-                                        value={filters.name}
-                                        onChange={(e) => handleFilterChange('name', e.target.value)}
-                                        size="small"
-                                    />
-                                </Grid>
-
-                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <TextField
-                                        fullWidth
-                                        label="House No"
-                                        placeholder="House number"
-                                        value={filters.houseNo}
-                                        onChange={(e) => handleFilterChange('houseNo', e.target.value)}
-                                        size="small"
-                                    />
-                                </Grid>
-                            </>
-                        )}
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                            <TextField
+                                fullWidth
+                                label="Name"
+                                placeholder="Search by name"
+                                value={filters.name}
+                                onChange={(e) => handleFilterChange('name', e.target.value)}
+                                size="small"
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Gender</InputLabel>
+                                <Select
+                                    value={filters.gender}
+                                    label="Gender"
+                                    onChange={(e) => handleFilterChange('gender', e.target.value)}
+                                >
+                                    <MenuItem value="">All Genders</MenuItem>
+                                    <MenuItem value="Male">Male</MenuItem>
+                                    <MenuItem value="Female">Female</MenuItem>
+                                    <MenuItem value="Other">Other</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Voted Status</InputLabel>
+                                <Select
+                                    value={filters.votedStatus}
+                                    label="Voted Status"
+                                    onChange={(e) => handleFilterChange('votedStatus', e.target.value)}
+                                >
+                                    <MenuItem value="">All Status</MenuItem>
+                                    <MenuItem value="voted">Voted</MenuItem>
+                                    <MenuItem value="not-voted">Not Voted</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
                     </Grid>
 
                     <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-start' }}>
@@ -596,18 +435,6 @@ export default function WithVoterId() {
                         >
                             Clear Filters
                         </Button>
-                        <IconButton
-                            onClick={() => setShowAdditionalFilters(prev => !prev)}
-                            sx={{
-                                ml: 2,
-                                color: 'rgba(0, 0, 0, 0.6)',
-                                '&:hover': {
-                                    bgcolor: 'rgba(0, 0, 0, 0.04)'
-                                }
-                            }}
-                        >
-                            <FilterList />
-                        </IconButton>
                     </Box>
                 </Box>
 
@@ -622,7 +449,7 @@ export default function WithVoterId() {
                     >
                         Voter Details
                     </Typography>
-                    {voters.length > 0 && (
+                    {filteredVoters.length > 0 && (
                         <Typography
                             variant="body1"
                             sx={{
@@ -630,31 +457,25 @@ export default function WithVoterId() {
                                 mb: 2
                             }}
                         >
-                            Showing {startIndex + 1}-{Math.min(endIndex, voters.length)} of {voters.length} voters
+                            Showing {startIndex + 1}-{Math.min(endIndex, filteredVoters.length)} of {filteredVoters.length} voters
                         </Typography>
                     )}
                 </Box>
 
                 <Grid container spacing={4}>
-                    {!isInitialized ? (
-                        // Show loading skeleton during initial load
-                        renderSkeletonCards()
-                    ) : loading.search ? (
+                    {loading.search ? (
                         renderSkeletonCards()
                     ) : shouldShowVoters && currentPageVoters.length > 0 ? (
                         currentPageVoters.map((voter) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
                                 <Card
-                                    onClick={() => handleNavigateToSurvey(voter?.id)}
                                     sx={{
                                         background: 'rgba(255, 255, 255, 0.25)',
                                         backdropFilter: 'blur(20px)',
                                         border: '1px solid rgba(255, 255, 255, 0.3)',
                                         borderRadius: 3,
                                         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                                        cursor: 'pointer',
-                                        opacity: loading.search ? 0 : 1,
-                                        transition: 'all 0.3s ease, opacity 0.2s ease',
+                                        transition: 'all 0.3s ease',
                                         minHeight: '240px',
                                         display: 'flex',
                                         flexDirection: 'column',
@@ -668,34 +489,42 @@ export default function WithVoterId() {
                                 >
                                     <CardContent sx={{ p: 3, flexGrow: 1 }}>
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                                            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                                                <Typography
+                                            <Typography
+                                                sx={{
+                                                    fontWeight: 600,
+                                                    color: 'rgba(0, 0, 0, 0.85)',
+                                                    mr: 1,
+                                                    mt: 1
+                                                }}
+                                            >
+                                                {voter?.name}
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {/* Fix: Properly check boolean voted status */}
+                                                {Boolean(voter?.voted) && (
+                                                    <Chip
+                                                        label="Voted"
+                                                        size="small"
+                                                        sx={{
+                                                            bgcolor: '#4ade80',
+                                                            color: 'white',
+                                                            fontWeight: 600,
+                                                            fontSize: '0.75rem',
+                                                            height: '24px'
+                                                        }}
+                                                    />
+                                                )}
+                                                <IconButton
+                                                    onClick={(e) => handleMenuOpen(e, voter.id)}
                                                     sx={{
-                                                        fontWeight: 600,
-                                                        color: 'rgba(0, 0, 0, 0.85)',
-                                                        mr: 1,
-                                                        mt: 1
+                                                        color: 'rgba(0, 0, 0, 0.6)',
+                                                        '&:hover': {
+                                                            bgcolor: 'rgba(0, 0, 0, 0.04)'
+                                                        }
                                                     }}
                                                 >
-                                                    {voter?.name}
-                                                </Typography>
-                                                {voter?.verified && (
-                                                    <Box
-                                                        sx={{
-                                                            width: 20,
-                                                            height: 20,
-                                                            bgcolor: '#4ade80',
-                                                            borderRadius: '50%',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            ml: 1,
-                                                            mt: 1
-                                                        }}
-                                                    >
-                                                        <Verified sx={{ fontSize: 14, color: 'verified' }} />
-                                                    </Box>
-                                                )}
+                                                    <MoreVert />
+                                                </IconButton>
                                             </Box>
                                         </Box>
 
@@ -707,15 +536,17 @@ export default function WithVoterId() {
                                                 <strong>House No:</strong> {voter.houseNo}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
-                                            <strong>Voter ID:</strong> {voter?.voterId}
+                                                <strong>Voter ID:</strong> {voter?.voterId}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
                                                 <strong>Serial Number:</strong> {voter?.serialNumber}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
+                                                <strong>Gender:</strong> {voter?.gender}
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
                                                 <strong>Relative:</strong> {voter.relative}
                                             </Typography>
-                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}></Typography>
                                         </Box>
                                     </CardContent>
                                 </Card>
@@ -724,21 +555,21 @@ export default function WithVoterId() {
                     ) : (
                         <Grid size={{ xs: 12 }}>
                             <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
-                                {shouldShowVoters && hasAttemptedSearch ? (
+                                {shouldShowVoters ? (
                                     <Typography variant="h6">
                                         No voters found matching your criteria.
                                     </Typography>
-                                ) : !shouldShowVoters ? (
+                                ) : (
                                     <Typography variant="h6">
                                         Please select survey, constituency, and booth to search for voter details.
                                     </Typography>
-                                ) : null}
+                                )}
                             </Box>
                         </Grid>
                     )}
                 </Grid>
 
-                {voters.length > 0 && totalPages > 1 && (
+                {filteredVoters.length > 0 && totalPages > 1 && (
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6, mb: 4 }}>
                         <Stack spacing={2} alignItems="center">
                             <Pagination
@@ -770,7 +601,7 @@ export default function WithVoterId() {
                     </Box>
                 )}
 
-                {/* <Menu
+                <Menu
                     anchorEl={anchorEl}
                     open={Boolean(anchorEl)}
                     onClose={handleMenuClose}
@@ -790,7 +621,7 @@ export default function WithVoterId() {
                     <MenuItemComponent onClick={handleVotedToggle}>
                         {selectedVoter?.voted ? 'Unmark Voted' : 'Mark Voted'}
                     </MenuItemComponent>
-                </Menu> */}
+                </Menu>
 
                 <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={handleSnackbarClose}>
                     <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
