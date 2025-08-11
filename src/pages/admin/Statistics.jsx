@@ -119,7 +119,6 @@ export default function Statistics() {
     });
 
     const [statistics, setStatistics] = useState(initialStatistics);
-    // const [animatedStats, setAnimatedStats] = useState(initialStatistics);
     const [loading, setLoading] = useState({
         statistics: false,
         surveys: false,
@@ -134,7 +133,6 @@ export default function Statistics() {
     const [surveyOptions, setSurveyOptions] = useState([]);
     const [constituencyOptions, setConstituencyOptions] = useState([]);
     const [boothOptions, setBoothOptions] = useState([]);
-    // const [currentlyAnimating, setCurrentlyAnimating] = useState(false);
     const [responseData, setResponseData] = useState({});
     const [displayModes, setDisplayModes] = useState({
         ques1: 'count',
@@ -151,7 +149,6 @@ export default function Statistics() {
             if (targetValue === 0) return;
             
             const startTime = Date.now();
-            const endTime = startTime + duration;
             
             const updateCount = () => {
                 const currentTime = Date.now();
@@ -367,7 +364,6 @@ export default function Statistics() {
             logo: getPartyLogo(party)
         }));
 
-        // Return data in proper order for bar chart positioning
         if (dataWithPercentage.length === 1) {
             return dataWithPercentage;
         } else if (dataWithPercentage.length === 2) {
@@ -698,12 +694,12 @@ export default function Statistics() {
 
     const getQuestionTitle = (questionKey) => {
         const titles = {
-            "ques1": "Question 1 - Top 3 Parties",
-            "ques2": "Question 2 - Top 3 Parties", 
-            "ques3": "Question 3 - Top 3 Parties",
-            "ques4": "Question 4 - Performance Rating",
-            "ques5": "Question 5 - Performance Rating",
-            "ques6": "Question 6 - Performance Rating"
+            "ques1": "Question 1 - Vote 2016",
+            "ques2": "Question 2 - Vote 2021", 
+            "ques3": "Question 3 - Vote 2026",
+            "ques4": "Question 4 - CM EPS (2017–2021)",
+            "ques5": "Question 5 - CM Stalin (2021–2026)",
+            "ques6": "Question 6 - Current MLA"
         };
         return titles[questionKey] || questionKey;
     };
@@ -907,7 +903,7 @@ export default function Statistics() {
                     </Typography>
                     
                     <Grid container spacing={3}>
-                        {["Vote 2016", "Vote 2021", "Vote 2026"].map((questionKey) => (
+                        {["ques1", "ques2", "ques3"].map((questionKey) => (
                             <Grid size={{xs: 12, md: 4}} key={questionKey}>
                                 {renderBarChart(questionKey, getQuestionTitle(questionKey))}
                             </Grid>
@@ -939,7 +935,7 @@ export default function Statistics() {
                     </Typography>
                     
                     <Grid container spacing={3}>
-                        {["CM EPS (2017–2021)", "CM Stalin (2021–2026)", "Current MLA"].map((questionKey) => (
+                        {["ques4", "ques5", "ques6"].map((questionKey) => (
                             <Grid size={{xs: 12, md: 4}} key={questionKey}>
                                 {renderPieChart(questionKey, getQuestionTitle(questionKey))}
                             </Grid>
