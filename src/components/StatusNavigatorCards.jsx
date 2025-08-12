@@ -15,8 +15,8 @@ export default function StatusNavigatorCards({ from }) {
   const navigate = useNavigate();
 
   const handleStartSurvey = (type) => {
-    if (type === 'pool-day') {
-      navigate(`/${from}/status/pool-day`);
+    if (type === 'poll-day') {
+      navigate(`/${from}/status/poll-day`);
     } else if (type === 'verification-status') {
       navigate(`/${from}/status/verification-status`);
     }
@@ -65,7 +65,7 @@ export default function StatusNavigatorCards({ from }) {
             </Box>
 
             <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>
-              Pool Day
+              Poll Day
             </Typography>
 
             <Typography
@@ -84,7 +84,7 @@ export default function StatusNavigatorCards({ from }) {
 
             <Button
               variant="contained"
-              onClick={() => handleStartSurvey('pool-day')}
+              onClick={() => handleStartSurvey('poll-day')}
               sx={{
                 background: 'linear-gradient(135deg, #4CAF50, #45a049)',
                 color: 'white',

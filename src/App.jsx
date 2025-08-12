@@ -12,7 +12,7 @@ import WithVoterId from "./pages/survey/WithVoterId";
 import WithoutVoterId from "./pages/survey/WithoutVoterId";
 import SurveyWithoutVoterId from "./pages/survey/SurveyWithoutVoterId";
 import SurveyWithVoterId from "./pages/survey/SurveyWithVoterId";
-import PoolDay from "./pages/status/PoolDay";
+import PollDay from "./pages/status/PollDay";
 import VerifiedStatus from "./pages/status/VerifiedStatus";
 import { useAuth } from "./hooks/useAuth";
 import { CircularProgress, Box } from "@mui/material";
@@ -103,7 +103,7 @@ export default function App() {
           <Route path="survey/without-voter-id" element={<WithoutVoterId from="admin" />} />
           <Route path="without-voter-id/form/*" element={<SurveyWithoutVoterId />} />
           <Route path="with-voter-id/form/:id" element={<SurveyWithVoterId />} />
-          <Route path="status/pool-day" element={<PoolDay />}/>
+          <Route path="status/poll-day" element={<PollDay />}/>
           <Route path="status/verification-status" element={<VerifiedStatus />}/>
         </Route>
 
@@ -117,7 +117,7 @@ export default function App() {
           <Route path="survey/without-voter-id" element={<WithoutVoterId from="surveyor" />} />
           <Route path="without-voter-id/form/*" element={<SurveyWithoutVoterId />} />
           <Route path="with-voter-id/form/:id" element={<SurveyWithVoterId />} />
-          <Route path="status/pool-day" element={<PoolDay />}/>
+          <Route path="status/poll-day" element={<PollDay />}/>
           <Route path="status/verification-status" element={<VerifiedStatus />}/>
         </Route>
 

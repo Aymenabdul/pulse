@@ -31,7 +31,7 @@ import {
 import axiosInstance from "../../axios/axios";
 import VoterCardSkeleton from "../../components/VoterCardSkeleton";
 
-export default function PoolDay() {
+export default function PollDay() {
     const [filters, setFilters] = useState({
         survey: '',
         constituency: '',
