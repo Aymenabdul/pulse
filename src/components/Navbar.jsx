@@ -75,8 +75,8 @@ export default function Navbar() {
 
     const statusItems = [
         {
-            label: "Pool Day",
-            href: user?.role.toLowerCase() === "admin" ? "/admin/status/pool-day" : "/surveyor/status/pool-day"
+            label: "Poll Day",
+            href: user?.role.toLowerCase() === "admin" ? "/admin/status/poll-day" : "/surveyor/status/poll-day"
         },
         {
             label: "Verification Status",
