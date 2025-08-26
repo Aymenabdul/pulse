@@ -12,6 +12,7 @@ import {
   Button,
   Paper,
   Snackbar,
+  Typography,
   Alert,
   InputAdornment,
   IconButton,
@@ -29,9 +30,11 @@ import ClearIcon from "@mui/icons-material/Clear";
 import axiosInstance from "../axios/axios";
 
 const headCells = [
+  {id: "id", label: "S.no", sortable: true},
   { id: "name", label: "User", sortable: true },
   { id: "email", label: "Email", sortable: true },
   { id: "phone", label: "Phone", sortable: false },
+  { id: "createdAt", label: "CreatedAt", sortable: true },
   { id: "constituency", label: "Constituency", sortable: true },
   { id: "role", label: "Role", sortable: false, filterable: true },
   { id: "status", label: "Status", sortable: false, filterable: true },
@@ -227,6 +230,14 @@ export default function UserTable({ users }) {
 
   return (
     <Box sx={{ width: { xs: "100%", md: "95%" } }} p={2}>
+
+      <Typography 
+        variant="h5" 
+        gutterBottom 
+        sx={{ fontWeight: 'bold', textAlign: 'center', mb: 3,textTransform: 'uppercase' }}
+      >
+        Surveyor Details
+      </Typography>
       <Grid container spacing={2} mb={2}>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <TextField
@@ -359,9 +370,11 @@ export default function UserTable({ users }) {
                   py: 2 
                 }}
               >
+                <TableCell sx={{ py: 2 }} align="center">{index + 1}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.name}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.email}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.phoneNumber || "No phone number given"}</TableCell>
+                <TableCell sx={{ py: 2 }}>{user?.createdAt || "N/A"}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.constituency}</TableCell>
                 <TableCell sx={{ py: 2 }}>{user?.role}</TableCell>
                 <TableCell sx={{ py: 2, textTransform: "capitalize" }}>

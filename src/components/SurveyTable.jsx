@@ -19,16 +19,19 @@ import {
   Alert,
   TablePagination,
 } from "@mui/material";
-import { FilterList, Delete } from "@mui/icons-material";
+import { FilterList, Edit } from "@mui/icons-material";
 import { useMemo, useState, useEffect } from "react";
 import axiosInstance from "../axios/axios";
+import EditPopup from "../pages/superadmin/EditPopup";
 
 const headCells = [
-  { id: "surveyName", label: "Survey Name", sortable: true },
-  { id: "createdAt", label: "Created At", sortable: true },
-  { id: "status", label: "Status", sortable: false },
-  { id: "activity", label: "Activity", sortable: false },
-  // { id: "actions", label: "Actions", sortable: false },
+  { id: "S.No", label: "S.No", sortable: true, align: 'center' },
+  { id: "surveyName", label: "Survey Name", sortable: true, align: 'center' },
+  { id: "StartDate", label: "StartDate", sortable: true, align: 'center' },
+  { id: "EndDate", label: "EndDate", sortable: true, align: 'center' },
+  { id: "status", label: "Status", sortable: false, align: 'center' },
+  { id: "activity", label: "Activity", sortable: false, align: 'center' },
+  { id: "actions", label: "Actions", sortable: false, align: 'center' },
 ];
 
 export default function SurveyTable({ data, loading }) {
@@ -40,7 +43,9 @@ export default function SurveyTable({ data, loading }) {
   const [tableData, setTableData] = useState(data || []);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  
+  const [isEditPopupOpen, setEditPopupOpen] = useState(false);
+  const [selectedSurvey, setSelectedSurvey] = useState(null);
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -58,6 +63,17 @@ export default function SurveyTable({ data, loading }) {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
     setOrderBy(property);
+  };
+
+  const handleOpenEditPopup = (surveyData) => {
+    setSelectedSurvey(surveyData); // Set the data for the survey to be edited
+    setEditPopupOpen(true);      // Set the state to open the popup
+  };
+
+  // You'll also need a function to close it
+  const handleCloseEditPopup = () => {
+    setEditPopupOpen(false);
+    setSelectedSurvey(null); // Clear the selected survey data
   };
 
   const handleSelectAllClick = (event) => {
@@ -79,13 +95,13 @@ export default function SurveyTable({ data, loading }) {
     setSelected((prevSelected) => {
       const newSelected = new Set(prevSelected);
       const isCurrentlySelected = newSelected.has(surveyName);
-      
+
       if (!isCurrentlySelected) {
         newSelected.add(surveyName);
       } else {
         newSelected.delete(surveyName);
       }
-      
+
       return newSelected;
     });
   };
@@ -112,11 +128,15 @@ export default function SurveyTable({ data, loading }) {
   };
 
   const handleActivateSurvey = async (surveyName) => {
+    console.log("Activating survey:", surveyName);
+
     try {
-      const response = await axiosInstance.put(`/file/activate-survey?surveyName=${surveyName}`);
+      const response = await axiosInstance.put(`/survey/activate-survey?surveyName=${surveyName}`);
+      console.log("Activate response:", response);
+
       if (response.status === 200) {
         const updated = tableData.map((s) =>
-          s.surveyName === surveyName ? { ...s, isActive: true } : s
+          s.surveyName === surveyName ? { ...s, active: true } : s
         );
         setTableData(updated);
         showSnackbar(response.data.message || "Survey activated successfully", "success");
@@ -130,13 +150,19 @@ export default function SurveyTable({ data, loading }) {
   };
 
   const handleDeactivateSurvey = async (surveyName) => {
+    console.log("Deactivating survey:", surveyName);
+
     try {
-      const response = await axiosInstance.put(`/file/deactivate-survey?surveyName=${surveyName}`);
+      const response = await axiosInstance.put(`/survey/deactivate-survey?surveyName=${surveyName}`);
+      console.log("Deactivate response:", response);
+
       if (response.status === 200) {
         const updated = tableData.map((s) =>
-          s.surveyName === surveyName ? { ...s, isActive: false } : s
+          s.surveyName === surveyName ? { ...s, active: false } : s
         );
         setTableData(updated);
+        console.log("updated state ", updated);
+
         showSnackbar(response.data.message || "Survey deactivated successfully", "success");
       } else {
         showSnackbar("Failed to deactivate survey", "error");
@@ -154,7 +180,7 @@ export default function SurveyTable({ data, loading }) {
     }
 
     const selectedSurveys = tableData.filter(row => selected.has(row.surveyName));
-    
+
     if (selectedSurveys.length === 0) {
       showSnackbar("Selected surveys not found", "error");
       return;
@@ -162,13 +188,13 @@ export default function SurveyTable({ data, loading }) {
 
     const operationPromises = selectedSurveys.map(async (survey) => {
       try {
-        const shouldActivate = !survey.isActive;
-        const endpoint = shouldActivate 
-          ? `/file/activate-survey?surveyName=${survey.surveyName}`
-          : `/file/deactivate-survey?surveyName=${survey.surveyName}`;
-        
+        const shouldActivate = !survey.active;
+        const endpoint = shouldActivate
+          ? `/survey/activate-survey?surveyName=${survey.surveyName}`
+          : `/survey/deactivate-survey?surveyName=${survey.surveyName}`;
+
         const response = await axiosInstance.put(endpoint);
-        
+
         if (response.status === 200) {
           return {
             success: true,
@@ -192,10 +218,10 @@ export default function SurveyTable({ data, loading }) {
 
     try {
       const results = await Promise.allSettled(operationPromises);
-      
+
       const successfulOperations = [];
       const failedOperations = [];
-      
+
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
           if (result.value.success) {
@@ -212,11 +238,11 @@ export default function SurveyTable({ data, loading }) {
       });
 
       if (successfulOperations.length > 0) {
-        setTableData(prevData => 
+        setTableData(prevData =>
           prevData.map(survey => {
             const successfulOp = successfulOperations.find(op => op.surveyName === survey.surveyName);
             if (successfulOp) {
-              return { ...survey, isActive: successfulOp.newStatus };
+              return { ...survey, active: successfulOp.newStatus };
             }
             return survey;
           })
@@ -227,20 +253,20 @@ export default function SurveyTable({ data, loading }) {
 
       const successCount = successfulOperations.length;
       const failureCount = failedOperations.length;
-      
+
       if (failureCount === 0) {
         showSnackbar(
-          `Successfully processed ${successCount} survey(s)`, 
+          `Successfully processed ${successCount} survey(s)`,
           "success"
         );
       } else if (successCount === 0) {
         showSnackbar(
-          `Failed to process all surveys`, 
+          `Failed to process all surveys`,
           "error"
         );
       } else {
         showSnackbar(
-          `${successCount} survey(s) processed successfully, ${failureCount} failed`, 
+          `${successCount} survey(s) processed successfully, ${failureCount} failed`,
           "warning"
         );
       }
@@ -261,7 +287,7 @@ export default function SurveyTable({ data, loading }) {
 
   const handleStatusFilterChange = (status) => {
     setStatusFilter(status);
-    setPage(0); 
+    setPage(0);
     setSelected(new Set());
     handleFilterClose();
   };
@@ -269,13 +295,13 @@ export default function SurveyTable({ data, loading }) {
   // const handleDelete = (surveyName) => {
   //   const updated = tableData.filter((s) => s.surveyName !== surveyName);
   //   setTableData(updated);
-    
+
   //   setSelected(prevSelected => {
   //     const newSelected = new Set(prevSelected);
   //     newSelected.delete(surveyName);
   //     return newSelected;
   //   });
-    
+
   //   showSnackbar("Survey deleted successfully", "success");
   //   console.log("Survey deleted locally:", surveyName);
   // };
@@ -291,11 +317,13 @@ export default function SurveyTable({ data, loading }) {
 
   const filteredData = useMemo(() => {
     if (!Array.isArray(tableData)) return [];
-    
+
     return tableData
       .filter((row) => {
         if (!statusFilter) return true;
-        const status = row.isActive ? "active" : "inactive";
+        const status = row.active ? "active" : "inactive";
+        console.log("Filtering row:", row.active);
+
         return status === statusFilter;
       })
       .sort((a, b) => {
@@ -314,11 +342,11 @@ export default function SurveyTable({ data, loading }) {
 
   const getSelectedStatus = () => {
     if (selected.size === 0) return null;
-    
+
     const selectedSurveys = tableData.filter(row => selected.has(row.surveyName));
-    const hasActive = selectedSurveys.some(survey => survey.isActive);
-    const hasInactive = selectedSurveys.some(survey => !survey.isActive);
-    
+    const hasActive = selectedSurveys.some(survey => survey.active);
+    const hasInactive = selectedSurveys.some(survey => !survey.active);
+
     if (hasActive && hasInactive) {
       return 'mixed';
     } else if (hasActive) {
@@ -362,7 +390,7 @@ export default function SurveyTable({ data, loading }) {
               <TableCell padding="checkbox" align="center">
                 <Checkbox
                   indeterminate={
-                    selected.size > 0 && 
+                    selected.size > 0 &&
                     selected.size < paginatedData.length &&
                     paginatedData.some(row => selected.has(row.surveyName)) &&
                     !paginatedData.every(row => selected.has(row.surveyName))
@@ -434,37 +462,39 @@ export default function SurveyTable({ data, loading }) {
                         onClick={(event) => handleCheckboxClick(event, row.surveyName)}
                       />
                     </TableCell>
+                    <TableCell align="center">{index+1}</TableCell>
                     <TableCell align="center">{row?.surveyName}</TableCell>
-                    <TableCell align="center">{row?.createdAt}</TableCell>
+                    <TableCell align="center">{row?.startDate}</TableCell>
+                    <TableCell align="center">{row?.endDate}</TableCell>
                     <TableCell align="center" sx={{ textTransform: "capitalize" }}>
-                      {row?.isActive ? "Active" : "Inactive"}
+                      {row?.active ? "Active" : "Inactive"}
                     </TableCell>
                     <TableCell align="center">
                       <Button
                         variant="contained"
                         size="small"
-                        color={row.isActive ? "error" : "success"}
+                        color={row.active ? "error" : "success"}
                         onClick={(e) => {
                           e.stopPropagation();
-                          row.isActive
+                          row.active
                             ? handleDeactivateSurvey(row.surveyName)
                             : handleActivateSurvey(row.surveyName);
                         }}
                       >
-                        {row.isActive ? "Deactivate" : "Activate"}
+                        {row.active ? "Deactivate" : "Activate"}
                       </Button>
                     </TableCell>
-                    {/* <TableCell align="center">
+                    <TableCell align="center">
                       <IconButton
-                        color="error"
+                        color="primary" // Changed from "error" to a more appropriate color for editing
                         onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(row.surveyName);
+                          e.stopPropagation(); // This is good to keep
+                          handleOpenEditPopup(row); // Call the edit handler and pass the entire row's data
                         }}
                       >
-                        <Delete fontSize="small" />
+                        <Edit fontSize="small" /> {/* Use an EditIcon instead of Delete */}
                       </IconButton>
-                    </TableCell> */}
+                    </TableCell>
                   </TableRow>
                 );
               })
@@ -510,6 +540,46 @@ export default function SurveyTable({ data, loading }) {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      <EditPopup
+        open={isEditPopupOpen}
+        onClose={handleCloseEditPopup}
+        surveyData={selectedSurvey}
+        onSubmit={async (originalSurveyName, updatedData) => {
+          try {
+            const response = await axiosInstance.put(
+              // Ensure this URL matches your backend API endpoint
+              `/survey/edit/${originalSurveyName}`,
+              updatedData
+            );
+
+            if (response.status === 200) {
+              showSnackbar("Survey updated successfully!", "success");
+
+              setTableData(prevData =>
+                prevData.map(survey =>
+                  survey.surveyName === originalSurveyName
+                    ? { ...survey, ...updatedData }
+                    : survey
+                )
+              );
+
+              // Close the popup on success
+              handleCloseEditPopup();
+            } else {
+              showSnackbar("Failed to update survey.", "error");
+              // Also close the popup on failure
+              handleCloseEditPopup();
+            }
+          } catch (error) {
+            console.error("Error updating survey:", error);
+            showSnackbar(error.response?.data?.message || "An error occurred.", "error");
+            // Also close the popup on error
+            handleCloseEditPopup();
+          }
+          // The 'finally' block has been removed to prevent the race condition
+        }}
+      />
+
     </Box>
   );
 }

@@ -30,28 +30,25 @@ import {
 } from "@mui/icons-material";
 import axiosInstance from "../../axios/axios";
 import VoterCardSkeleton from "../../components/VoterCardSkeleton";
-
+import { useAuth } from "../../hooks/useAuth";
 export default function PollDay() {
     const [filters, setFilters] = useState({
-        survey: '',
         constituency: '',
         boothNumber: '',
         name: '',
         gender: '',
         votedStatus: ''
     });
-
+    const { user } = useAuth();
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 15;
 
     const [loading, setLoading] = useState({
-        surveys: false,
         constituencies: false,
         booths: false,
         search: false
     });
 
-    const [surveyOptions, setSurveyOptions] = useState([]);
     const [constituencyOptions, setConstituencyOptions] = useState([]);
     const [boothOptions, setBoothOptions] = useState([]);
     const [allVoters, setAllVoters] = useState([]);
@@ -75,24 +72,25 @@ export default function PollDay() {
         setSnackbarOpen(true);
     };
 
-    const fetchActiveSurveys = useCallback(async () => {
-        setLoading(prev => ({ ...prev, surveys: true }));
-        try {
-            const response = await axiosInstance.get('/file/active');
-            setSurveyOptions(response.data || []);
-        } catch (error) {
-            console.error('Error fetching active surveys:', error);
-            showSnackbar('Error fetching surveys', 'error');
-        } finally {
-            setLoading(prev => ({ ...prev, surveys: false }));
+    useEffect(() => {
+        // Check if the user object is available
+        if (user) {
+            // If the role is admin or surveyor, and they have a constituency assigned
+            if (user && (user.role.toLowerCase() === 'admin' || user.role.toLowerCase() === 'surveyor') && user.constituency) {
+                displayedConstituencyOptions = [user.constituency];
+            }
         }
-    }, []);
 
-    const fetchConstituencies = useCallback(async (surveyName) => {
-        if (!surveyName) return;
+        console.log("User role:", user?.role, "Constituency:", user?.constituency);
+        
+    }, [user]);
+
+    const shouldShowVoters = filters.constituency && filters.boothNumber;
+
+    const fetchAllConstituencies = useCallback(async () => {
         setLoading(prev => ({ ...prev, constituencies: true }));
         try {
-            const response = await axiosInstance.get(`/file/distinct-constituencies?surveyName=${encodeURIComponent(surveyName)}`);
+            const response = await axiosInstance.get(`/file/distinct-constituencies`);
             setConstituencyOptions(response.data || []);
         } catch (error) {
             console.error('Error fetching constituencies:', error);
@@ -102,11 +100,11 @@ export default function PollDay() {
         }
     }, []);
 
-    const fetchBooths = useCallback(async (surveyName, constituency) => {
-        if (!surveyName || !constituency) return;
+    const fetchBooths = useCallback(async (constituency) => {
+        if (!constituency) return;
         setLoading(prev => ({ ...prev, booths: true }));
         try {
-            const response = await axiosInstance.get(`/file/distinct-booths?surveyName=${encodeURIComponent(surveyName)}&Constituency=${encodeURIComponent(constituency)}`);
+            const response = await axiosInstance.get(`/file/distinct-booths?Constituency=${encodeURIComponent(constituency)}`);
             setBoothOptions(response.data || []);
         } catch (error) {
             console.error('Error fetching booths:', error);
@@ -117,9 +115,9 @@ export default function PollDay() {
     }, []);
 
     const fetchVoters = useCallback(async (currentFilters) => {
-        const { survey, constituency, boothNumber } = currentFilters;
+        const { constituency, boothNumber } = currentFilters;
 
-        if (!survey || !constituency || !boothNumber) {
+        if (!constituency || !boothNumber) {
             setAllVoters([]);
             setFilteredVoters([]);
             setCurrentPage(1);
@@ -130,7 +128,6 @@ export default function PollDay() {
 
         try {
             const params = new URLSearchParams({
-                surveyName: survey,
                 Constituency: constituency,
                 booth: boothNumber
             });
@@ -146,10 +143,8 @@ export default function PollDay() {
                 boothNo: voter.booth,
                 houseNo: voter.houseNumber || 'N/A',
                 constituency: voter.constituency || voter.assemblyConstituency || constituency,
-                survey: voter.survey || voter.surveyName || survey,
                 district: voter.district || 'N/A',
                 gender: voter.gender || 'N/A',
-                // Fix: Ensure voted is properly converted to boolean
                 voted: Boolean(voter.voted)
             }));
             
@@ -185,7 +180,6 @@ export default function PollDay() {
         }
 
         if (filters.votedStatus && filters.votedStatus !== '') {
-            // Fix: Properly handle boolean comparison for voted status
             const isVoted = filters.votedStatus === 'voted';
             filtered = filtered.filter(voter => Boolean(voter.voted) === isVoted);
         }
@@ -195,41 +189,31 @@ export default function PollDay() {
     }, [allVoters, filters.name, filters.gender, filters.votedStatus]);
 
     useEffect(() => {
-        fetchActiveSurveys();
-    }, [fetchActiveSurveys]);
+        fetchAllConstituencies();
+    }, [fetchAllConstituencies]);
 
     useEffect(() => {
         applyFilters();
     }, [applyFilters]);
 
-    const handleFilterChange = (field, value) => {
-        setFilters(prev => {
-            const newFilters = { ...prev, [field]: value };
+   const handleFilterChange = useCallback((field, value) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
 
-            if (field === 'survey') {
-                newFilters.constituency = '';
-                newFilters.boothNumber = '';
-                setConstituencyOptions([]);
-                setBoothOptions([]);
-                if (value) {
-                    fetchConstituencies(value);
-                }
-            } else if (field === 'constituency') {
-                newFilters.boothNumber = '';
-                setBoothOptions([]);
-                if (value && newFilters.survey) {
-                    fetchBooths(newFilters.survey, value);
-                }
-            }
+    // When a constituency is selected, fetch its booths.
+    if (field === 'constituency') {
+        fetchBooths(value);
+    }
+}, [fetchBooths]);
 
-            if (field === 'survey' || field === 'constituency' || field === 'boothNumber') {
-                fetchVoters(newFilters);
-            }
-
-            sessionStorage.setItem('poolDayFilters', JSON.stringify(newFilters));
-            return newFilters;
-        });
-    };
+   useEffect(() => {
+    // This hook will run whenever the main filters change.
+    if (filters.constituency && filters.boothNumber) {
+        fetchVoters(filters);
+    } else {
+        // Clear voters if the required filters are not set
+        setAllVoters([]);
+    }
+}, [filters.constituency, filters.boothNumber, fetchVoters]);
 
     const handlePageChange = (event, page) => {
         setCurrentPage(page);
@@ -238,7 +222,6 @@ export default function PollDay() {
 
     const handleClearFilters = () => {
         const clearedFilters = {
-            survey: '',
             constituency: '',
             boothNumber: '',
             name: '',
@@ -301,7 +284,20 @@ export default function PollDay() {
         }
     };
 
-    const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
+  let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
+
+if (user && user.role && user.constituency) {
+    const role = user.role.toLowerCase();
+
+    if (role === 'admin') {
+        // This is the critical part: it splits the string into a real array.
+        // The .trim() removes any accidental spaces around the comma.
+        displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
+    } else if (role === 'surveyor') {
+        // Surveyor logic remains the same.
+        displayedConstituencyOptions = [user.constituency];
+    }
+}
 
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
@@ -309,43 +305,30 @@ export default function PollDay() {
         ));
     };
 
-    return (
+   return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
             <Container maxWidth="xl">
                 <Box sx={{ mb: 6 }}>
                     <Grid container spacing={3} sx={{ mb: 3 }}>
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Survey</InputLabel>
-                                <Select
-                                    value={filters.survey}
-                                    label="Survey"
-                                    onChange={(e) => handleFilterChange('survey', e.target.value)}
-                                    disabled={loading.surveys}
-                                    endAdornment={loading.surveys && <CircularProgress size={20} />}
-                                >
-                                    <MenuItem value="">Select Survey</MenuItem>
-                                    {surveyOptions.map((survey) => (
-                                        <MenuItem key={survey.id || survey} value={survey.surveyName || survey}>
-                                            {survey.surveyName || survey}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{xs:12 ,sm:6 , md:4}}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Constituency</InputLabel>
                                 <Select
                                     value={filters.constituency}
                                     label="Constituency"
                                     onChange={(e) => handleFilterChange('constituency', e.target.value)}
-                                    disabled={!filters.survey || loading.constituencies}
+                                    // The dropdown is disabled if:
+                                    // 1. No survey is selected, OR
+                                    // 2. The constituencies are loading, OR
+                                    // 3. The logged-in user is an admin or a surveyor.
+                                    disabled={loading.constituencies}
                                     endAdornment={loading.constituencies && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Constituency</MenuItem>
-                                    {constituencyOptions.map((constituency, index) => (
+
+                                    {/* Map over the conditionally filtered options */}
+                                    {displayedConstituencyOptions.map((constituency, index) => (
                                         <MenuItem key={index} value={constituency}>
                                             {constituency}
                                         </MenuItem>
@@ -354,7 +337,7 @@ export default function PollDay() {
                             </FormControl>
                         </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid item size={{ xs: 12, sm: 6, md: 4 }}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Booth Number</InputLabel>
                                 <Select
@@ -444,7 +427,8 @@ export default function PollDay() {
                         sx={{
                             fontWeight: 600,
                             color: 'rgba(0, 0, 0, 0.85)',
-                            mb: 2
+                            mb: 2,
+                            textTransform: 'uppercase'
                         }}
                     >
                         Voter Details
@@ -561,7 +545,7 @@ export default function PollDay() {
                                     </Typography>
                                 ) : (
                                     <Typography variant="h6">
-                                        Please select survey, constituency, and booth to search for voter details.
+                                        Please select constituency, and booth to search for voter details.
                                     </Typography>
                                 )}
                             </Box>

@@ -12,14 +12,13 @@ import {
 } from "@mui/material";
 import MenuIcon from '@mui/icons-material/Menu';
 import TranslateIcon from '@mui/icons-material/Translate';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'; 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import GoogleTranslateWidget from "./GoogleTranslateWidget";
 
-export default function Navbar() {
+export default function Navbar({ userRole }) { 
     const [anchorEl, setAnchorEl] = useState(null);
     const [translateAnchorEl, setTranslateAnchorEl] = useState(null);
     const [statusAnchorEl, setStatusAnchorEl] = useState(null);
@@ -30,29 +29,12 @@ export default function Navbar() {
 
     const navigate = useNavigate();
 
-    const handleMenuOpen = (event) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleMenuClose = () => {
-        setAnchorEl(null);
-    };
-
-    const handleTranslateMenuOpen = (event) => {
-        setTranslateAnchorEl(event.currentTarget);
-    };
-
-    const handleTranslateMenuClose = () => {
-        setTranslateAnchorEl(null);
-    };
-
-    const handleStatusMenuOpen = (event) => {
-        setStatusAnchorEl(event.currentTarget);
-    };
-
-    const handleStatusMenuClose = () => {
-        setStatusAnchorEl(null);
-    };
+    const handleMenuOpen = (event) => { setAnchorEl(event.currentTarget); };
+    const handleMenuClose = () => { setAnchorEl(null); };
+    const handleTranslateMenuOpen = (event) => { setTranslateAnchorEl(event.currentTarget); };
+    const handleTranslateMenuClose = () => { setTranslateAnchorEl(null); };
+    const handleStatusMenuOpen = (event) => { setStatusAnchorEl(event.currentTarget); };
+    const handleStatusMenuClose = () => { setStatusAnchorEl(null); };
 
     useEffect(() => {
         if (!isMobile && anchorEl) {
@@ -60,45 +42,68 @@ export default function Navbar() {
         }
     }, [isMobile, anchorEl]);
 
+    // Corrected superAdminNavItems to match App.jsx routes
+    const superAdminNavItems = [
+        { label: "Home", href: "/superadmin/dashboard" }, // Corrected path
+        { label: "Users", href: "/superadmin/superUsers" },         // Corrected path
+        { label: "Data", href: "/superadmin/superFiles" },         // Corrected path
+        { label: "Analytics", href: "/superadmin/statistics" },
+        // { label: "Create Survey", href: "/superadmin/createpopup" }, // Keep this if it's a direct route
+    ];
+
     const adminNavItems = [
-        { label: "Dashboard", href: "/admin/dashboard" },
-        { label: "Files", href: "/admin/files" },
+        { label: "Home", href: "/admin/dashboard" },
+        { label: "Data", href: "/admin/files" },
         { label: "Users", href: "/admin/users" },
-        { label: "Statistics", href: "/admin/statistics" },
+        // { label: "Statistics", href: "/admin/statistics" }, // This was commented out in your original
     ];
 
     const surveyorNavItems = [
         { label: "Home", href: "/surveyor/home" },
     ];
 
-    const navItems = user?.role.toLowerCase() === "admin" ? adminNavItems : surveyorNavItems;
+    // Corrected conditional logic for navItems to use lowercase "admin"
+    const navItems = 
+        userRole === "SuperAdmin" 
+        ? superAdminNavItems 
+        : userRole === "Admin" // Changed from "Admin" to "admin"
+            ? adminNavItems 
+            : surveyorNavItems;
 
-    const statusItems = [
+    const getStatusItems = (userRole) => {
+    // Items available to all roles
+    const items = [
         {
             label: "Poll Day",
-            href: user?.role.toLowerCase() === "admin" ? "/admin/status/poll-day" : "/surveyor/status/poll-day"
+            href: (userRole === "Admin" || userRole === "SuperAdmin")
+                ? "/admin/status/poll-day"
+                : "/surveyor/status/poll-day"
         },
         {
             label: "Verification Status",
-            href: user?.role.toLowerCase() === "admin" ? "/admin/status/verification-status" : "/surveyor/status/verification-status"
+            href: (userRole === "Admin" || userRole === "SuperAdmin")
+                ? "/admin/status/verification-status"
+                : "/surveyor/status/verification-status"
         }
     ];
 
-    const handleNavClick = (href) => {
-        navigate(href);
-        handleMenuClose();
-    };
+    // Conditionally add items for specific roles
+    if (userRole === "SuperAdmin") {
+        items.push({
+            label: "Survey",
+            href: "/superadmin/status/survey"
+        });
+    }
 
-    const handleStatusClick = (href) => {
-        navigate(href);
-        handleStatusMenuClose();
-    };
+    return items;
+};
 
-    const handleLogout = () => {
-        logout();
-        handleMenuClose();
-        navigate("/login");
-    };
+// Example usage:
+const statusItems = getStatusItems(userRole);
+
+    const handleNavClick = (href) => { navigate(href); handleMenuClose(); };
+    const handleStatusClick = (href) => { navigate(href); handleStatusMenuClose(); };
+    const handleLogout = () => { logout(); handleMenuClose(); navigate("/login"); };
 
     return (
         <AppBar 
@@ -195,10 +200,7 @@ export default function Navbar() {
                     {!isMobile && (
                         <Box sx={{
                             '& #google_translate_element': {
-                                '& .goog-te-gadget': {
-                                    fontFamily: 'inherit !important',
-                                    color: 'transparent !important'
-                                },
+                                '& .goog-te-gadget': { fontFamily: 'inherit !important', color: 'transparent !important' },
                                 '& .goog-te-gadget-simple': {
                                     backgroundColor: 'rgba(255, 255, 255, 0.25) !important',
                                     border: '1px solid rgba(255, 255, 255, 0.2) !important',
@@ -208,16 +210,9 @@ export default function Navbar() {
                                     backdropFilter: 'blur(10px)',
                                     color: '#333 !important'
                                 },
-                                '& .goog-te-gadget-simple .goog-te-menu-value': {
-                                    color: '#333 !important',
-                                    fontSize: '12px !important'
-                                },
-                                '& .goog-te-gadget-simple .goog-te-menu-value:hover': {
-                                    color: '#555 !important'
-                                },
-                                '& .goog-te-gadget-icon': {
-                                    display: 'none !important'
-                                }
+                                '& .goog-te-gadget-simple .goog-te-menu-value': { color: '#333 !important', fontSize: '12px !important' },
+                                '& .goog-te-gadget-simple .goog-te-menu-value:hover': { color: '#555 !important' },
+                                '& .goog-te-gadget-icon': { display: 'none !important' }
                             }
                         }}>
                             <GoogleTranslateWidget />
@@ -234,10 +229,7 @@ export default function Navbar() {
                                 borderRadius: 2,
                                 backdropFilter: "blur(10px)",
                                 border: "1px solid rgba(255, 255, 255, 0.2)",
-                                "&:hover": {
-                                    backgroundColor: "rgba(255, 255, 255, 0.35)",
-                                    transform: "translateY(-1px)"
-                                },
+                                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.35)", transform: "translateY(-1px)" },
                                 transition: "all 0.3s ease"
                             }}
                         >
@@ -259,7 +251,7 @@ export default function Navbar() {
                                 border: "1px solid rgba(255, 255, 255, 0.2)"
                             }}
                         >
-                            {user?.role}
+                            Role: {user?.role || "User"}
                         </Typography>
                     )}
 
@@ -273,11 +265,7 @@ export default function Navbar() {
                             textTransform: "none",
                             borderRadius: 2,
                             px: { xs: 2, md: 3 },
-                            "&:hover": {
-                                borderColor: "#333",
-                                backgroundColor: "rgba(51, 51, 51, 0.05)",
-                                transform: "translateY(-1px)"
-                            },
+                            "&:hover": { borderColor: "#333", backgroundColor: "rgba(51, 51, 51, 0.05)", transform: "translateY(-1px)" },
                             transition: "all 0.3s ease"
                         }}
                     >
@@ -292,10 +280,7 @@ export default function Navbar() {
                         color="inherit"
                         aria-label="menu"
                         onClick={handleMenuOpen}
-                        sx={{ 
-                            color: "#333",
-                            ml: 1
-                        }}
+                        sx={{ color: "#333", ml: 1 }}
                     >
                         <MenuIcon />
                     </IconButton>
@@ -325,14 +310,7 @@ export default function Navbar() {
                     <MenuItem
                         key={item.label}
                         onClick={() => handleNavClick(item.href)}
-                        sx={{
-                            color: "#333",
-                            fontWeight: 600,
-                            py: 1.5,
-                            "&:hover": {
-                                backgroundColor: "rgba(255, 255, 255, 0.25)"
-                            }
-                        }}
+                        sx={{ color: "#333", fontWeight: 600, py: 1.5, "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.25)" } }}
                     >
                         {item.label}
                     </MenuItem>
@@ -343,28 +321,14 @@ export default function Navbar() {
                     <MenuItem
                         key={item.label}
                         onClick={() => handleStatusClick(item.href)}
-                        sx={{
-                            color: "#333",
-                            fontWeight: 600,
-                            py: 1.5,
-                            pl: 3,
-                            "&:hover": {
-                                backgroundColor: "rgba(255, 255, 255, 0.25)"
-                            }
-                        }}
+                        sx={{ color: "#333", fontWeight: 600, py: 1.5, pl: 3, "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.25)" } }}
                     >
                         {item.label}
                     </MenuItem>
                 ))}
                 
                 <MenuItem
-                    sx={{
-                        color: "#555",
-                        fontWeight: 500,
-                        py: 1,
-                        fontSize: "0.875rem",
-                        opacity: 0.8
-                    }}
+                    sx={{ color: "#555", fontWeight: 500, py: 1, fontSize: "0.875rem", opacity: 0.8 }}
                 >
                     Role: {user?.role || "User"}
                 </MenuItem>
@@ -392,14 +356,7 @@ export default function Navbar() {
                     <MenuItem
                         key={item.label}
                         onClick={() => handleStatusClick(item.href)}
-                        sx={{
-                            color: "#333",
-                            fontWeight: 600,
-                            py: 1.5,
-                            "&:hover": {
-                                backgroundColor: "rgba(255, 255, 255, 0.25)"
-                            }
-                        }}
+                        sx={{ color: "#333", fontWeight: 600, py: 1.5, "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.25)" } }}
                     >
                         {item.label}
                     </MenuItem>
@@ -422,10 +379,7 @@ export default function Navbar() {
                             border: "1px solid rgba(255, 255, 255, 0.2)",
                             '& #google_translate_element': {
                                 padding: '16px',
-                                '& .goog-te-gadget': {
-                                    fontFamily: 'inherit !important',
-                                    color: 'transparent !important'
-                                },
+                                '& .goog-te-gadget': { fontFamily: 'inherit !important', color: 'transparent !important' },
                                 '& .goog-te-gadget-simple': {
                                     backgroundColor: 'transparent !important',
                                     border: 'none !important',
@@ -435,13 +389,8 @@ export default function Navbar() {
                                     color: '#333 !important',
                                     width: '100% !important'
                                 },
-                                '& .goog-te-gadget-simple .goog-te-menu-value': {
-                                    color: '#333 !important',
-                                    fontSize: '14px !important'
-                                },
-                                '& .goog-te-gadget-icon': {
-                                    display: 'none !important'
-                                }
+                                '& .goog-te-gadget-simple .goog-te-menu-value': { color: '#333 !important', fontSize: '14px !important' },
+                                '& .goog-te-gadget-icon': { display: 'none !important' }
                             }
                         }
                     }

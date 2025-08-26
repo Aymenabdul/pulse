@@ -10,7 +10,11 @@ import {
   Card,
   CardContent,
   Radio,
+  Select,
+  MenuItem,
+  Checkbox,
   RadioGroup,
+  InputLabel,
   FormControl,
   TextField
 } from "@mui/material";
@@ -18,46 +22,174 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import axiosInstance from "../../axios/axios";
 import { useAuth } from "../../hooks/useAuth";
 
-const MemoizedTextField = memo(({ label, field, value, onChange }) => (
-  <TextField
-    fullWidth
-    label={label}
-    value={value}
-    onChange={(e) => onChange(field, e.target.value)}
-    margin="normal"
-    type="tel"
-    slotProps={{
-      input: {
-        pattern: "[0-9]{10}", maxLength: 10
-      }
-    }}
-  />
-));
+const casteOptions = [
+  "Adi Andhra", "Adi Dravida", "Adi Karnataka", "Adiyan", "Agamudayar",
+  "Agaram Vellan Chettiar", "Ajila", "Alwar, Azhavar and Alavar", "Ambalakarar",
+  "Ambalakarar (Thanjavur etc.)", "Ambalakkarar (Suriyanur)", "Andipandaram", "Ansar",
+  "Appanad Kondayam Kottai Maravar", "Aranadan", "Arayar", "Archakarai Vellala",
+  "Arunthathiyar", "Aryavathi", "Attur Kilnad Koravars", "Attur Melnad Koravars",
+  "Ayira Vaisyar", "Ayyanavar", "Badagar", "Baira", "Bakuda", "Bandi", "Battu Turkas",
+  "Bellara", "Bestha, Siviar", "Bharatar", "Bhatraju", "Billava", "Bondil",
+  "Boyar, Oddar", "Boyas", "Boyas (except)", "C.K. Koravars", "C.S.I. formerly S.I.U.C.",
+  "Chakkala", "Chakkala (except)", "Chakkiliyan", "Chalavadi", "Chamar, Muchi",
+  "Chandala", "Changyampudi Koravars", "Chavalakarar", "Cheruman", "Chettinad Valayars",
+  "Chettu or Chetty", "Chowdry", "Dabi Koravars", "Dasari", "Dekkani Muslims",
+  "Devagudi Talayaris", "Devangar, Sedar", "Devendrakulathan", "Dobba Koravars",
+  "Dobbai Korachas", "Dom, Dombara, Paidi, Pano", "Domban", "Dombs", "Dombs (except)",
+  "Dommara", "Dommars", "Donga Boya", "Donga Dasaris", "Donga Dasaris (except)",
+  "Donga Ur. Korachas", "Dudekula", "Enadi", "Eravallan", "Eravallar", "Ezhavathy",
+  "Ezhuthachar", "Ezhuva", "Gandarvakottai Kallars", "Gandarvakottai Koravars",
+  "Gangavar", "Gavara, Gavarai & Vadugar", "Godagali", "Godda", "Gorrela Dodda Boya",
+  "Gosargi", "Gounder", "Gowda", "Gudu Dasaris", "Hegde", "Holeya", "Idiga",
+  "Illathu Pillaimar", "Inji Koravars", "Irular", "Isaivellalar", "Jaggali",
+  "Jambavanodai", "Jambuvanodai", "Jambuvulu", "Jangam", "Jhetty", "Jogi", "Jogis",
+  "Jogis (except)", "Kabbera", "Kadaiyan", "Kadar", "Kaikolar, Sengunthar", "Kakkalan",
+  "Kal Oddars", "Kala Koravars", "Kaladi (except)", "Kaladis", "Kalari Kurup",
+  "Kalavathila Boyas", "Kalingi", "Kalinji Dabikoravars", "Kalladi", "Kallar",
+  "Kallar Kula Thondaman", "Kalveli Gounder", "Kambar", "Kammalar or Viswakarma",
+  "Kammara", "Kanakkan, Padanna", "Kani, Kanisu, Kaniyar Panikkar", "Kanikaran, Kanikkar",
+  "Kaniyala Vellalar", "Kaniyan, Kanyan", "Kannada Saineegar", "Kannadiya Naidu",
+  "Karimpalan", "Karpoora Chettiar", "Karuneegar", "Kasukkara Chettiar",
+  "Katesar Pattamkatti", "Kathikarar", "Kattunayakan", "Kavara", "Kavuthiyar",
+  "Kepmaris", "Kerala Mudali", "Kharvi", "Khatri", "Kochu Velan", "Koliyan",
+  "Konda Kapus", "Kondareddis", "Kongu Chettiar", "Kongu Vaishnava", "Kongu Vellalars",
+  "Koosa", "Kootan, Koodan", "Kootappal Kallars", "Koppala Velama", "Koracha",
+  "Koraga", "Koravars", "Kota", "Koteyar", "Krishnanvaka", "Kudikara Vellalar",
+  "Kudiya, Melakudi", "Kudumban", "Kudumbi", "Kuga Vellalar", "Kulala", "Kunchidigar",
+  "Kunnuvar Mannadi", "Kuravan, Sidhanar", "Kurichchan", "Kuruhini Chetty", "Kurumans",
+  "Kurumba, Kurumba Goundar", "Kurumbas", "Labbais including Rowthar and Marakayar",
+  "Lambadi", "Latin Catholic Christian Vannar", "Latin Catholics",
+  "Latin Catholics in Shenkottah", "Lingayat", "Madari", "Madiga", "Maha Malasar",
+  "Mahendra, Medara", "Mahratta", "Maila", "Mala", "Malai Arayan", "Malai Pandaram",
+  "Malai Vedan", "Malakkuravan", "Malasar", "Malayakandi", "Malayali", "Malayar", "Male",
+  "Maniagar", "Mannan", "Mannan", "Mapilla", "Maravars", "Maravars (except)",
+  "Maruthuvar, Navithar, Mangala", "Mavilan", "Meenavar", "Moger", "Mond Golla",
+  "Monda Golla", "Monda Koravars", "Moondrumandai Enbathunalu", "Mooppan",
+  "Moundadan Chetty", "Mudugar, Muduvan", "Mukkuvar or Mukayar", "Mundala", "Muthuraja",
+  "Muthuvan", "Mutlakampatti", "Mutlakampatti", "Nadar, Shanar & Gramani", "Nagaram",
+  "Naikkar", "Nalakeyava", "Nangudi Vellalar", "Nanjil Mudali", "Narikoravar", "Nayadi",
+  "Nellorepet Oddars", "Nokkar", "Nokkars", "Nulayar", "O.P.S. Vellalar", "Odar",
+  "Oddars", "Odiya", "Oottruvalanattu Vellalar", "Orphans and destitutes children",
+  "Ovachar", "Padannan", "Padayachi", "Pagadai", "Paiyur Kotta Vellalar", "Pallan",
+  "Pallayan", "Palliyan", "Palliyar", "Pambada", "Pamulu", "Panan", "Panar", "Panchama",
+  "Pandiya Vellalar", "Panisaivan", "Paniyan", "Pannadi", "Pannayar", "Panniandi",
+  "Pannirandam Chettiar", "Paraiyan, Parayan, Sambavar", "Paravan", "Paravar",
+  "Paravar converts to Christianity", "Parkavakulam", "Pathiyan", "Pedda Boyas", "Perike",
+  "Periya Suriyur Kallars", "Perumkollar", "Piramalai Kallars", "Podikara Vellalar",
+  "Ponnai Koravars", "Pooluva Gounder", "Poraya", "Pulavar", "Pulayan, Cheramar",
+  "Pulluvan", "Pulluvar", "Punnan Vettuva Gounder", "Punnan Vettuva Gounder", "Pusala",
+  "Puthirai Vannan", "Raneyar", "Reddy (Ganjam)", "Sadhu Chetty", "Sakkaraithamadai Koravars",
+  "Sakkaravar or Kavathi", "Salem Melnad Koravars", "Salem Uppu Koravars", "Salivagana",
+  "Saliyar", "Samagara", "Samban", "Sapari", "Saranga Palli Koravars",
+  "Sathatha Srivaishnava", "Savalakkarar", "Sembanad Maravars", "Semman", "Senaithalaivar",
+  "Serakula Vellalar", "Servai", "Servai", "Sheik", "Sholaga", "Sooramari Oddars",
+  "Sourashtra", "Sozhia Chetty", "Sozhia Vellalar", "Srisayar", "Sundaram Chetty", "Syed",
+  "Telugupatty Chetty", "Telungapatti Chettis", "Thalli Koravars", "Thandan",
+  "Thogamalai Koravars", "Thogatta Veerakshatriya", "Tholkollar", "Tholuva Naicker",
+  "Thondaman", "Thoraiyar (Nilgiris)", "Thoraiyar (Plains)", "Thoriyar", "Thoti",
+  "Thottia Naicker", "Thottia Naickers", "Tiruvalluvar", "Toda", "Ukkirakula Kshatriya Naicker",
+  "Uppara", "Uppukoravars", "Urali Gounder", "Urali Gounders", "Uraly",
+  "Urikkara Nayakkar", "Vaduvarpatti Koravars", "Valaiyar", "Valayars", "Vallambar",
+  "Vallanattu Chettiar", "Vallon", "Valluvan", "Valmiki", "Vaniyar", "Vannan",
+  "Vannar (Salaivai Thozhilalar)", "Vanniakula Kshatriya", "Varaganeri Koravars",
+  "Vathiriyan", "Veduvar and Vedar", "Veerasaiva", "Velan", "Velar", "Vellan Chettiar",
+  "Veluthodathu Nair", "Venganur Adi-Dravidar", "Veppur Parayan", "Vetan",
+  "Vetta Koravars", "Vettaikarar", "Vettaikarar", "Vettiyan", "Vettuva Gounder",
+  "Vettuva Gounder", "Vettuvan", "Virakodi Vellala", "Vokkaligar",
+  "Wayalpad or Nawalpeta Korachas", "Wynad Chetty", "Yadhava", "Yavana", "Yerukula", "Yogeeswarar", "Others (Specify)",
+];
 
+// A map to identify which questions require a "specify" text field
+const specifyQuestions = {
+  ques1: true,
+  ques2: true,
+  ques3: true,
+  ques7: true,
+  religion: true,
+  gender: true,
+  caste: true,
+  occupation: true,
+};
+
+const MemoizedTextField = memo(({ label, field, value, onChange, type = "text" }) => {
+  const handleInputChange = (e) => {
+    let inputValue = e.target.value;
+    const fieldName = field.toLowerCase();
+
+    if (fieldName.includes('number')) {
+      inputValue = inputValue.replace(/[^0-9]/g, '').slice(0, 10);
+    }
+    else if (fieldName.endsWith('_specify')) {
+      inputValue = inputValue.replace(/[^A-Za-z ]/g, '');
+    }
+
+    onChange(field, inputValue);
+  };
+
+  return (
+    <div>
+      <Typography fontWeight={600} mb={1}>{label}</Typography>
+      <TextField
+        fullWidth
+        label={label}
+        value={value}
+        onChange={handleInputChange}
+        margin="normal"
+        type={type}
+      />
+    </div>
+  );
+});
 MemoizedTextField.displayName = 'MemoizedTextField';
 
-const MemoizedRadioGroup = memo(({ label, field, options, value, onChange }) => (
+const MemoizedSelect = memo(({ label, field, options, value, onChange, isSpecifyQuestion, specifyValue }) => {
+  // Determine if the "specify" text field should be shown.
+  // It appears if this is a "specify" question AND the selected value includes "(Specify)".
+  const requiresSpecify = isSpecifyQuestion && typeof value === 'string' && value.includes('(Specify)');
+
+  return (
+    <div>
+      <Typography fontWeight={600} mb={1}>{label}</Typography>
+      <FormControl fullWidth>
+        <InputLabel>{label}</InputLabel>
+        <Select
+          value={value}
+          label={label}
+          onChange={(e) => onChange(field, e.target.value)}
+        >
+          <MenuItem value=""><em>None</em></MenuItem>
+          {options.map(option => (
+            <MenuItem key={option} value={option}>{option}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {/* Conditionally render the "specify" text field when needed */}
+      {requiresSpecify && (
+        <MemoizedTextField
+          label="Please Specify"
+          field={`${field}_specify`} // e.g., "caste_specify"
+          value={specifyValue}
+          onChange={onChange}
+        />
+      )}
+    </div>
+  );
+});
+MemoizedSelect.displayName = 'MemoizedSelect';
+
+const MemoizedRadioGroup = memo(({ label, field, options, value, onChange, required }) => (
   <div>
-    <Typography fontWeight={600} mb={1}>{label}</Typography>
+    <Typography fontWeight={600} mb={1}>
+      {label}
+      {required && <span style={{ color: 'red', marginLeft: '4px', fontSize: '23px' }}>*</span>}
+    </Typography>
     <FormControl component="fieldset" fullWidth>
-      <RadioGroup
-        value={value}
-        onChange={(e) => onChange(field, e.target.value)}
-      >
+      <RadioGroup value={value} onChange={(e) => onChange(field, e.target.value)}>
         <Grid container spacing={1}>
           {options.map((option) => (
-            <Grid size={{ xs: 12, sm: 6 }} key={option}>
-              <FormControlLabel
-                value={option}
-                control={<Radio />}
-                label={option}
-                sx={{
-                  "& .MuiFormControlLabel-label": {
-                    transition: "0.2s",
-                    "&:hover": { fontSize: "1.05rem" }
-                  }
-                }}
-              />
+            <Grid  size={{xs:6, sm:6, md:4}} key={option}>
+              <FormControlLabel value={option} control={<Radio />} label={option} />
             </Grid>
           ))}
         </Grid>
@@ -65,60 +197,100 @@ const MemoizedRadioGroup = memo(({ label, field, options, value, onChange }) => 
     </FormControl>
   </div>
 ));
-
 MemoizedRadioGroup.displayName = 'MemoizedRadioGroup';
 
-const FormField = memo(({ label, field, options, isInput, value, onChange, required }) => (
-  <Grid size={{ xs: 12 }}>
-    <Card sx={{
-      backgroundColor: "rgba(255, 255, 255, 0.25)",  
-      backdropFilter: "blur(10px)", 
-    }}>
-      <CardContent>
-        {isInput ? (
-          <div>
-            <Typography fontWeight={600} mb={1}>{label}</Typography>
+const MemoizedMultiSelectRadio = memo(({ label, field, options, value, onChange }) => {
+  const handleToggle = (option) => {
+    const newSelected = value.includes(option)
+      ? value.filter(item => item !== option)
+      : [...value, option];
+    onChange(field, newSelected);
+  };
+
+  return (
+    <div>
+      <Typography fontWeight={600} mb={1}>{label}</Typography>
+      <FormControl component="fieldset" fullWidth>
+        <Grid container spacing={1}>
+          {options.map((option) => (
+            <Grid size={{xs:6, md:3}} key={option}>
+              <FormControlLabel control={<Checkbox checked={value.includes(option)} onChange={() => handleToggle(option)} />} label={option} />
+            </Grid>
+          ))}
+        </Grid>
+      </FormControl>
+    </div>
+  );
+});
+MemoizedMultiSelectRadio.displayName = 'MemoizedMultiSelectRadio';
+
+const FormField = memo(({ label, field, options, isInput, value, onChange, specifyValue, required }) => {
+  const isSpecifyQuestion = specifyQuestions[field];
+  const requiresSpecify = useMemo(() => {
+    if (!isSpecifyQuestion || !value) {
+      return false;
+    }
+    // Handle arrays (for multi-select like ques7)
+    if (Array.isArray(value)) {
+      return value.some(item => typeof item === 'string' && item.includes('(Specify)'));
+    }
+    // Handle strings (for single-select like religion)
+    if (typeof value === 'string') {
+      return value.includes('(Specify)');
+    }
+    return false;
+  }, [isSpecifyQuestion, value]);
+  return (
+    <Grid size={{ xs: 12 }}>
+      <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
+        <CardContent>
+          {isInput ? (
             <MemoizedTextField
               label={label}
               field={field}
               value={value}
               onChange={onChange}
+              type={field.toLowerCase().includes('number') ? 'tel' : 'text'}
+              inputProps={field.toLowerCase().includes('number') ? { pattern: "[0-9]{10}", maxLength: 10 } : {}}
             />
-          </div>
-        ) : (
-          <div style={{ marginBottom: '16px' }}>
-            <Typography
-              fontWeight={600}
-              mb={1}
-              component="div"
-              variant="body1"
-            >
-              {label}
-              {required && <span style={{ color: 'red', marginLeft: '4px',fontSize:'25px' }}>*</span>}
-            </Typography>
-
-            <MemoizedRadioGroup
-              field={field}
-              options={options}
-              value={value}
-              onChange={onChange}
-              required={required}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  </Grid>
-));
-
+          ) : field === "caste" ? ( // <-- ADD THIS NEW CONDITION
+            <MemoizedSelect label={label} field={field} options={options} value={value} onChange={onChange} isSpecifyQuestion={isSpecifyQuestion}
+              specifyValue={specifyValue} />
+          ) : field === "ques7" ? (
+            <div>
+              <MemoizedMultiSelectRadio label={label} field={field} options={options} value={value} onChange={onChange} />
+              {requiresSpecify && (
+                <MemoizedTextField
+                  label="Please Specify"
+                  field={`${field}_specify`}
+                  value={specifyValue}
+                  onChange={onChange}
+                />
+              )}
+            </div>
+          ) : (
+            <div>
+              <MemoizedRadioGroup label={label} field={field} options={options} value={value} required={required} onChange={onChange} />
+              {/* --- CONDITIONAL TEXTFIELD FOR "SPECIFY" --- */}
+              {requiresSpecify && (
+                <MemoizedTextField
+                  label="Please Specify"
+                  field={`${field}_specify`}
+                  value={specifyValue}
+                  onChange={onChange}
+                />
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </Grid>
+  );
+});
 FormField.displayName = 'FormField';
 
 const VoterDetails = memo(({ voter }) => (
-  <Card sx={{ 
-    mb: 3, 
-    backgroundColor: "rgba(255, 255, 255, 0.25)",  
-    backdropFilter: "blur(10px)",  
-  }}>
+  <Card sx={{ mb: 3, backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
     <CardContent>
       <Typography variant="h5" textAlign="center">Voter Details</Typography>
       <Typography mt={1}><strong>Voter ID:</strong> {voter?.voterID}</Typography>
@@ -126,154 +298,163 @@ const VoterDetails = memo(({ voter }) => (
       <Typography mt={1}><strong>Age:</strong> {voter?.age}</Typography>
       <Typography mt={1}><strong>Gender:</strong> {voter?.gender}</Typography>
       <Typography mt={1}><strong>House Number:</strong> {voter?.houseNumber}</Typography>
+      <Typography mt={1}><strong>Relation Type:</strong> {voter?.relationType}</Typography>
+      <Typography mt={1}><strong>Relation Name:</strong> {voter?.relationName}</Typography>
+      <Typography mt={1}><strong>Section:</strong> {voter?.section}</Typography>
     </CardContent>
   </Card>
 ));
-
 VoterDetails.displayName = 'VoterDetails';
 
 export default function SurveyWithVoterId() {
   const [voter, setVoter] = useState(null);
-  const [isVerified, setIsVerified] = useState();
+  const [isVerified, setIsVerified] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { id } = useParams();
+  const { id, surveyName } = useParams();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-
   const [form, setForm] = useState({
-    ques1: "",
-    ques2: "",
-    ques3: "",
-    ques4: "",
-    ques5: "",
-    ques6: "",
-    phoneNumber: "",
-    whatsappNumber: "",
-    voterStatus: "",
-    voterType: ""
+    ques1: "", ques1_specify: "",
+    ques2: "", ques2_specify: "",
+    ques3: "", ques3_specify: "",
+    caste_specify: "",
+    occupation:"",
+    ques4: "", ques5: "", ques6: "",
+    ques7: [],
+    caste: "", religion: "",
+    phoneNumber: "", whatsappNumber: "",
+    voterStatus: "", voterType: "",
+    gender_specify: "",
+    religion_specify: "",
+    ques7_specify: "",occupation_specify:"",
   });
-
   const [alert, setAlert] = useState({ open: false, type: "success", message: "" });
 
-  useEffect(() => {
-    const fileDataId = voter?.id; 
+  // Fetch survey data if voter is already verified
+  const handleFetchSurveyData = useCallback(async (fileDataId) => {
+    try {
+      const response = await axiosInstance.get(`/survey/survey-by-fileid?fileDataId=${fileDataId}`);
+      const data = response.data;
+      const newFormState = { ...data, ques7: data.ques7 || [] };
 
-    if (!fileDataId) return;  
+      // --- PARSE SPECIFY FIELDS FROM FETCHED DATA ---
+      Object.keys(specifyQuestions).forEach(field => {
+        const value = data[field];// Can be a string, an array, or undefined
 
-    const fetchVerificationStatus = async () => {
-      try {
-        const response = await axiosInstance.get(`/survey/voters/${fileDataId}`);
-        console.log("Response:", response.data);  
+        // Handle multi-select arrays (like ques7)
+        if (Array.isArray(value)) {
+          const specifyAnswer = value.find(item => item.includes(': '));
+          const otherAnswers = value.filter(item => !item.includes(': '));
 
-        const verifiedStatus = response.data.isVerified;
+          if (specifyAnswer) {
+            const specifyText = specifyAnswer.split(': ')[1];
+            // Find the placeholder option like "Others (Specify)"
+            const specifyPlaceholder = formFields.find(f => f.field === field)?.options.find(opt => opt.includes('(Specify)'));
 
-        setIsVerified(verifiedStatus);
-        console.log("Verified Status:", verifiedStatus);  
-      } catch (error) {
-        console.error("Error fetching verification status:", error);
-        setIsVerified(false);  
-      }
-    };
+            newFormState[field] = [...otherAnswers, specifyPlaceholder];
+            newFormState[`${field}_specify`] = specifyText;
+          } else {
+            newFormState[field] = value; // No specified answer, use the array as-is
+          }
+        }
+        // Handle single-select strings (like religion, gender, etc.)
+        else if (typeof value === 'string' && value.includes(': ')) {
+          const parts = value.split(': ');
+          const optionPart = parts[0].trim();
+          const specifyPart = parts.slice(1).join(': ').trim();
+          const matchingOption = formFields.find(f => f.field === field)?.options.find(opt => opt.startsWith(optionPart));
+          if (matchingOption) {
+            newFormState[field] = matchingOption;
+            newFormState[`${field}_specify`] = specifyPart;
+          }
+        }
+        // Handle non-specified values
+        else {
+          newFormState[field] = value || (Array.isArray(form[field]) ? [] : '');
+        }
+      });
 
-    fetchVerificationStatus();  
-  }, [voter?.id]);
-
-
-  const handleFetchSurveyData = useCallback(async () => {
-    const fileDataId = voter?.id;  
-
-    if (fileDataId) {
-      try {
-        const response = await axiosInstance.get(`/survey/survey-by-fileid?fileDataId=${fileDataId}`);
-
-        console.log("surveyData for the user", response.data);
-
-        setForm({
-          ques1: response.data.ques1 || "",
-          ques2: response.data.ques2 || "",
-          ques3: response.data.ques3 || "",
-          ques4: response.data.ques4 || "",
-          ques5: response.data.ques5 || "",
-          ques6: response.data.ques6 || "",
-          phoneNumber: response.data.phoneNumber || "",
-          whatsappNumber: response.data.whatsappNumber || "",
-          voterStatus: response.data.voterStatus || "",
-          voterType: response.data.voter_type || "",
-          userId: user?.id
-        });
-
-        console.log("Form state after fetching data:", form);
-      } catch (error) {
-        console.error("Error fetching survey data:", error);
-      }
+      setForm(prev => ({ ...prev, ...newFormState }));
+    } catch (error) {
+      console.error("Error fetching survey data:", error);
     }
-  }, [voter?.id, user?.id]);  
+  }, []); // formFields dependency removed for stability, ensure it is stable if added back
 
-  useEffect(() => {
-    if (voter?.id) {
-      handleFetchSurveyData(); 
-    }
-  }, [voter, handleFetchSurveyData]);
-
+  // Fetch voter data and their verification status
   const handleFetchVoterData = useCallback(async () => {
     try {
-      const response = await axiosInstance.get(`/file/getFileData/${id}`);
-      console.log(response.data);
-      setVoter(response.data);
+      const voterResponse = await axiosInstance.get(`/file/getFileData/${id}`);
+      setVoter(voterResponse.data);
+      const fileDataId = voterResponse.data?.id;
 
-      if (response.data?.voted) {
-        handleFetchSurveyData(); 
+      if (fileDataId) {
+        const statusResponse = await axiosInstance.get(`/survey/voters/${fileDataId}`);
+        const isVerifiedStatus = statusResponse.data?.isVerified || false;
+        setIsVerified(isVerifiedStatus);
+        if (isVerifiedStatus) {
+          handleFetchSurveyData(fileDataId);
+        }
       }
     } catch (error) {
-      console.error("Error fetching voter data:", error);
-      return null;
+      setIsVerified(false);
+      console.error("Error fetching voter data or status:", error);
     }
   }, [id, handleFetchSurveyData]);
 
   useEffect(() => {
-    handleFetchVoterData(); // Trigger on component mount
+    handleFetchVoterData();
   }, [handleFetchVoterData]);
 
-
   const handleChange = useCallback((field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const newState = { ...prev, [field]: value };
+      const isSpecifyField = specifyQuestions[field];
+
+      if (isSpecifyField) {
+        let isSpecifySelected = false;
+        // Check for 'Specify' in both arrays and strings
+        if (Array.isArray(value)) {
+          isSpecifySelected = value.some(item => item.includes('(Specify)'));
+        } else if (typeof value === 'string') {
+          isSpecifySelected = value.includes('(Specify)');
+        }
+
+        // If the specify option is no longer selected, clear the specify text
+        if (!isSpecifySelected) {
+          newState[`${field}_specify`] = '';
+        }
+      }
+      return newState;
+    });
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    console.log("User name:", user?.name);
     try {
       let response;
 
-      // Validate phone number is exactly 10 digits
+      // --- Validation ---
       const phoneNumberPattern = /^[0-9]{10}$/;
-      if (!phoneNumberPattern.test(form.phoneNumber)) {
+      if (form.phoneNumber && !phoneNumberPattern.test(form.phoneNumber)) {
         setAlert({ open: true, type: "error", message: "Phone number must be exactly 10 digits." });
         return;
       }
-
-      // Validate WhatsApp number is exactly 10 digits
-      if (!phoneNumberPattern.test(form.whatsappNumber)) {
+      if (form.whatsappNumber && !phoneNumberPattern.test(form.whatsappNumber)) {
         setAlert({ open: true, type: "error", message: "WhatsApp number must be exactly 10 digits." });
         return;
       }
-
       if (!form.voterStatus) {
-      setAlert({ open: true, type: "error", message: "Voter status is required. Please select one." });
-      return;
-    }
+        setAlert({ open: true, type: "error", message: "Voter status is required. Please select one." });
+        return;
+      }
 
-      const fileDataId = voter?.id;  // Assuming fileDataId is available from the voter object
-
-      // If fileDataId is missing, show error and return
+      const fileDataId = voter?.id;
       if (!fileDataId) {
         setAlert({ open: true, type: "error", message: "FileDataId is missing." });
         return;
       }
 
-
       if (isVerified) {
-        // If voter is verified, update the survey
+        // If voter is verified, create and process the update payload
         const updatePayload = {
           phoneNumber: form.phoneNumber,
           voter_type: form.voterType,
@@ -285,34 +466,67 @@ export default function SurveyWithVoterId() {
           voterId: voter?.voterID,
           voterStatus: form.voterStatus,
           updated_by: user?.name,
+          religion: form.religion,
+          caste_specify: form.caste_specify, // <-- ADD THIS
           whatsappNumber: form.whatsappNumber,
+          occupation: form.occupation,
+          occupation_specify:form.occupation_specify,
           ques1: form.ques1,
           ques2: form.ques2,
           ques3: form.ques3,
           ques4: form.ques4,
           ques5: form.ques5,
+          caste: form.caste,
           ques6: form.ques6,
+          ques7: form.ques7,
           role: user?.role,
-          surveyName: voter?.surveyName,
+          surveyName: surveyName,
           userId: user?.id || null,
           created_by: user?.name,
-          age:voter?.age,
+          age: voter?.age,
+          religion_specify: form.religion_specify, // <-- ADD THIS
+          gender_specify: form.gender_specify,
+          ques7_specify: form.ques7_specify,
+          ques1_specify: form.ques1_specify,
+          ques2_specify: form.ques2_specify,
+          ques3_specify: form.ques3_specify,
         };
 
-        const updateUrl = `/survey/update-by-fileid?surveyName=${encodeURIComponent(voter.surveyName)}&fileDataId=${voter.id}`;
+        // FIXED: Process the "specify" answers directly on the payload
+        Object.keys(specifyQuestions).forEach(field => {
+          // This code now works for BOTH updatePayload and submitPayload
+          const payload = updatePayload;
+          const specifyValue = payload[`${field}_specify`];
+          const fieldValue = payload[field];
 
+          if (fieldValue && specifyValue) {
+            // Correctly handle multi-select arrays like ques7
+            if (Array.isArray(fieldValue) && fieldValue.some(item => item.includes('(Specify)'))) {
+              payload[field] = fieldValue
+                .filter(item => !item.includes('(Specify)')) // Remove the placeholder
+                .concat(`Others: ${specifyValue}`);      // Add the actual specified value
+            }
+            // Handle single-select strings like religion, gender, etc.
+            else if (typeof fieldValue === 'string' && fieldValue.includes('(Specify)')) {
+              payload[field] = `${fieldValue.replace(' (Specify)', '')}: ${specifyValue}`;
+            }
+          }
+          delete payload[`${field}_specify`]; // Clean up the temporary field
+        });
+
+        const updateUrl = `/survey/update-by-fileid?fileDataId=${voter.id}`;
         response = await axiosInstance.put(updateUrl, updatePayload);
-
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
         await handleFetchVoterData();
+
       } else {
-        // If voter is not verified, submit the survey
+        // If voter is not verified, create and process the submit payload
         const submitPayload = {
           fileDataId: voter?.id,
           phoneNumber: form.phoneNumber,
           voter_type: form.voterType,
           userId: user?.id || null,
-          verified: true,  // Mark the survey as verified
+          verified: true,
           booth: voter?.booth,
           constituency: voter?.assemblyConstituency,
           houseNumber: voter?.houseNumber,
@@ -321,164 +535,120 @@ export default function SurveyWithVoterId() {
           voterId: voter?.voterID,
           voterStatus: form.voterStatus,
           whatsappNumber: form.whatsappNumber,
-          surveyName: voter?.surveyName,
+          caste_specify: form.caste_specify,
+          religion: form?.religion,
+          surveyName: surveyName,
+          occupation: form.occupation,
+          occupation_specify:form.occupation_specify,
           created_by: user?.name,
           updated_by: user?.name,
           role: user?.role,
           ques1: form.ques1,
+          caste: form.caste,
           ques2: form.ques2,
           ques3: form.ques3,
           ques4: form.ques4,
           ques5: form.ques5,
           ques6: form.ques6,
-          age:voter?.age,
+          ques7: form.ques7,
+          age: voter?.age,
+          religion_specify: form.religion_specify, // <-- ADD THIS
+          gender_specify: form.gender_specify,
+          ques7_specify: form.ques7_specify,
+          ques1_specify: form.ques1_specify,
+          ques2_specify: form.ques2_specify,
+          ques3_specify: form.ques3_specify,
         };
 
-        response = await axiosInstance.post('/survey/submit', submitPayload);
+        // FIXED: Process the "specify" answers directly on the payload
+        Object.keys(specifyQuestions).forEach(field => {
+          // This code now works for BOTH updatePayload and submitPayload
+          const payload = submitPayload;
+          const specifyValue = payload[`${field}_specify`];
+          const fieldValue = payload[field];
 
+          if (fieldValue && specifyValue) {
+            // Correctly handle multi-select arrays like ques7
+            if (Array.isArray(fieldValue) && fieldValue.some(item => item.includes('(Specify)'))) {
+              payload[field] = fieldValue
+                .filter(item => !item.includes('(Specify)')) // Remove the placeholder
+                .concat(`Others: ${specifyValue}`);      // Add the actual specified value
+            }
+            // Handle single-select strings like religion, gender, etc.
+            else if (typeof fieldValue === 'string' && fieldValue.includes('(Specify)')) {
+              payload[field] = `${fieldValue.replace(' (Specify)', '')}: ${specifyValue}`;
+            }
+          }
+          delete payload[`${field}_specify`]; // Clean up the temporary field
+        });
+
+        response = await axiosInstance.post('/survey/submit', submitPayload);
         setAlert({ open: true, type: "success", message: "Survey submitted successfully!" });
-        console.log("Payload being submitted:", submitPayload);
+        console.log(user?.constituency);
+
         await handleFetchVoterData();
       }
 
-      // Navigate based on user role after submission or update
-      if (user?.role === 'Surveyor') {
-        navigate('/surveyor/survey/with-voter-id');  // Redirect to the surveyor page
-      } else if (user?.role === 'Admin') {
-        navigate('/admin/survey/with-voter-id');  // Redirect to the admin page
+      // Navigate back after success
+      const basepath = user?.role === 'Surveyor' ? '/surveyor' : (user?.role === 'Admin' ? '/admin' : (user?.role === 'SuperAdmin' ? '/superadmin' : null));
+      if (basepath) {
+        setTimeout(() => navigate(`${basepath}/survey/with-voter-id`), 500);
       } else {
         console.log('Unknown role, cannot navigate.');
       }
 
     } catch (e) {
       console.error("API Error:", e);
-
-      let errorMessage;
-      if (e.response?.status === 404) {
-        errorMessage = "Survey record not found. Please check if the survey exists.";
-      } else if (e.response?.status === 400) {
-        errorMessage = "Invalid data provided. Please check your inputs.";
-      } else {
-        errorMessage = "Error processing the survey. Please try again.";
+      let errorMessage = "Error processing the survey. Please try again.";
+      if (e.response?.status === 409) {
+        errorMessage = "This record was changed by someone else. Please refresh and try again.";
+      } else if (e.response?.data?.message) {
+        errorMessage = e.response.data.message;
       }
-
       setAlert({ open: true, type: "error", message: errorMessage });
     }
-  }, [voter, form, user?.id, handleFetchVoterData]);
+  }, [voter, form, user, isVerified, surveyName, navigate, handleFetchVoterData]);
 
   const handleClear = useCallback(() => {
     setForm({
-      ques1: "",
-      ques2: "",
-      ques3: "",
-      ques4: "",
-      ques5: "",
-      ques6: "",
-      phoneNumber: "",
-      whatsappNumber: "",
-      voterStatus: "",
-      voterType: ""
+      ques1: "", ques1_specify: "",
+      ques2: "", ques2_specify: "",
+      ques3: "", ques3_specify: "",
+      caste_specify: "",
+      occupation:"",
+      ques4: "", ques5: "", ques6: "",
+      ques7: [],
+      caste: "", religion: "",
+      phoneNumber: "", whatsappNumber: "",
+      voterStatus: "", voterType: "", gender_specify: "",
+      religion_specify: "",
+      ques7_specify: "",occupation_specify:"",
     });
   }, []);
 
-  const handleBack = useCallback(() => {
-    const currentPath = location.pathname;
-    const currentParams = searchParams.toString();
-    const paramString = currentParams ? `?${currentParams}` : '';
-
-    if (currentPath.includes('/admin')) {
-      navigate(`/admin/survey/with-voter-id${paramString}`);
-    } else if (currentPath.includes('/surveyor')) {
-      navigate(`/surveyor/survey/with-voter-id${paramString}`);
-    } else {
-      navigate(`/${paramString}`);
-    }
-  }, [location.pathname, navigate, searchParams]);
-
-  const handleCloseAlert = useCallback(() => {
-    setAlert(prev => ({ ...prev, open: false }));
-  }, []);
+  const handleBack = useCallback(() => navigate(-1), [navigate]);
 
   const formFields = useMemo(() => [
-    {
-      label: "Phone Number",
-      field: "phoneNumber",
-      isInput: true
-    },
-    {
-      label: "WhatsApp Number",
-      field: "whatsappNumber",
-      isInput: true
-    },
-    {
-      label: "What is the Voter's status?",
-      field: "voterStatus",
-      options: [
-        "In Current Address",
-        "Moved to another address in the same constituency",
-        "Moved to different constituency",
-        "Working abroad",
-        "Passed away"
-      ],
-      required: true
-    },
-    {
-      label: "Voter Type",
-      field: "voterType",
-      options: ["Party Member", "Party Supporter", "Public", "Another Party Member"]
-    },
-    {
-      label: "Who did you vote for in 2016?",
-      field: "ques1",
-      options: [
-        "AIADMK", "DMK", "BJP", "INC", "NTK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK",
-        "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"
-      ]
-    },
-    {
-      label: "Who did you vote for in 2021?",
-      field: "ques2",
-      options: [
-        "AIADMK", "DMK", "BJP", "INC", "NTK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK",
-        "MNM", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"
-      ]
-    },
-    {
-      label: "Who will you vote for in 2026?",
-      field: "ques3",
-      options: [
-        "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", "CPI", "CPM", "PMK",
-        "DMDK", "MNM", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"
-      ]
-    },
-    {
-      label: "Performance of CM Edappadi K. Palaniswami (2017–2021)?",
-      field: "ques4",
-      options: ["Bad", "Average", "Good", "Very good"]
-    },
-    {
-      label: "Performance of CM Stalin (2021–2026)?",
-      field: "ques5",
-      options: ["Bad", "Average", "Good", "Very good"]
-    },
-    {
-      label: "Performance of your current MLA?",
-      field: "ques6",
-      options: ["Bad", "Average", "Good", "Very good"]
-    }
+    { label: "What is the Voter's status?", field: "voterStatus", options: ["In Current Address", "Moved to another address in the same constituency", "Moved to different constituency", "Working abroad", "Passed away"], required: true },
+    { label: "Voter Type", field: "voterType", options: ["Party Member", "Party Supporter", "Public", "Another Party Member"] },
+    { label: "Occupation / Employment Status", field: "occupation", options: ["Student", "Homemaker", "Unemployed", "Self-employed","Farmer","Daily wage laborer","Private sector employee","Government employee","Professional","Retired", "Others (Specify)"] },
+    { label: "Religion", field: "religion", options: ["Hindu", "Muslim", "Christian", "Others (Specify)"] },
+    { label: "Caste", field: "caste", options: casteOptions },
+    { label: "Phone Number", field: "phoneNumber", isInput: true },
+    { label: "WhatsApp Number", field: "whatsappNumber", isInput: true },
+    { label: "Who did you vote for in 2016?", field: "ques1", options: ["AIADMK", "DMK", "BJP", "INC", "NTK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"] },
+    { label: "Who did you vote for in 2021?", field: "ques2", options: ["AIADMK", "DMK", "BJP", "INC", "NTK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK", "MNM", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"] },
+    { label: "Who will you vote for in 2026?", field: "ques3", options: ["AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK", "MNM", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"] },
+    { label: "Performance of CM Edappadi K. Palaniswami (2017–2021)?", field: "ques4", options: ["Bad", "Average", "Good", "Very good"] },
+    { label: "Performance of CM Stalin (2021–2026)?", field: "ques5", options: ["Bad", "Average", "Good", "Very good"] },
+    { label: "Performance of your current MLA?", field: "ques6", options: ["Bad", "Average", "Good", "Very good"] },
+    { label: "Important issues in this constituency?", field: "ques7", options: ["Traffic", "Poor Roads", "Flood", "Drainage", "Waterlogging", " No Flyover", "NEET", "Mosquitos", "Garbage", "Water supply", "Crop harvest disruption", "Pollution", "Public health crisis", "Women safety", "Unemployment", "Bus Services", "Train services", "Land grabbing", "No Electricity", "Inflation", "Caste conflict", "Others (Specify)"] },
   ], []);
-
-  const buttonText = isVerified ? "Update" : "Submit";
-  const buttonColor = isVerified ? "warning" : "primary";
 
   return (
     <Box p={2} maxWidth="md" mx="auto">
-      <Button onClick={handleBack} sx={{ mb: 2 }} variant="outlined">
-        Back
-      </Button>
-
+      <Button onClick={handleBack} sx={{ mb: 2 }} variant="outlined">Back</Button>
       <VoterDetails voter={voter} />
-
       <Grid container spacing={2}>
         {formFields.map(({ label, field, options, isInput, required }) => (
           <FormField
@@ -489,27 +659,19 @@ export default function SurveyWithVoterId() {
             isInput={isInput}
             required={required}
             value={form[field]}
+            specifyValue={form[`${field}_specify`]}
             onChange={handleChange}
           />
         ))}
       </Grid>
-
       <Box mt={3} display="flex" gap={2} justifyContent="center">
-        <Button variant="contained" color={buttonColor} onClick={handleSubmit}>
-          {buttonText}
+        <Button variant="contained" color={isVerified ? "warning" : "primary"} onClick={handleSubmit}>
+          {isVerified ? "Update" : "Submit"}
         </Button>
-        <Button variant="outlined" color="secondary" onClick={handleClear}>
-          Clear
-        </Button>
+        <Button variant="outlined" color="secondary" onClick={handleClear}>Clear</Button>
       </Box>
-
-      <Snackbar
-        open={alert.open}
-        autoHideDuration={4000}
-        onClose={handleCloseAlert}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert onClose={handleCloseAlert} severity={alert.type}>
+      <Snackbar open={alert.open} autoHideDuration={4000} onClose={() => setAlert(prev => ({ ...prev, open: false }))}>
+        <Alert severity={alert.type} onClose={() => setAlert(prev => ({ ...prev, open: false }))}>
           {alert.message}
         </Alert>
       </Snackbar>

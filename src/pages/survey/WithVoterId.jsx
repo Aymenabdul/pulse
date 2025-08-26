@@ -37,11 +37,13 @@ import {
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import axiosInstance from "../../axios/axios";
 import VoterCardSkeleton from "../../components/VoterCardSkeleton";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function WithVoterId() {
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { user } = useAuth();
 
     const [filters, setFilters] = useState({
         survey: searchParams.get('survey') || '',
@@ -96,7 +98,7 @@ export default function WithVoterId() {
 
     const updateURLParams = useCallback((newFilters, page = currentPage) => {
         const params = new URLSearchParams();
-        
+
         Object.entries(newFilters).forEach(([key, value]) => {
             if (value && value.trim()) {
                 params.set(key, value);
@@ -109,6 +111,19 @@ export default function WithVoterId() {
 
         setSearchParams(params);
     }, [setSearchParams, currentPage]);
+
+    useEffect(() => {
+        // Check if the user object is available
+        if (user) {
+            // If the role is admin or surveyor, and they have a constituency assigned
+            if (user && (user.role.toLowerCase() === 'admin' || user.role.toLowerCase() === 'surveyor') && user.constituency) {
+                displayedConstituencyOptions = [user.constituency];
+            }
+        }
+
+        console.log("User role:", user?.role, "Constituency:", user?.constituency);
+
+    }, [user]);
 
     const handlePageChange = (event, page) => {
         setIsUpdatingPage(true);
@@ -136,7 +151,7 @@ export default function WithVoterId() {
     const fetchActiveSurveys = useCallback(async () => {
         setLoading(prev => ({ ...prev, surveys: true }));
         try {
-            const response = await axiosInstance.get('/file/active');
+            const response = await axiosInstance.get('/survey/active');
             setSurveyOptions(response.data || []);
         } catch (error) {
             console.error('Error fetching active surveys:', error);
@@ -175,7 +190,7 @@ export default function WithVoterId() {
     }, []);
 
     const isVoterVerified = useCallback((voterId) => {
-        const isVerified = surveyData.some(survey => 
+        const isVerified = surveyData.some(survey =>
             survey.fileDataId === String(voterId) && survey.verified === true
         );
         return isVerified;
@@ -183,7 +198,7 @@ export default function WithVoterId() {
 
     const fetchVoters = useCallback(async (currentFilters) => {
         const { survey, constituency, boothNumber, name, houseNo } = currentFilters;
-
+        // Early return if required parameters are not provided
         if (!survey || !constituency || !boothNumber) {
             setVoters([]);
             setCurrentPage(1);
@@ -199,20 +214,19 @@ export default function WithVoterId() {
                 booth: boothNumber
             });
 
-            if (name.trim()) {
-                params.append('name', name.trim());
-            }
-            if (houseNo.trim()) {
-                params.append('houseNumber', houseNo.trim());
-            }
+            // // Append filters only if they're provided
+            // if (name.trim()) params.append('name', name.trim());
+            // if (houseNo.trim()) params.append('houseNumber', houseNo.trim());
 
             const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
             console.log(response.data);
+
+            // Process the response data and map it to transformed structure
             const transformedVoters = response.data.map((voter, index) => {
                 const isVerified = isVoterVerified(voter.id);
-                
+
                 return {
-                    id: voter.id || index + 1, 
+                    id: voter.id || index + 1,
                     name: voter.name || 'N/A',
                     voterId: voter.voterId || voter.voterID || 'N/A',
                     serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
@@ -222,26 +236,30 @@ export default function WithVoterId() {
                     constituency: voter.constituency || constituency,
                     survey: voter.survey || voter.surveyName || survey,
                     district: voter.district || 'N/A',
+                    section: voter.section || 'N/A',
+                    relationtype: voter.relationType || 'N/A',
                     voted: voter.voted || false,
                     verified: isVerified
                 };
             });
-            
+
+            // Filter the voters based on name and house number
             const filtered = transformedVoters.filter(voter => {
-                const matchesName = name.trim()
+                const matchesName = name && name.trim()
                     ? voter.name.toLowerCase().includes(name.trim().toLowerCase())
                     : true;
 
-                const matchesHouse = houseNo.trim()
+                const matchesHouse = houseNo && houseNo.trim()
                     ? voter.houseNo.toLowerCase().includes(houseNo.trim().toLowerCase())
                     : true;
 
                 return matchesName && matchesHouse;
             });
 
-            setAllVoters(transformedVoters);
-            setVoters(filtered);
-            
+            // Update voters and pagination state
+            setAllVoters(transformedVoters); // Store the transformed data
+            setVoters(filtered); // Store the filtered data
+
             const urlPage = parseInt(searchParams.get('page')) || 1;
             const maxPage = Math.ceil(filtered.length / itemsPerPage);
 
@@ -262,7 +280,9 @@ export default function WithVoterId() {
         } finally {
             setLoading(prev => ({ ...prev, search: false }));
         }
-    }, [isVoterVerified, updateURLParams]);
+    }, [isVoterVerified, updateURLParams, itemsPerPage]); // Ensure proper dependencies
+
+
 
     useEffect(() => {
         const initializeData = async () => {
@@ -270,7 +290,7 @@ export default function WithVoterId() {
             await fetchSurveyData();
             setIsInitialized(true);
         };
-        
+
         initializeData();
     }, [fetchActiveSurveys, fetchSurveyData]);
 
@@ -318,7 +338,7 @@ export default function WithVoterId() {
         return () => clearTimeout(delayDebounceFn);
     }, [filters, isInitialized, surveyData, fetchVoters]);
 
-    const handleFilterChange = (field, value) => {
+    const handleFilterChange = useCallback((field, value) => {
         setFilters(prev => {
             const newFilters = { ...prev, [field]: value };
 
@@ -339,13 +359,35 @@ export default function WithVoterId() {
             }
 
             localStorage.setItem('filters', JSON.stringify(newFilters));
-            
             setCurrentPage(1);
             updateURLParams(newFilters, 1);
-
             return newFilters;
         });
-    };
+    }, [fetchConstituencies, fetchBooths, updateURLParams]);
+
+    useEffect(() => {
+        if (user && user.role && user.constituency) {
+            const role = user.role.toLowerCase();
+
+            if (role === 'admin') {
+                // Split the admin's constituencies and get the first one
+                const adminConstituencies = user.constituency.split(',').map(c => c.trim());
+                const firstConstituency = adminConstituencies[0];
+
+                // If the current filter is not one of the admin's constituencies,
+                // set it to the first one as a default.
+                if (firstConstituency && !adminConstituencies.includes(filters.constituency)) {
+                    handleFilterChange('constituency', firstConstituency);
+                }
+            } else if (role === 'surveyor') {
+                // Surveyor logic remains the same
+                if (filters.constituency !== user.constituency) {
+                    handleFilterChange('constituency', user.constituency);
+                }
+            }
+        }
+    }, [user, filters.constituency, handleFilterChange]);
+
 
     const handleClearFilters = () => {
         const clearedFilters = {
@@ -404,7 +446,7 @@ export default function WithVoterId() {
     //     try {
     //         const currentVoter = voters.find(voter => voter.id === selectedVoterId);
     //         const isCurrentlyVoted = currentVoter?.voted;
-            
+
     //         const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
     //         if (response.status === 200) {
     //             showSnackbar(
@@ -442,6 +484,8 @@ export default function WithVoterId() {
 
         if (currentPath.includes('/admin')) {
             navigate(`/admin/dashboard${paramString}`);
+        } else if (currentPath.includes('/superadmin')) {
+            navigate(`/superadmin/dashboard${paramString}`);
         } else if (currentPath.includes('/surveyor')) {
             navigate(`/surveyor/home${paramString}`);
         } else {
@@ -449,15 +493,17 @@ export default function WithVoterId() {
         }
     };
 
-    const handleNavigateToSurvey = (id) => {
+    const handleNavigateToSurvey = (id, surveyName) => {
         const currentPath = location.pathname;
         const currentParams = searchParams.toString();
         const paramString = currentParams ? `?${currentParams}` : '';
 
         if (currentPath.includes('/admin')) {
-            navigate(`/admin/with-voter-id/form/${id}${paramString}`);
+            navigate(`/admin/with-voter-id/form/${id}/${surveyName}${paramString}`);
+        } else if (currentPath.includes('/superadmin')) {
+            navigate(`/superadmin/with-voter-id/form/${id}/${surveyName}${paramString}`);
         } else if (currentPath.includes('/surveyor')) {
-            navigate(`/surveyor/with-voter-id/form/${id}${paramString}`);
+            navigate(`/surveyor/with-voter-id/form/${id}/${surveyName}${paramString}`);
         } else {
             navigate(`/${paramString}`);
         }
@@ -471,6 +517,21 @@ export default function WithVoterId() {
             <VoterCardSkeleton key={`skeleton-${index}`} />
         ));
     };
+
+    let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
+
+    if (user && user.role && user.constituency) {
+        const role = user.role.toLowerCase();
+
+        if (role === 'admin') {
+            // This is the critical part: it splits the string into a real array.
+            // The .trim() removes any accidental spaces around the comma.
+            displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
+        } else if (role === 'surveyor') {
+            // Surveyor logic remains the same.
+            displayedConstituencyOptions = [user.constituency];
+        }
+    }
 
     return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
@@ -516,11 +577,19 @@ export default function WithVoterId() {
                                     value={filters.constituency}
                                     label="Constituency"
                                     onChange={(e) => handleFilterChange('constituency', e.target.value)}
-                                    disabled={!filters.survey || loading.constituencies}
+                                    // The dropdown is disabled if:
+                                    // 1. No survey is selected, OR
+                                    // 2. The constituencies are loading, OR
+                                    // 3. The logged-in user is an admin or a surveyor.
+                                    disabled={
+                                        !filters.survey || loading.constituencies
+                                    }
                                     endAdornment={loading.constituencies && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Constituency</MenuItem>
-                                    {constituencyOptions.map((constituency, index) => (
+
+                                    {/* Map over the conditionally filtered options */}
+                                    {displayedConstituencyOptions.map((constituency, index) => (
                                         <MenuItem key={index} value={constituency}>
                                             {constituency}
                                         </MenuItem>
@@ -540,11 +609,14 @@ export default function WithVoterId() {
                                     endAdornment={loading.booths && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Booth</MenuItem>
-                                    {boothOptions.map((booth, index) => (
-                                        <MenuItem key={index} value={booth}>
-                                            Booth {booth}
-                                        </MenuItem>
-                                    ))}
+                                    {boothOptions
+                                        .slice() // 1. Create a shallow copy to avoid mutating the original array
+                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) // 2. Sort numerically
+                                        .map((booth, index) => (
+                                            <MenuItem key={index} value={booth}>
+                                                {booth}
+                                            </MenuItem>
+                                        ))}
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -615,6 +687,7 @@ export default function WithVoterId() {
                     <Typography
                         variant="h4"
                         sx={{
+                            textTransform: 'uppercase',
                             fontWeight: 600,
                             color: 'rgba(0, 0, 0, 0.85)',
                             mb: 2
@@ -645,7 +718,11 @@ export default function WithVoterId() {
                         currentPageVoters.map((voter) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
                                 <Card
-                                    onClick={() => handleNavigateToSurvey(voter?.id)}
+                                    onClick={() => {
+                                        console.log("Voter ID:", voter?.id);  // Log the voter ID
+                                        console.log("Survey Name:", voter?.survey);  // Log the survey name
+                                        handleNavigateToSurvey(voter?.id, voter?.survey);  // Call the function with voter ID and survey name
+                                    }}
                                     sx={{
                                         background: 'rgba(255, 255, 255, 0.25)',
                                         backdropFilter: 'blur(20px)',
@@ -707,7 +784,7 @@ export default function WithVoterId() {
                                                 <strong>House No:</strong> {voter.houseNo}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
-                                            <strong>Voter ID:</strong> {voter?.voterId}
+                                                <strong>Voter ID:</strong> {voter?.voterId}
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
                                                 <strong>Serial Number:</strong> {voter?.serialNumber}

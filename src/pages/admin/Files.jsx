@@ -17,8 +17,10 @@ export default function Files() {
 
     const handleFetchData = async () => {
         try {
-            const response = await axiosInstance.get("/file/survey-stats");
+            const response = await axiosInstance.get("/survey/getAllResponses");
             setData(response.data);
+            console.log("Fetched data:", response.data);
+            
         } catch (error) {
             console.error(error);
         } finally {
@@ -30,11 +32,11 @@ export default function Files() {
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
             <FileUpload onUploadSuccess={handleFetchData}/>
             
-            {loading ? (
+            {/* {loading ? (
                 <CircularProgress /> 
             ) : (
                 <SurveyTable data={data} loading={loading} /> 
-            )}
+            )} */}
         </Box>
     )
 }

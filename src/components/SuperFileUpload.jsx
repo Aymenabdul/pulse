@@ -21,6 +21,7 @@ import {
 } from "@mui/icons-material";
 import { useState, useRef } from "react";
 import axiosInstance from "../axios/axios";
+import CreatePopup from "../pages/superadmin/createpopup";
 
 export default function FileUpload({ onUploadSuccess }) {
     const [files, setFiles] = useState([]);
@@ -29,10 +30,10 @@ export default function FileUpload({ onUploadSuccess }) {
     const [uploading, setUploading] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const fileInputRef = useRef(null);
-
+    const [isSurveyPopupOpen, setIsSurveyPopupOpen] = useState(false);
     const maxFiles = 10;
     const maxFileSize = 50 * 1024 * 1024;
-    const acceptedTypes = ['.xlsx', '.xls', '.csv'];
+    const acceptedTypes = ['.xlsx', '.xls'];
 
     const getFileIcon = (fileName) => {
         const extension = fileName.toLowerCase().split('.').pop();
@@ -46,6 +47,33 @@ export default function FileUpload({ onUploadSuccess }) {
                 return <InsertDriveFile sx={{ color: '#9E9E9E', fontSize: 18 }} />;
         }
     };
+
+    const handleOpenSurveyPopup = () => {
+        setIsSurveyPopupOpen(true);
+    };
+
+    const handleCloseSurveyPopup = () => {
+        setIsSurveyPopupOpen(false);
+    };
+
+    const handleSurveySubmit = async (surveyData) => {
+        console.log('Attempting to submit survey data:', surveyData);
+        try {
+            const response = await axiosInstance.post('/survey/survSubmit', surveyData);
+            console.log('Survey submission successful:', response.data);
+            showSnackbar('Survey created successfully!', 'success');
+            if (onUploadSuccess) {
+                onUploadSuccess();
+            }
+        } catch (error) {
+            console.error('Error submitting survey:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to create survey.';
+            showSnackbar(`Error: ${errorMessage}`, 'error');
+        } finally {
+            handleCloseSurveyPopup();
+        }
+    };
+
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbar({ open: true, message, severity });
@@ -158,8 +186,6 @@ export default function FileUpload({ onUploadSuccess }) {
         }
     };
 
-    // Function to handle file selection
-
     const handleFiles = (newFiles) => {
         setError('');
         const fileList = Array.from(newFiles);
@@ -230,11 +256,10 @@ export default function FileUpload({ onUploadSuccess }) {
 
     const handleChange = (e) => {
         e.preventDefault();
-        if (e.target.files && e.target.files.length > 0) {
-            handleFiles(e.target.files);  // Handle the files here
+        if (e.target.files && e.target.files[0]) {
+            handleFiles(e.target.files);
         }
     };
-
 
     const removeFile = (fileId) => {
         const updatedFiles = files.filter(file => file.id !== fileId);
@@ -401,12 +426,31 @@ export default function FileUpload({ onUploadSuccess }) {
         <Box sx={{ width: '100%', p: 2 }}>
             <Typography
                 variant="h5"
+                
                 gutterBottom
-                sx={{ fontWeight: 'bold', textAlign: 'center', mb: 3, textTransform: 'uppercase'}}
+                sx={{ fontWeight: 'bold', textAlign: 'center', mb: 3,textTransform: 'uppercase' }}
             >
                 Voters List File Upload
             </Typography>
-            <Grid container spacing={2} sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginTop: '13%' }} alignItems="stretch" width={"100%"}>
+            {/* <Box 
+                sx={{ 
+                    width: '100%', 
+                    display: 'flex', 
+                    justifyContent: 'flex-end', 
+                    mb: 2,
+                    marginLeft:"-1%",
+                }}
+            >
+                <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={handleOpenSurveyPopup}
+                    sx={{ borderRadius: 2 }}
+                >
+                    Create Survey
+                </Button>
+            </Box> */}
+            <Grid container spacing={2} sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center'}} alignItems="stretch" width={"100%"}>
                 {/* File Upload Section */}
                 <Grid item xs={12} md={6} sx={{ width: { xs: '100%', md: '49%' } }}>
                     <Paper
@@ -561,6 +605,12 @@ export default function FileUpload({ onUploadSuccess }) {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            <CreatePopup // Assuming CreatePopup is your SurveyCreationPopup component
+                open={isSurveyPopupOpen}
+                onClose={handleCloseSurveyPopup}
+                onSubmit={handleSurveySubmit}
+            />
         </Box>
 
 

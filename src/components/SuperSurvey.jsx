@@ -21,15 +21,16 @@ import {
 } from "@mui/icons-material";
 import { useState, useRef } from "react";
 import axiosInstance from "../axios/axios";
+import CreatePopup from "../pages/superadmin/createpopup";
 
-export default function FileUpload({ onUploadSuccess }) {
+export default function SuperSurvey({ onUploadSuccess }) {
     const [files, setFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
     const [error, setError] = useState('');
     const [uploading, setUploading] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const fileInputRef = useRef(null);
-
+const [isSurveyPopupOpen, setIsSurveyPopupOpen] = useState(false);
     const maxFiles = 10;
     const maxFileSize = 50 * 1024 * 1024;
     const acceptedTypes = ['.xlsx', '.xls', '.csv'];
@@ -46,6 +47,33 @@ export default function FileUpload({ onUploadSuccess }) {
                 return <InsertDriveFile sx={{ color: '#9E9E9E', fontSize: 18 }} />;
         }
     };
+
+    const handleOpenSurveyPopup = () => {
+        setIsSurveyPopupOpen(true);
+    };
+
+    const handleCloseSurveyPopup = () => {
+        setIsSurveyPopupOpen(false);
+    };
+
+    const handleSurveySubmit = async (surveyData) => {
+        console.log('Attempting to submit survey data:', surveyData);
+        try {
+            const response = await axiosInstance.post('/survey/survSubmit', surveyData);
+            console.log('Survey submission successful:', response.data);
+            showSnackbar('Survey created successfully!', 'success');
+            if (onUploadSuccess) {
+                onUploadSuccess();
+            }
+        } catch (error) {
+            console.error('Error submitting survey:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to create survey.';
+            showSnackbar(`Error: ${errorMessage}`, 'error');
+        } finally {
+            handleCloseSurveyPopup();
+        }
+    };
+
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbar({ open: true, message, severity });
@@ -86,79 +114,44 @@ export default function FileUpload({ onUploadSuccess }) {
             setUploading(true);
 
             const formData = new FormData();
+
+            // Append all files
             files.forEach((fileData) => {
-                formData.append('file', fileData.file);
+                formData.append('file', fileData.file); // use same key for array
             });
 
-            // Send the files to the backend
             const response = await axiosInstance.post('/file/upload', formData, {
                 headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
+                    'Content-Type': 'multipart/form-data'
+                }
             });
 
-            // Extract message and data from the response
-            const { message, data } = response.data;
-            const successfulUploads = data.successfulUploads || [];
-            const failedUploads = data.failedUploads || [];
-
-            // Display the general message from the response
-            if (message) {
-                showSnackbar(message, 'info');
-            }
-
-            // Display success message for uploaded files
-            if (successfulUploads.length > 0) {
-                const successMessage = `Successfully uploaded: ${successfulUploads.join(', ')}`;
-                showSnackbar(successMessage, 'success');
-            }
-
-            // Display error message for failed uploads
-            if (failedUploads.length > 0) {
-                const errorMessages = failedUploads
-                    .map(file => `${file.fileName}: ${file.error}`)
-                    .join(', ');
-                showSnackbar(`Failed to upload: ${errorMessages}`, 'error');
-            }
-
-            // Update the files list
-            setFiles((currentFiles) => {
-                // Remove successfully uploaded files
-                const updatedFiles = currentFiles.filter(f => !successfulUploads.includes(f.file.name));
-
-                // Keep failed files for retrying (do not remove them)
-                const failedFileNames = failedUploads.map(f => f.fileName);
-                const remainingFailedFiles = currentFiles.filter(f => failedFileNames.includes(f.file.name));
-
-                // Combine both: failed files stay and successful ones are removed
-                return [...remainingFailedFiles];
-            });
-
-            // If all files were successful, reset the files list to empty
-            if (successfulUploads.length === files.length) {
-                setFiles([]);
-            }
-
-            // If there is an onUploadSuccess callback, trigger it
             if (onUploadSuccess) onUploadSuccess();
+            const backendMessage = response.data || 'Files uploaded successfully!';
 
-            // Reset the file input to allow the user to select new files again
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
+            showSnackbar(backendMessage, 'success');
+
+            // Mark all as uploaded and clear
+            setFiles(currentFiles =>
+                currentFiles.map(f => ({ ...f, progress: 100, uploaded: true }))
+            );
+
+            setTimeout(() => {
+                setFiles([]);
+                setError('');
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                showSnackbar('Files cleared after successful upload', 'info');
+            }, 1000);
 
             return true;
-
         } catch (error) {
-            const errorMessage = error.response?.data?.message || error.message || 'Upload failed';
+            const errorMessage = error.response?.data || error.message || 'Upload failed';
             showSnackbar(`Upload failed: ${errorMessage}`, 'error');
             return false;
         } finally {
             setUploading(false);
         }
     };
-
-    // Function to handle file selection
 
     const handleFiles = (newFiles) => {
         setError('');
@@ -180,7 +173,7 @@ export default function FileUpload({ onUploadSuccess }) {
                 return;
             }
 
-            const validationError = validateFile(file); // Your file validation logic
+            const validationError = validateFile(file);
             if (validationError) {
                 errors.push(validationError);
             } else {
@@ -230,11 +223,10 @@ export default function FileUpload({ onUploadSuccess }) {
 
     const handleChange = (e) => {
         e.preventDefault();
-        if (e.target.files && e.target.files.length > 0) {
-            handleFiles(e.target.files);  // Handle the files here
+        if (e.target.files && e.target.files[0]) {
+            handleFiles(e.target.files);
         }
     };
-
 
     const removeFile = (fileId) => {
         const updatedFiles = files.filter(file => file.id !== fileId);
@@ -399,152 +391,24 @@ export default function FileUpload({ onUploadSuccess }) {
 
     return (
         <Box sx={{ width: '100%', p: 2 }}>
-            <Typography
-                variant="h5"
-                gutterBottom
-                sx={{ fontWeight: 'bold', textAlign: 'center', mb: 3, textTransform: 'uppercase'}}
+            <Box 
+                sx={{ 
+                    width: '100%', 
+                    display: 'flex', 
+                    justifyContent: 'flex-end', 
+                    mb: 2,
+                    marginLeft:"-1%",
+                }}
             >
-                Voters List File Upload
-            </Typography>
-            <Grid container spacing={2} sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginTop: '13%' }} alignItems="stretch" width={"100%"}>
-                {/* File Upload Section */}
-                <Grid item xs={12} md={6} sx={{ width: { xs: '100%', md: '49%' } }}>
-                    <Paper
-                        sx={{
-                            border: dragActive ? '2px dashed rgba(255, 255, 255, 0.8)' : '2px dashed rgba(255, 255, 255, 0.5)',
-                            borderRadius: 2,
-                            p: 2,
-                            textAlign: 'center',
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease',
-                            background: dragActive
-                                ? 'rgba(255, 255, 255, 0.4)'
-                                : 'rgba(255, 255, 255, 0.3)',
-                            backdropFilter: 'blur(15px)',
-                            boxShadow: dragActive
-                                ? '0 8px 32px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
-                                : '0 4px 24px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
-                            minHeight: { xs: 150, lg: 250 },
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            '&:hover': {
-                                background: 'rgba(255, 255, 255, 0.35)',
-                                borderColor: 'rgba(255, 255, 255, 0.7)',
-                                boxShadow: '0 6px 28px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
-                            }
-                        }}
-                        onDragEnter={handleDrag}
-                        onDragLeave={handleDrag}
-                        onDragOver={handleDrag}
-                        onDrop={handleDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            onChange={handleChange}
-                            accept={acceptedTypes.join(',')}
-                            style={{ display: 'none' }}
-                            disabled={uploading || files.length >= maxFiles}
-                        />
-                        <CloudUpload
-                            sx={{
-                                fontSize: 28,
-                                color: dragActive ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.7)',
-                                mb: 1,
-                                transition: 'color 0.3s ease'
-                            }}
-                        />
-                        <Typography variant="h6" sx={{ mb: 0.3, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.95rem', fontWeight: 600 }}>
-                            {dragActive ? 'Drop files here' : 'Drag & drop files'}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.6)', mb: 1.2, fontSize: '0.75rem' }}>
-                            or click to browse
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            startIcon={<CloudUpload sx={{ fontSize: 16 }} />}
-                            disabled={uploading || files.length >= maxFiles}
-                            sx={{
-                                background: 'rgba(0, 0, 0, 0.1)',
-                                color: 'rgba(0, 0, 0, 0.8)',
-                                fontWeight: 600,
-                                textTransform: 'none',
-                                px: 2.5,
-                                py: 0.6,
-                                borderRadius: 1.5,
-                                border: '1px solid rgba(0, 0, 0, 0.2)',
-                                backdropFilter: 'blur(5px)',
-                                fontSize: '0.8rem',
-                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                '&:hover': {
-                                    background: 'rgba(0, 0, 0, 0.15)',
-                                    transform: 'translateY(-1px)',
-                                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)'
-                                },
-                                '&:disabled': {
-                                    background: 'rgba(0, 0, 0, 0.05)',
-                                    color: 'rgba(0, 0, 0, 0.4)'
-                                },
-                                transition: 'all 0.3s ease'
-                            }}
-                        >
-                            {uploading ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-                            Choose Files
-                        </Button>
-                        <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'rgba(0, 0, 0, 0.5)', fontSize: '0.7rem' }}>
-                            Max {maxFiles} files • {formatFileSize(maxFileSize)} each
-                        </Typography>
-                        <Stack direction="row" spacing={0.5} sx={{ mt: 0.6, justifyContent: 'center', flexWrap: 'wrap', gap: 0.4 }}>
-                            {acceptedTypes.map((type) => (
-                                <Chip
-                                    key={type}
-                                    label={type}
-                                    size="small"
-                                    sx={{
-                                        fontSize: '0.65rem',
-                                        height: 20,
-                                        background: 'rgba(0, 0, 0, 0.08)',
-                                        color: 'rgba(0, 0, 0, 0.7)',
-                                        border: '1px solid rgba(0, 0, 0, 0.15)',
-                                        '& .MuiChip-label': {
-                                            px: 0.8
-                                        }
-                                    }}
-                                />
-                            ))}
-                        </Stack>
-                    </Paper>
-                    {error && (
-                        <Alert
-                            severity="error"
-                            onClose={() => setError('')}
-                            sx={{
-                                mt: 2,
-                                borderRadius: 1.5,
-                                background: 'rgba(244, 67, 54, 0.1)',
-                                border: '1px solid rgba(244, 67, 54, 0.3)',
-                                color: 'rgba(244, 67, 54, 0.9)',
-                                '& .MuiAlert-icon': {
-                                    color: 'rgba(244, 67, 54, 0.8)'
-                                }
-                            }}
-                        >
-                            {error}
-                        </Alert>
-                    )}
-                </Grid>
-
-                {/* Survey Table */}
-                <Grid item xs={12} md={6} sx={{ width: { xs: '100%', md: '49%' } }}>
-                    <Box sx={{ height: '100%', minHeight: 150 }}>
-                        <FilesList />
-                    </Box>
-                </Grid>
-            </Grid>
+                <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={handleOpenSurveyPopup}
+                    sx={{ borderRadius: 2 }}
+                >
+                    Create Survey
+                </Button>
+            </Box>
 
             <Snackbar
                 open={snackbar.open}
@@ -561,6 +425,12 @@ export default function FileUpload({ onUploadSuccess }) {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            <CreatePopup // Assuming CreatePopup is your SurveyCreationPopup component
+                open={isSurveyPopupOpen}
+                onClose={handleCloseSurveyPopup}
+                onSubmit={handleSurveySubmit}
+            />
         </Box>
 
 

@@ -474,7 +474,7 @@ export default function Statistics() {
                     padding: '10px',
                     border: '1px solid #ccc',
                     borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
                     <p style={{ margin: 0, fontWeight: 'bold' }}>{payload[0].name}</p>
                     <p style={{ margin: 0, color: payload[0].color }}>
@@ -707,12 +707,12 @@ export default function Statistics() {
 
     const getQuestionTitle = (questionKey) => {
         const titles = {
-            "ques1": "Voted Parties in 2016",
-            "ques2": "Voted Parties in 2021",
-            "ques3": "Preferred Parties for 2026",
-            "ques4": "CM EPS (2017–2021)",
-            "ques5": "CM Stalin (2021–2026)",
-            "ques6": "Current MLA"
+            "ques1": "Question 1 - Vote 2016",
+            "ques2": "Question 2 - Vote 2021",
+            "ques3": "Question 3 - Vote 2026",
+            "ques4": "Question 4 - CM EPS (2017–2021)",
+            "ques5": "Question 5 - CM Stalin (2021–2026)",
+            "ques6": "Question 6 - Current MLA"
         };
         return titles[questionKey] || questionKey;
     };
@@ -772,13 +772,13 @@ export default function Statistics() {
                     gutterBottom
                     sx={{
                         textAlign: 'center',
+                        transform: 'uppercase',
                         mb: 4,
                         fontWeight: 'bold',
-                        color: '#2c3e50',
-                        transform: 'uppercase',
+                        color: '#2c3e50'
                     }}
                 >
-                    SURVEY ANALYTICS
+                    Survey Analytics
                 </Typography>
 
                 <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', mb: 4, flexDirection: { xs: 'column', sm: 'row' } }}>
@@ -913,14 +913,13 @@ export default function Statistics() {
                             textAlign: 'center',
                             mb: 3,
                             fontWeight: 'bold',
-                            color: '#2c3e50',
-                            textTransform: 'uppercase'
+                            color: '#2c3e50'
                         }}
                     >
                         Political Party Preferences
                     </Typography>
 
-                    <Grid container spacing={3} style={{textTransform: 'uppercase',fontWeight: '700'}}>
+                    <Grid container spacing={3}>
                         {["ques1", "ques2", "ques3"].map((questionKey) => (
                             <Grid size={{ xs: 12, md: 4 }} key={questionKey}>
                                 {renderBarChart(questionKey, getQuestionTitle(questionKey))}
@@ -946,14 +945,13 @@ export default function Statistics() {
                             textAlign: 'center',
                             mb: 3,
                             fontWeight: 'bold',
-                            color: '#2c3e50',
-                            textTransform: 'uppercase'
+                            color: '#2c3e50'
                         }}
                     >
                         Performance Ratings
                     </Typography>
 
-                    <Grid container spacing={3} style={{textTransform: 'uppercase',fontWeight: '700'}}>
+                    <Grid container spacing={3}>
                         {["ques4", "ques5", "ques6"].map((questionKey) => (
                             <Grid size={{ xs: 12, md: 4 }} key={questionKey}>
                                 {renderPieChart(questionKey, getQuestionTitle(questionKey))}

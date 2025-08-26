@@ -61,7 +61,7 @@ export default function WithoutVoterId() {
     useEffect(() => {
         const fetchSurveys = async () => {
             try {
-                const response = await axiosInstance.get('/file/active');
+                const response = await axiosInstance.get('/survey/active');
                 setSurveys(response.data || []);
             } catch (error) {
                 console.error('Error fetching surveys:', error);
@@ -71,6 +71,7 @@ export default function WithoutVoterId() {
                 setSurveys([]);
             }
         };
+        
 
         const fetchData = async () => {
             if (!filters.surveyName) {
@@ -161,20 +162,6 @@ export default function WithoutVoterId() {
         }
     };
 
-    const handleTakeSurvey = () => {
-        const currentPath = location.pathname;
-        const currentParams = searchParams.toString();
-        const paramString = currentParams ? `?${currentParams}` : '';
-        
-        if (currentPath.includes('/admin')) {
-            navigate(`/admin/without-voter-id/form${paramString}`);
-        } else if (currentPath.includes('/surveyor')) {
-            navigate(`/surveyor/without-voter-id/form${paramString}`);
-        } else {
-            navigate(`/survey/without-voter-id/form${paramString}`);
-        }
-    };
-
     const handleEditVoter = (voterId) => {
         const currentPath = location.pathname;
         const currentParams = searchParams.toString();
@@ -232,14 +219,14 @@ export default function WithoutVoterId() {
                     >
                         Back
                     </Button>
-                    <Button
+                    {/* <Button
                         variant="contained"
                         color="success"
                         onClick={handleTakeSurvey}
                         sx={{ px: 4, py: 1.5, fontWeight: 600, textTransform: 'none' }}
                     >
                         Take Survey
-                    </Button>
+                    </Button> */}
                 </Box>
 
                 <Box sx={{ mb: 4 }}>

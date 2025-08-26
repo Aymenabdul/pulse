@@ -24,12 +24,14 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
 export default function Signup() {
     const [showPassword, setShowPassword] = useState(false);
     const [constituencies, setConstituencies] = useState([]);
+    const [district, setDistrict] = useState([]);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         phoneNumber: '',
         constituency: '',
+        district: '',
         role: ''
     });
     const [validationErrors, setValidationErrors] = useState({});
@@ -46,17 +48,34 @@ export default function Signup() {
         setShowPassword((prev) => !prev);
     };
     useEffect(() => {
-        // Fetch the constituencies when the component mounts
-        axios.get(`${BASE_URL}/file/constituencies`)
+    const selectedDistrict = formData.district;
+    if (selectedDistrict) {
+        // When a district is selected, fetch its specific constituencies
+        axios.get(`${BASE_URL}/distconst?districtName=${encodeURIComponent(selectedDistrict)}`)
             .then((response) => {
-                setConstituencies(response.data);  // Update the constituencies state
+                setConstituencies(response.data); // Update the constituencies state with the filtered list
             })
             .catch((error) => {
-                console.error('There was an error fetching constituencies!', error);
+                console.error(`Error fetching constituencies for ${selectedDistrict}:`, error);
+                setConstituencies([]); // Clear constituencies on error
             });
-    }, []);
+    } else {
+        // If no district is selected, ensure the constituency list is empty
+        setConstituencies([]);
+    }
+}, [formData.district]);
+
+    useEffect(() => {
+    axios.get(`${BASE_URL}/getdist`) // Assuming this is your endpoint for all districts
+        .then((response) => {
+            setDistrict(response.data); // Update the district state
+        })
+        .catch((error) => {
+            console.error('There was an error fetching districts!', error);
+        });
+}, []);
     // Phone number validation function
-    const validatePhoneNumber = (number) => {
+    let validatePhoneNumber = (number) => {
         if (!number) return "Phone number is required";
 
         if (!/^\d{10}$/.test(number)) {
@@ -92,14 +111,16 @@ export default function Signup() {
     // Email validation function
     const validateEmail = (email) => {
         if (!email) return "Email is required";
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        // This is a more robust regex for email validation
+        const emailRegex = new RegExp(
+            /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+        );
         if (!emailRegex.test(email)) {
             return "Please enter a valid email address";
         }
-
         return null;
     };
+
 
     // Update validation errors when form changes (only for touched fields)
     useEffect(() => {
@@ -137,25 +158,30 @@ export default function Signup() {
     }, [formData, touchedFields]);
 
     const handleInputChange = (field) => (event) => {
-        let value = event.target.value;
+    let value = event.target.value;
 
-        // Mark field as touched when user interacts with it
-        setTouchedFields(prev => ({ ...prev, [field]: true }));
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
 
-        // For phone number field, only allow digits and limit to 10 characters
-        if (field === 'phoneNumber') {
-            value = value.replace(/\D/g, '').slice(0, 10);
+    // For phone number field, only allow digits and limit to 10 characters
+    if (field === 'phoneNumber') {
+        value = value.replace(/\D/g, '').slice(0, 10);
+    } else if (field === 'name') {
+        value = value.replace(/[^a-zA-Z\s]/g, '');
+    }
+
+    
+    setFormData(prev => {
+        const newFormData = { ...prev, [field]: value };
+        // If the district is changed, reset the constituency selection
+        if (field === 'district') {
+            newFormData.constituency = '';
         }
-
-        setFormData({
-            ...formData,
-            [field]: value
-        });
-    };
-
+        return newFormData;
+    });
+};
     const handleSubmit = async () => {
         // Define the required fields here
-        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role'];
+        const requiredFields = ['name', 'email', 'password', 'phoneNumber', 'constituency', 'role', 'district'];
 
         // Mark all fields as touched when submit is attempted
         const allFields = requiredFields;
@@ -195,6 +221,10 @@ export default function Signup() {
         // Validate constituency only if role is not "Admin"
         if (formData.role !== "Admin" && !formData.constituency.trim()) {
             errors.constituency = "Constituency is required";
+        }
+
+        if (formData.role !== "Admin" && !formData.district.trim()) {
+            errors.district = "District is required"; // <-- CORRECTED
         }
 
         if (Object.keys(errors).length > 0) {
@@ -241,6 +271,7 @@ export default function Signup() {
         // If the role is not Admin, make constituency a required field
         if (formData.role !== 'Admin') {
             requiredFields.push('constituency');
+            requiredFields.push('district');
         }
 
         // Check if all required fields are filled
@@ -466,6 +497,37 @@ export default function Signup() {
                                     }
                                 }}
                             />
+                        </FormControl>
+
+                        <FormControl fullWidth error={!!validationErrors.district}>
+                            <InputLabel>District</InputLabel>
+                            <Select
+                                value={formData.district}
+                                onChange={handleInputChange('district')}
+                                disabled={formData.role === "Admin"}
+                                label="district"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        '&:hover fieldset': {
+                                            borderColor: '#a8edea',
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#a8edea',
+                                        }
+                                    }
+                                }}
+                            >
+                                {/* Map the fetched constituencies to menu items */}
+                                {district.map((dist) => ( // <-- CORRECTED
+                                    <MenuItem key={dist} value={dist}>
+                                        {dist}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                            {validationErrors.district && (
+                                <FormHelperText>{validationErrors.district}</FormHelperText>
+                            )}
                         </FormControl>
 
                         <FormControl fullWidth error={!!validationErrors.constituency}>

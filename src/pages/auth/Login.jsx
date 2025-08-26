@@ -173,9 +173,12 @@ export default function Login() {
             const result = await login(formData);
             if (result.success) {
                 const userDetails = await getUserDetails();
-                if (userDetails?.role === "Admin" || userDetails?.role === "admin") {
+                // Check for 'superadmin' first, then 'admin' and 'surveyor'
+                if (userDetails?.role?.toLowerCase() === "superadmin") {
+                    navigate("/admin/dashboard"); // Redirect to the admin dashboard for now
+                } else if (userDetails?.role?.toLowerCase() === "admin") {
                     navigate("/admin/dashboard");
-                } else if (userDetails?.role === "Surveyor" || userDetails?.role === "surveyor") {
+                } else if (userDetails?.role?.toLowerCase() === "surveyor") {
                     navigate("/surveyor/home");
                 } else {
                     setError("Unrecognized user role");
@@ -235,7 +238,7 @@ export default function Login() {
                             fontSize: { xs: "2rem", md: "3rem" }
                         }}
                     >
-                        {isResetMode ? "Reset Password" : "Welcome Back"}
+                        {isResetMode ? "Reset Password" : "Welcome Back To Pulz"}
                     </Typography>
                     <Typography
                         variant="body1"
@@ -309,7 +312,7 @@ export default function Login() {
                     >
                         {isResetMode
                             ? "Enter your email and new password to reset your account"
-                            : "Please enter your credentials to access your account"
+                            : "Please enter your credentials to access your Pulz account"
                         }
                     </Typography>
 
