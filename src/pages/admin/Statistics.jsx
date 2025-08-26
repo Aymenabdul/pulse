@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { useState, useEffect } from "react";
 import {
     Box,
@@ -113,6 +114,21 @@ const pieColors = {
     "fair": "#FF9800"
 };
 
+const formatLabel = (label) => {
+    if (!label) return '';
+    
+    let formatted = label.replace(/['"[\]]/g, '');
+    
+    const parts = formatted.split(/[,/&-]/).map(part => {
+        return part.trim()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    });
+    
+    return parts.join(' / ');
+};
+
 export default function Statistics() {
     const [filters, setFilters] = useState({
         constituency: '',
@@ -141,6 +157,7 @@ export default function Statistics() {
         ques2: 'count',
         ques3: 'count'
     });
+    
 
     const useAnimatedCounter = (targetValue, duration = 2000) => {
         const [count, setCount] = useState(0);
@@ -466,7 +483,7 @@ export default function Statistics() {
         return null;
     };
 
-    const PieTooltip = ({ active, payload, label }) => {
+    const PieTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             return (
                 <div style={{
@@ -589,6 +606,7 @@ export default function Statistics() {
                                 angle={-45}
                                 textAnchor="end"
                                 height={80}
+                                tickFormatter={formatLabel}
                             />
                             <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
                             <Tooltip content={PoliticalTooltip} />
@@ -695,10 +713,234 @@ export default function Statistics() {
                                 wrapperStyle={{
                                     paddingTop: '15px',
                                     fontSize: '11px',
-                                    textAlign: 'center'
+                                    textAlign: 'center',
+                                    color: '#000000'
+                                }}
+                                formatter={(value) => {
+                                return <span style={{ color: "black" }}>{value}</span>;
                                 }}
                             />
                         </PieChart>
+                    </ResponsiveContainer>
+                </Box>
+            </Box>
+        );
+    };
+
+    const prepareSimpleBarData = (questionData, maxItems = 5) => {
+        if (!questionData || typeof questionData !== 'object') {
+            return [];
+        }
+
+        if (Object.prototype.hasOwnProperty.call(questionData, 'Moved to diff constituency') || 
+            Object.prototype.hasOwnProperty.call(questionData, 'Passed away') || 
+            Object.prototype.hasOwnProperty.call(questionData, 'Working abroad')) {
+            
+            const voterStatusOrder = ['Moved to diff constituency', 'Passed away', 'Working abroad'];
+            const filteredEntries = voterStatusOrder
+                .filter(status => questionData[status] && questionData[status] > 0)
+                .map(status => ({
+                    name: formatLabel(status),
+                    value: parseInt(questionData[status]) || 0
+                }));
+
+            if (filteredEntries.length === 0) return [];
+
+            const total = filteredEntries.reduce((sum, entry) => sum + entry.value, 0);
+            const entriesWithPercentage = filteredEntries.map(entry => ({
+                ...entry,
+                percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
+            }));
+
+            const sorted = [...entriesWithPercentage].sort((a, b) => b.value - a.value);
+            
+            if (sorted.length === 1) {
+                return sorted;
+            } else if (sorted.length === 2) {
+                return [sorted[1], sorted[0]];
+            } else if (sorted.length === 3) {
+                return [sorted[1], sorted[0], sorted[2]];
+            }
+
+            return entriesWithPercentage;
+        }
+
+        // Original logic for other data
+        const entries = Object.entries(questionData)
+            .filter(([key, value]) => {
+                return key !== "" && 
+                    key !== null && 
+                    key !== undefined && 
+                    value !== null && 
+                    value !== undefined && 
+                    !isNaN(value) && 
+                    value > 0;
+            })
+            .map(([key, value]) => ({
+                name: formatLabel(key),
+                value: parseInt(value) || 0
+            }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, maxItems);
+
+        const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+        
+        const entriesWithPercentage = entries.map(entry => ({
+            ...entry,
+            percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
+        }));
+
+        // Positioning logic based on array length
+        const length = entriesWithPercentage.length;
+        
+        if (length === 1) {
+            return entriesWithPercentage;
+        } else if (length === 2) {
+            return [entriesWithPercentage[1], entriesWithPercentage[0]]; 
+        } else if (length === 3) {
+            return [entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[2]]; 
+        } else if (length === 4) {
+            return [entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[3]]; 
+        } else if (length === 5) {
+            return [entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[3], entriesWithPercentage[4]]; 
+        } else if (length === 6) {
+            return [entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[4], entriesWithPercentage[5]];
+        } else if (length === 7) {
+            return [entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[4], entriesWithPercentage[5], entriesWithPercentage[6]];
+        } else if (length === 8) {
+            return [entriesWithPercentage[4], entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[5], entriesWithPercentage[6], entriesWithPercentage[7]];
+        } else if (length === 9) {
+            return [entriesWithPercentage[4], entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[5], entriesWithPercentage[6], entriesWithPercentage[7], entriesWithPercentage[8]];
+        } else if (length === 10) {
+            return [entriesWithPercentage[5], entriesWithPercentage[4], entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[6], entriesWithPercentage[7], entriesWithPercentage[8], entriesWithPercentage[9]];
+        }
+
+        return entriesWithPercentage;
+    };
+
+    const renderSimpleBarChart = (question, title) => {
+        const [showTop10, setShowTop10] = useState(false);
+        const currentMaxItems = showTop10 ? 10 : 5;
+        const data = prepareSimpleBarData(responseData[question], currentMaxItems);
+        const displayMode = displayModes[question] || 'count';
+        const yAxisLabel = displayMode === 'count' ? 'Count' : 'Percentage (%)';
+        const dataKey = displayMode === 'count' ? 'value' : 'percentage';
+
+        if (loading.responses) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {title}
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CircularProgress />
+                    </Box>
+                </Box>
+            );
+        }
+
+        if (data.length === 0) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {title}
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            No data available for this question
+                        </Typography>
+                    </Box>
+                </Box>
+            );
+        }
+
+        return (
+            <Box sx={{
+                height: '500px',
+                display: 'flex',
+                flexDirection: 'column',
+            }}>
+                <Typography
+                    variant="h6"
+                    component="h2"
+                    gutterBottom
+                    sx={{
+                        textAlign: 'center',
+                        color: '#34495e',
+                        fontWeight: 'medium',
+                        fontSize: '1rem',
+                        mb: 2,
+                        minHeight: '24px'
+                    }}
+                >
+                    {title}
+                </Typography>
+                <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    mb: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    gap: { xs: 1, sm: 2 }
+                }}>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={displayMode === 'percentage'}
+                                onChange={(e) => handleDisplayModeChange(question, e.target.checked)}
+                                disabled={loading.responses}
+                                size="small"
+                            />
+                        }
+                        label={displayMode === 'count' ? 'Show Percentage' : 'Show Count'}
+                        sx={{ fontSize: '0.875rem' }}
+                    />
+                    {question === 'ques7' && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={showTop10}
+                                    onChange={(e) => setShowTop10(e.target.checked)}
+                                    disabled={loading.responses}
+                                    size="small"
+                                    color="secondary"
+                                />
+                            }
+                            label={showTop10 ? 'Top 5' : 'Top 10'}
+                            sx={{ 
+                                fontSize: '0.875rem',
+                                ml: { xs: 0, sm: 1 }
+                            }}
+                        />
+                    )}
+                </Box>
+                <Box sx={{ flex: 1, minHeight: '350px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                            data={data}
+                            margin={{ top: 40, right: 20, left: 10, bottom: 60 }}
+                            maxBarSize={60}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                                dataKey="name"
+                                tick={{ fontSize: 9 }}
+                                interval={0}
+                                angle={-45}
+                                textAnchor="end"
+                                height={80}
+                                tickFormatter={formatLabel}
+                            />
+                            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+                            <Bar
+                                dataKey={dataKey}
+                                maxBarSize={60}
+                            >
+                                {data.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 60}, 70%, 50%)`} />
+                                ))}
+                            </Bar>
+                        </BarChart>
                     </ResponsiveContainer>
                 </Box>
             </Box>
@@ -712,7 +954,8 @@ export default function Statistics() {
             "ques3": "Preferred Parties for 2026",
             "ques4": "CM EPS (2017–2021)",
             "ques5": "CM Stalin (2021–2026)",
-            "ques6": "Current MLA"
+            "ques6": "Current MLA",
+            "ques7": "Important Issues In The Constituency"
         };
         return titles[questionKey] || questionKey;
     };
@@ -929,6 +1172,94 @@ export default function Statistics() {
                     </Grid>
                 </Paper>
 
+                <Paper
+                    elevation={3}
+                    sx={{
+                        p: 3,
+                        borderRadius: 2,
+                        backgroundColor: "rgba(255, 255, 255, 0.25)",
+                        backdropFilter: "blur(10px)",
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        mb: 4
+                    }}
+                >
+                    <Typography
+                        variant="h5"
+                        sx={{
+                            textAlign: 'center',
+                            mb: 3,
+                            fontWeight: 'bold',
+                            color: '#2c3e50',
+                            textTransform: 'uppercase'
+                        }}
+                    >
+                        Survey Demographics & Issues
+                    </Typography>
+
+                    <Grid container spacing={3} style={{textTransform: 'uppercase', fontWeight: '700'}}>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <Typography
+                                    variant="h6"
+                                    component="h2"
+                                    gutterBottom
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: '#34495e',
+                                        fontWeight: 'medium',
+                                        fontSize: '1rem',
+                                        mb: 2,
+                                        minHeight: '24px'
+                                    }}
+                                >
+                                    Important Issues in Constituency
+                                </Typography>
+                                {renderSimpleBarChart('ques7', '', 5)}
+                            </Box>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <Typography
+                                    variant="h6"
+                                    component="h2"
+                                    gutterBottom
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: '#34495e',
+                                        fontWeight: 'medium',
+                                        fontSize: '1rem',
+                                        mb: 2,
+                                        minHeight: '24px'
+                                    }}
+                                >
+                                    Voter Status
+                                </Typography>
+                                {renderSimpleBarChart('voterStatus', '', 3)}
+                            </Box>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <Typography
+                                    variant="h6"
+                                    component="h2"
+                                    gutterBottom
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: '#34495e',
+                                        fontWeight: 'medium',
+                                        fontSize: '1rem',
+                                        mb: 2,
+                                        minHeight: '24px'
+                                    }}
+                                >
+                                    Voter Type
+                                </Typography>
+                                {renderSimpleBarChart('voterType', '', 3)}
+                            </Box>
+                        </Grid>
+                    </Grid>
+                </Paper>
+                
                 <Paper
                     elevation={3}
                     sx={{
