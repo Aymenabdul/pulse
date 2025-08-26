@@ -727,55 +727,38 @@ export default function Statistics() {
         );
     };
 
-    const prepareSimpleBarData = (questionData, maxItems = 5) => {
+    const prepareSimpleBarData = (questionData, maxItems = 5, question = '') => {
         if (!questionData || typeof questionData !== 'object') {
             return [];
         }
 
-        if (Object.prototype.hasOwnProperty.call(questionData, 'Moved to diff constituency') || 
-            Object.prototype.hasOwnProperty.call(questionData, 'Passed away') || 
-            Object.prototype.hasOwnProperty.call(questionData, 'Working abroad')) {
-            
-            const voterStatusOrder = ['Moved to diff constituency', 'Passed away', 'Working abroad'];
+        // ✅ Restrict voterStatus strictly to 3 allowed values
+        if (question === 'voterStatus') {
+            const voterStatusOrder = [
+                'Moved to different constituency',
+                'Passed away',
+                'Working abroad'
+            ];
+
             const filteredEntries = voterStatusOrder
-                .filter(status => questionData[status] && questionData[status] > 0)
                 .map(status => ({
                     name: formatLabel(status),
                     value: parseInt(questionData[status]) || 0
-                }));
+                }))
+                .filter(entry => entry.value > 0); // only show >0
 
             if (filteredEntries.length === 0) return [];
 
             const total = filteredEntries.reduce((sum, entry) => sum + entry.value, 0);
-            const entriesWithPercentage = filteredEntries.map(entry => ({
+            return filteredEntries.map(entry => ({
                 ...entry,
                 percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
             }));
-
-            const sorted = [...entriesWithPercentage].sort((a, b) => b.value - a.value);
-            
-            if (sorted.length === 1) {
-                return sorted;
-            } else if (sorted.length === 2) {
-                return [sorted[1], sorted[0]];
-            } else if (sorted.length === 3) {
-                return [sorted[1], sorted[0], sorted[2]];
-            }
-
-            return entriesWithPercentage;
         }
 
-        // Original logic for other data
+        // ✅ Generic fallback for all other questions
         const entries = Object.entries(questionData)
-            .filter(([key, value]) => {
-                return key !== "" && 
-                    key !== null && 
-                    key !== undefined && 
-                    value !== null && 
-                    value !== undefined && 
-                    !isNaN(value) && 
-                    value > 0;
-            })
+            .filter(([key, value]) => key && value > 0)
             .map(([key, value]) => ({
                 name: formatLabel(key),
                 value: parseInt(value) || 0
@@ -784,44 +767,18 @@ export default function Statistics() {
             .slice(0, maxItems);
 
         const total = entries.reduce((sum, entry) => sum + entry.value, 0);
-        
-        const entriesWithPercentage = entries.map(entry => ({
+
+        return entries.map(entry => ({
             ...entry,
             percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
         }));
-
-        // Positioning logic based on array length
-        const length = entriesWithPercentage.length;
-        
-        if (length === 1) {
-            return entriesWithPercentage;
-        } else if (length === 2) {
-            return [entriesWithPercentage[1], entriesWithPercentage[0]]; 
-        } else if (length === 3) {
-            return [entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[2]]; 
-        } else if (length === 4) {
-            return [entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[3]]; 
-        } else if (length === 5) {
-            return [entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[3], entriesWithPercentage[4]]; 
-        } else if (length === 6) {
-            return [entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[4], entriesWithPercentage[5]];
-        } else if (length === 7) {
-            return [entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[4], entriesWithPercentage[5], entriesWithPercentage[6]];
-        } else if (length === 8) {
-            return [entriesWithPercentage[4], entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[5], entriesWithPercentage[6], entriesWithPercentage[7]];
-        } else if (length === 9) {
-            return [entriesWithPercentage[4], entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[5], entriesWithPercentage[6], entriesWithPercentage[7], entriesWithPercentage[8]];
-        } else if (length === 10) {
-            return [entriesWithPercentage[5], entriesWithPercentage[4], entriesWithPercentage[3], entriesWithPercentage[2], entriesWithPercentage[1], entriesWithPercentage[0], entriesWithPercentage[6], entriesWithPercentage[7], entriesWithPercentage[8], entriesWithPercentage[9]];
-        }
-
-        return entriesWithPercentage;
     };
+
 
     const renderSimpleBarChart = (question, title) => {
         const [showTop10, setShowTop10] = useState(false);
         const currentMaxItems = showTop10 ? 10 : 5;
-        const data = prepareSimpleBarData(responseData[question], currentMaxItems);
+        const data = prepareSimpleBarData(responseData[question], currentMaxItems, question);
         const displayMode = displayModes[question] || 'count';
         const yAxisLabel = displayMode === 'count' ? 'Count' : 'Percentage (%)';
         const dataKey = displayMode === 'count' ? 'value' : 'percentage';
