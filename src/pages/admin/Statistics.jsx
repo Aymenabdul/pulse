@@ -38,6 +38,7 @@ import {
     PieChart,
     Pie,
     CartesianGrid,
+    LabelList,
 } from "recharts";
 import axiosInstance from "../../axios/axios";
 import AIADMK from "../../assets/aiadmk.png";
@@ -609,7 +610,7 @@ export default function Statistics() {
                                 dataKey="party"
                                 tick={{ fontSize: 9 }}
                                 interval={0}
-                                angle={-45}
+                                angle={-90}
                                 textAnchor="end"
                                 height={80}
                                 tickFormatter={formatLabel}
@@ -620,7 +621,9 @@ export default function Statistics() {
                                 dataKey={dataKey}
                                 shape={CustomBarShape}
                                 maxBarSize={60}
-                            />
+                            >
+                                <LabelList dataKey={dataKey} position="center" angle={-90} style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16 }} />
+                            </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 </Box>
@@ -894,6 +897,7 @@ export default function Statistics() {
                                     {horizontalData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={categoricalColors[index % categoricalColors.length]} />
                                     ))}
+                                    <LabelList dataKey={dataKey} position="center" style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16 }} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -1239,7 +1243,7 @@ export default function Statistics() {
                                 dataKey="name"
                                 tick={{ fontSize: 9 }}
                                 interval={0}
-                                angle={-45}
+                                angle={-90}
                                 textAnchor="end"
                                 height={80}
                                 tickFormatter={formatLabel}
@@ -1257,6 +1261,7 @@ export default function Statistics() {
                                             : categoricalColors[index % categoricalColors.length]} 
                                     />
                                 ))}
+                                <LabelList dataKey={dataKey} position="center" angle={-90} style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16 }} />
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
