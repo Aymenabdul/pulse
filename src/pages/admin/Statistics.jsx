@@ -1094,6 +1094,19 @@ export default function Statistics() {
         return arranged;
     };
 
+    const ques7Colors = [
+        "#A7E8E2", 
+        "#8FE2DA",
+        "#77DBD2",
+        "#5FD5CA",
+        "#4ECDC4", 
+        "#44B9B0",
+        "#3AA59D",
+        "#30918A",
+        "#267D77",
+        "#1C6964" 
+    ]
+
     const renderSimpleBarChart = (question, title) => {
         const [showTop10, setShowTop10] = useState(false);
         const currentMaxItems = showTop10 ? 10 : 5;
@@ -1238,7 +1251,11 @@ export default function Statistics() {
                                 maxBarSize={60}
                             >
                                 {data.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={categoricalColors[index % categoricalColors.length]} />
+                                    <Cell 
+                                        key={`cell-${index}`} 
+                                        fill={question === "ques7" ? ques7Colors[index % ques7Colors.length]
+                                            : categoricalColors[index % categoricalColors.length]} 
+                                    />
                                 ))}
                             </Bar>
                         </BarChart>

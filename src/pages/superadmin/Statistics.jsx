@@ -115,8 +115,16 @@ const pieColors = {
 };
 
 const categoricalColors = [
-    '#4ECDC4', '#FF6B35', '#FFC107', '#45B7D1', '#96CEB4',
-    '#E74C3C', '#3498DB', '#2ECC71', '#F1C40F', '#9B59B6'
+    "#E6FAF8",
+  "#C2F2EE",
+  "#9DEAE3",
+  "#79E2D9",
+  "#55DACF",
+  "#4ECDC4",
+  "#3EB2AA",
+  "#2F978F",
+  "#207D75",
+  "#11635B"
 ];
 
 const formatLabel = (label) => {
