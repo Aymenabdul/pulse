@@ -55,7 +55,7 @@ export default function Navbar({ userRole }) {
         { label: "Home", href: "/admin/dashboard" },
         { label: "Data", href: "/admin/files" },
         { label: "Users", href: "/admin/users" },
-        // { label: "Statistics", href: "/admin/statistics" }, // This was commented out in your original
+        { label: "Statistics", href: "/admin/statistics" }, // This was commented out in your original
     ];
 
     const surveyorNavItems = [

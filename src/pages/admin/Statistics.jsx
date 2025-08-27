@@ -114,6 +114,11 @@ const pieColors = {
     "fair": "#FF9800"
 };
 
+const categoricalColors = [
+    '#4ECDC4', '#FF6B35', '#FFC107', '#45B7D1', '#96CEB4',
+    '#E74C3C', '#3498DB', '#2ECC71', '#F1C40F', '#9B59B6'
+];
+
 const formatLabel = (label) => {
     if (!label || label === null || label === undefined) return '';
     
@@ -656,7 +661,7 @@ export default function Statistics() {
             { value: 'NOTA', label: 'NOTA' }
         ];
 
-        const fetchHorizontalData = async (year, party) => {
+        const fetchHorizontalData = async (year = '', party = '') => {
             setHorizontalLoading(true);
             try {
                 const params = new URLSearchParams();
@@ -673,8 +678,6 @@ export default function Statistics() {
                 
                 console.log("Occupation-counts response: ", result);
                 
-                // The API returns a flat object with occupation counts
-                // Process the data directly from the response
                 const processedData = Object.entries(result)
                     .filter(([occupation, count]) => occupation && count > 0)
                     .map(([occupation, count]) => ({
@@ -701,14 +704,13 @@ export default function Statistics() {
             }
         };
 
-        // Fetch data when both year and party are selected
         useEffect(() => {
-            if (selectedYear && selectedParty) {
+            if (filters.surveyName) {
                 fetchHorizontalData(selectedYear, selectedParty);
             } else {
                 setHorizontalData([]);
             }
-        }, [selectedYear, selectedParty]);
+        }, [selectedYear, selectedParty, filters.surveyName]);
 
         const handleYearChange = (event) => {
             setSelectedYear(event.target.value);
@@ -729,9 +731,8 @@ export default function Statistics() {
         
         const chartTitle = selectedYear && selectedParty 
             ? `${currentPartyLabel} Supporters by Occupation (${currentYearLabel})`
-            : 'Party Performance by Occupation';
+            : 'Occupation Distribution';
 
-        // Custom tooltip component
         const CustomHorizontalTooltip = ({ active, payload, label }) => {
             if (active && payload && payload.length) {
                 const data = payload[0].payload;
@@ -769,145 +770,15 @@ export default function Statistics() {
             );
         }
 
-        // Don't render the chart options if no survey is selected
         if (!filters.surveyName) {
             return (
                 <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
                     <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
-                        Party Performance by Occupation
+                        Occupation Distribution
                     </Typography>
                     <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="body2" color="text.secondary">
                             Please select a survey first to view occupation data
-                        </Typography>
-                    </Box>
-                </Box>
-            );
-        }
-
-        if (!selectedYear || !selectedParty) {
-            return (
-                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
-                        {chartTitle}
-                    </Typography>
-                    <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        mb: 3,
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        alignItems: 'center',
-                        gap: { xs: 2, sm: 3 },
-                        flexWrap: 'wrap'
-                    }}>
-                        <FormControl size="small" sx={{ minWidth: 120 }}>
-                            <InputLabel>Year</InputLabel>
-                            <Select
-                                value={selectedYear}
-                                onChange={handleYearChange}
-                                disabled={horizontalLoading}
-                                label="Year"
-                            >
-                                <MenuItem value="">Select Year</MenuItem>
-                                {yearOptions.map(option => (
-                                    <MenuItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <InputLabel>Party</InputLabel>
-                            <Select
-                                value={selectedParty}
-                                onChange={handlePartyChange}
-                                disabled={horizontalLoading}
-                                label="Party"
-                            >
-                                <MenuItem value="">Select Party</MenuItem>
-                                {partyOptions.map(option => (
-                                    <MenuItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Box>
-                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Please select both year and party to view occupation data
-                        </Typography>
-                    </Box>
-                </Box>
-            );
-        }
-
-        if (horizontalData.length === 0) {
-            return (
-                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
-                        {chartTitle}
-                    </Typography>
-                    <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        mb: 3,
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        alignItems: 'center',
-                        gap: { xs: 2, sm: 3 },
-                        flexWrap: 'wrap'
-                    }}>
-                        <FormControl size="small" sx={{ minWidth: 120 }}>
-                            <InputLabel>Year</InputLabel>
-                            <Select
-                                value={selectedYear}
-                                onChange={handleYearChange}
-                                disabled={horizontalLoading}
-                                label="Year"
-                            >
-                                <MenuItem value="">Select Year</MenuItem>
-                                {yearOptions.map(option => (
-                                    <MenuItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <InputLabel>Party</InputLabel>
-                            <Select
-                                value={selectedParty}
-                                onChange={handlePartyChange}
-                                disabled={horizontalLoading}
-                                label="Party"
-                            >
-                                <MenuItem value="">Select Party</MenuItem>
-                                {partyOptions.map(option => (
-                                    <MenuItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={displayMode === 'percentage'}
-                                    onChange={(e) => handleHorizontalDisplayModeChange(e.target.checked)}
-                                    disabled={horizontalLoading}
-                                    size="small"
-                                />
-                            }
-                            label={displayMode === 'count' ? 'Show Percentage' : 'Show Count'}
-                            sx={{ fontSize: '0.875rem' }}
-                        />
-                    </Box>
-                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography variant="body2" color="text.secondary">
-                            No occupation data available for the selected filters
                         </Typography>
                     </Box>
                 </Box>
@@ -954,7 +825,7 @@ export default function Statistics() {
                             disabled={horizontalLoading}
                             label="Year"
                         >
-                            <MenuItem value="">Select Year</MenuItem>
+                            <MenuItem value="">All Years</MenuItem>
                             {yearOptions.map(option => (
                                 <MenuItem key={option.value} value={option.value}>
                                     {option.label}
@@ -971,7 +842,7 @@ export default function Statistics() {
                             disabled={horizontalLoading}
                             label="Party"
                         >
-                            <MenuItem value="">Select Party</MenuItem>
+                            <MenuItem value="">All Parties</MenuItem>
                             {partyOptions.map(option => (
                                 <MenuItem key={option.value} value={option.value}>
                                     {option.label}
@@ -995,35 +866,43 @@ export default function Statistics() {
                 </Box>
                 
                 <Box sx={{ flex: 1, minHeight: '350px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                            layout="vertical"
-                            data={horizontalData}
-                            margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis 
-                                type="number" 
-                                label={{ value: yAxisLabel, position: 'insideBottom', offset: -10 }}
-                            />
-                            <YAxis 
-                                type="category" 
-                                dataKey="name"
-                                width={90}
-                                tick={{ fontSize: 10 }}
-                                tickFormatter={formatLabel}
-                            />
-                            <Tooltip content={<CustomHorizontalTooltip />} />
-                            <Bar
-                                dataKey={dataKey}
-                                barSize={30}
+                    {horizontalData.length === 0 ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                            <Typography variant="body2" color="text.secondary">
+                                No occupation data available
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                layout="vertical"
+                                data={horizontalData}
+                                margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
                             >
-                                {horizontalData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 50%)`} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis 
+                                    type="number" 
+                                    label={{ value: yAxisLabel, position: 'insideBottom', offset: -10 }}
+                                />
+                                <YAxis 
+                                    type="category" 
+                                    dataKey="name"
+                                    width={90}
+                                    tick={{ fontSize: 10 }}
+                                    tickFormatter={formatLabel}
+                                />
+                                <Tooltip content={<CustomHorizontalTooltip />} />
+                                <Bar
+                                    dataKey={dataKey}
+                                    barSize={30}
+                                >
+                                    {horizontalData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={categoricalColors[index % categoricalColors.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </Box>
             </Box>
         );
@@ -1178,7 +1057,6 @@ export default function Statistics() {
             percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
         }));
 
-        // Apply center-out alignment for important issues (ques7)
         if (question === 'ques7') {
             finalEntries = arrangeDataCenterOut(finalEntries);
         }
@@ -1193,16 +1071,13 @@ export default function Statistics() {
         const arranged = new Array(sortedData.length);
         const centerIndex = Math.floor(sortedData.length / 2);
 
-        // Place the highest value (first in sorted array) at center
         arranged[centerIndex] = sortedData[0];
 
-        // Alternate placing remaining values to the right and left of center
         let leftIndex = centerIndex - 1;
         let rightIndex = centerIndex + 1;
         
         for (let i = 1; i < sortedData.length; i++) {
             if (i % 2 === 1) {
-                // Odd positions go to the right
                 if (rightIndex < arranged.length) {
                     arranged[rightIndex] = sortedData[i];
                     rightIndex++;
@@ -1211,7 +1086,6 @@ export default function Statistics() {
                     leftIndex--;
                 }
             } else {
-                // Even positions go to the left
                 if (leftIndex >= 0) {
                     arranged[leftIndex] = sortedData[i];
                     leftIndex--;
@@ -1369,7 +1243,7 @@ export default function Statistics() {
                                 maxBarSize={60}
                             >
                                 {data.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 60}, 70%, 50%)`} />
+                                    <Cell key={`cell-${index}`} fill={categoricalColors[index % categoricalColors.length]} />
                                 ))}
                             </Bar>
                         </BarChart>

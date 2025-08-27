@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { useState, useEffect } from "react";
 import {
     Box,
@@ -36,7 +37,7 @@ import {
     Customized,
     PieChart,
     Pie,
-    CartesianGrid
+    CartesianGrid,
 } from "recharts";
 import axiosInstance from "../../axios/axios";
 import AIADMK from "../../assets/aiadmk.png";
@@ -113,6 +114,23 @@ const pieColors = {
     "fair": "#FF9800"
 };
 
+const formatLabel = (label) => {
+    if (!label || label === null || label === undefined) return '';
+    
+    const labelStr = String(label);
+    
+    let formatted = labelStr.replace(/['"[\]]/g, '');
+    
+    const parts = formatted.split(/[,/&-]/).map(part => {
+        return part.trim()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    });
+    
+    return parts.join(' / ');
+};
+
 export default function Statistics() {
     const [filters, setFilters] = useState({
         constituency: '',
@@ -141,6 +159,7 @@ export default function Statistics() {
         ques2: 'count',
         ques3: 'count'
     });
+    
 
     const useAnimatedCounter = (targetValue, duration = 2000) => {
         const [count, setCount] = useState(0);
@@ -273,7 +292,6 @@ export default function Statistics() {
             setLoading(prev => ({ ...prev, responses: false }));
         }
     };
-
 
     useEffect(() => {
         const handleInitialAndFilterCascade = async () => {
@@ -466,7 +484,7 @@ export default function Statistics() {
         return null;
     };
 
-    const PieTooltip = ({ active, payload, label }) => {
+    const PieTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             return (
                 <div style={{
@@ -474,7 +492,7 @@ export default function Statistics() {
                     padding: '10px',
                     border: '1px solid #ccc',
                     borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }}>
                     <p style={{ margin: 0, fontWeight: 'bold' }}>{payload[0].name}</p>
                     <p style={{ margin: 0, color: payload[0].color }}>
@@ -589,6 +607,7 @@ export default function Statistics() {
                                 angle={-45}
                                 textAnchor="end"
                                 height={80}
+                                tickFormatter={formatLabel}
                             />
                             <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
                             <Tooltip content={PoliticalTooltip} />
@@ -599,6 +618,291 @@ export default function Statistics() {
                             />
                         </BarChart>
                     </ResponsiveContainer>
+                </Box>
+            </Box>
+        );
+    };
+
+    const renderHorizontalBarChart = () => {
+        const [selectedYear, setSelectedYear] = useState('');
+        const [selectedParty, setSelectedParty] = useState('');
+        const [displayMode, setDisplayMode] = useState('count');
+        const [horizontalData, setHorizontalData] = useState([]);
+        const [horizontalLoading, setHorizontalLoading] = useState(false);
+
+        const yearOptions = [
+            { value: 'ques1', label: '2016' },
+            { value: 'ques2', label: '2021' },
+            { value: 'ques3', label: '2026' }
+        ];
+
+        const partyOptions = [
+            { value: 'AIADMK', label: 'AIADMK' },
+            { value: 'DMK', label: 'DMK' },
+            { value: 'BJP', label: 'BJP' },
+            { value: 'INC', label: 'INC' },
+            { value: 'NTK', label: 'NTK' },
+            { value: 'TVK', label: 'TVK' },
+            { value: 'VCK', label: 'VCK' },
+            { value: 'MDMK', label: 'MDMK' },
+            { value: 'CPI', label: 'CPI' },
+            { value: 'CPM', label: 'CPM' },
+            { value: 'PMK', label: 'PMK' },
+            { value: 'DMDK', label: 'DMDK' },
+            { value: 'MNM', label: 'MNM' },
+            { value: 'MUSLIM PARTIES (SPECIFY)', label: 'Muslim Parties' },
+            { value: 'OTHERS (SPECIFY)', label: 'Others' },
+            { value: 'INDEPENDENT (SPECIFY)', label: 'Independent' },
+            { value: 'NOTA', label: 'NOTA' }
+        ];
+
+        const fetchHorizontalData = async (year = '', party = '') => {
+            setHorizontalLoading(true);
+            try {
+                const params = new URLSearchParams();
+                
+                // Add the selected party as the value for the selected year parameter
+                if (year && party) {
+                    params.append(year, party);
+                }
+                
+                console.log("API call params:", params.toString());
+
+                const response = await axiosInstance.get(`/survey/occupation-counts?${params.toString()}`);
+                const result = response.data;
+                
+                console.log("Occupation-counts response: ", result);
+                
+                // The API returns a flat object with occupation counts
+                // Process the data directly from the response
+                const processedData = Object.entries(result)
+                    .filter(([occupation, count]) => occupation && count > 0)
+                    .map(([occupation, count]) => ({
+                        name: formatLabel(occupation),
+                        value: Number(count) || 0
+                    }))
+                    .sort((a, b) => b.value - a.value);
+
+                const total = processedData.reduce((sum, entry) => sum + entry.value, 0);
+                
+                const finalData = processedData.map(entry => ({
+                    ...entry,
+                    percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
+                }));
+
+                console.log("Processed horizontal data:", finalData);
+
+                setHorizontalData(finalData);
+            } catch (error) {
+                console.error('Error fetching horizontal data:', error);
+                setHorizontalData([]);
+            } finally {
+                setHorizontalLoading(false);
+            }
+        };
+
+        // Fetch default data when component mounts and when filters change
+        useEffect(() => {
+            if (filters.surveyName) {
+                fetchHorizontalData(selectedYear, selectedParty);
+            } else {
+                setHorizontalData([]);
+            }
+        }, [selectedYear, selectedParty, filters.surveyName]);
+
+        const handleYearChange = (event) => {
+            setSelectedYear(event.target.value);
+        };
+
+        const handlePartyChange = (event) => {
+            setSelectedParty(event.target.value);
+        };
+
+        const handleHorizontalDisplayModeChange = (checked) => {
+            setDisplayMode(checked ? 'percentage' : 'count');
+        };
+
+        const yAxisLabel = displayMode === 'count' ? 'Count' : 'Percentage (%)';
+        const dataKey = displayMode === 'count' ? 'value' : 'percentage';
+        const currentYearLabel = yearOptions.find(opt => opt.value === selectedYear)?.label || '';
+        const currentPartyLabel = partyOptions.find(opt => opt.value === selectedParty)?.label || '';
+        
+        const chartTitle = selectedYear && selectedParty 
+            ? `${currentPartyLabel} Supporters by Occupation (${currentYearLabel})`
+            : 'Occupation Distribution';
+
+        // Custom tooltip component
+        const CustomHorizontalTooltip = ({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                return (
+                    <div style={{
+                        backgroundColor: 'white',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        padding: '10px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                        <p style={{ margin: 0, fontWeight: 'bold' }}>{label}</p>
+                        <p style={{ margin: '4px 0 0 0', color: '#666' }}>
+                            Count: {data.value}
+                            {data.percentage && (
+                                <span> ({data.percentage.toFixed(1)}%)</span>
+                            )}
+                        </p>
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        if (horizontalLoading) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {chartTitle}
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CircularProgress />
+                    </Box>
+                </Box>
+            );
+        }
+
+        // Don't render the chart options if no survey is selected
+        if (!filters.surveyName) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        Occupation Distribution
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Please select a survey first to view occupation data
+                        </Typography>
+                    </Box>
+                </Box>
+            );
+        }
+
+        return (
+            <Box sx={{
+                height: '500px',
+                display: 'flex',
+                flexDirection: 'column',
+                mt: 3
+            }}>
+                <Typography
+                    variant="h6"
+                    component="h2"
+                    gutterBottom
+                    sx={{
+                        textAlign: 'center',
+                        color: '#34495e',
+                        fontWeight: 'medium',
+                        fontSize: '1rem',
+                        mb: 2,
+                        minHeight: '24px'
+                    }}
+                >
+                    {chartTitle}
+                </Typography>
+                
+                <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    mb: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    gap: { xs: 1, sm: 2 },
+                    flexWrap: 'wrap'
+                }}>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                            value={selectedYear}
+                            onChange={handleYearChange}
+                            disabled={horizontalLoading}
+                            label="Year"
+                        >
+                            <MenuItem value="">All Years</MenuItem>
+                            {yearOptions.map(option => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Party</InputLabel>
+                        <Select
+                            value={selectedParty}
+                            onChange={handlePartyChange}
+                            disabled={horizontalLoading}
+                            label="Party"
+                        >
+                            <MenuItem value="">All Parties</MenuItem>
+                            {partyOptions.map(option => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={displayMode === 'percentage'}
+                                onChange={(e) => handleHorizontalDisplayModeChange(e.target.checked)}
+                                disabled={horizontalLoading}
+                                size="small"
+                            />
+                        }
+                        label={displayMode === 'count' ? 'Show Percentage' : 'Show Count'}
+                        sx={{ fontSize: '0.875rem' }}
+                    />
+                </Box>
+                
+                <Box sx={{ flex: 1, minHeight: '350px' }}>
+                    {horizontalData.length === 0 ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                            <Typography variant="body2" color="text.secondary">
+                                No occupation data available
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                layout="vertical"
+                                data={horizontalData}
+                                margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis 
+                                    type="number" 
+                                    label={{ value: yAxisLabel, position: 'insideBottom', offset: -10 }}
+                                />
+                                <YAxis 
+                                    type="category" 
+                                    dataKey="name"
+                                    width={90}
+                                    tick={{ fontSize: 10 }}
+                                    tickFormatter={formatLabel}
+                                />
+                                <Tooltip content={<CustomHorizontalTooltip />} />
+                                <Bar
+                                    dataKey={dataKey}
+                                    barSize={30}
+                                >
+                                    {horizontalData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 50%)`} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </Box>
             </Box>
         );
@@ -695,7 +999,11 @@ export default function Statistics() {
                                 wrapperStyle={{
                                     paddingTop: '15px',
                                     fontSize: '11px',
-                                    textAlign: 'center'
+                                    textAlign: 'center',
+                                    color: '#000000'
+                                }}
+                                formatter={(value) => {
+                                return <span style={{ color: "black" }}>{value}</span>;
                                 }}
                             />
                         </PieChart>
@@ -705,14 +1013,260 @@ export default function Statistics() {
         );
     };
 
+    const prepareSimpleBarData = (questionData, maxItems = 5, question = '') => {
+        if (!questionData || typeof questionData !== 'object') {
+            return [];
+        }
+
+        if (question === 'voterStatus') {
+            const voterStatusOrder = [
+                'Moved to different constituency',
+                'Passed away',
+                'Working abroad'
+            ];
+
+            const filteredEntries = voterStatusOrder
+                .map(status => ({
+                    name: formatLabel(status),
+                    value: parseInt(questionData[status]) || 0
+                }))
+                .filter(entry => entry.value > 0); 
+
+            if (filteredEntries.length === 0) return [];
+
+            const total = filteredEntries.reduce((sum, entry) => sum + entry.value, 0);
+            return filteredEntries.map(entry => ({
+                ...entry,
+                percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
+            }));
+        }
+
+        const entries = Object.entries(questionData)
+            .filter(([key, value]) => key && value > 0)
+            .map(([key, value]) => ({
+                name: formatLabel(key),
+                value: parseInt(value) || 0
+            }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, maxItems);
+
+        const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+
+        let finalEntries = entries.map(entry => ({
+            ...entry,
+            percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
+        }));
+
+        // Apply center-out alignment for important issues (ques7)
+        if (question === 'ques7') {
+            finalEntries = arrangeDataCenterOut(finalEntries);
+        }
+
+        return finalEntries;
+    };
+
+    const arrangeDataCenterOut = (sortedData) => {
+        if (sortedData.length === 0) return [];
+        if (sortedData.length === 1) return sortedData;
+
+        const arranged = new Array(sortedData.length);
+        const centerIndex = Math.floor(sortedData.length / 2);
+
+        // Place the highest value (first in sorted array) at center
+        arranged[centerIndex] = sortedData[0];
+
+        // Alternate placing remaining values to the right and left of center
+        let leftIndex = centerIndex - 1;
+        let rightIndex = centerIndex + 1;
+        
+        for (let i = 1; i < sortedData.length; i++) {
+            if (i % 2 === 1) {
+                // Odd positions go to the right
+                if (rightIndex < arranged.length) {
+                    arranged[rightIndex] = sortedData[i];
+                    rightIndex++;
+                } else if (leftIndex >= 0) {
+                    arranged[leftIndex] = sortedData[i];
+                    leftIndex--;
+                }
+            } else {
+                // Even positions go to the left
+                if (leftIndex >= 0) {
+                    arranged[leftIndex] = sortedData[i];
+                    leftIndex--;
+                } else if (rightIndex < arranged.length) {
+                    arranged[rightIndex] = sortedData[i];
+                    rightIndex++;
+                }
+            }
+        }
+
+        return arranged;
+    };
+
+    const renderSimpleBarChart = (question, title) => {
+        const [showTop10, setShowTop10] = useState(false);
+        const currentMaxItems = showTop10 ? 10 : 5;
+        const data = prepareSimpleBarData(responseData[question], currentMaxItems, question);
+        const displayMode = displayModes[question] || 'count';
+        const yAxisLabel = displayMode === 'count' ? 'Count' : 'Percentage (%)';
+        const dataKey = displayMode === 'count' ? 'value' : 'percentage';
+
+        const CustomTooltip = ({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                return (
+                    <div style={{
+                        backgroundColor: 'white',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        padding: '10px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                        <p style={{ margin: 0, fontWeight: 'bold' }}>{label}</p>
+                        <p style={{ margin: '4px 0 0 0', color: '#666' }}>
+                            Count: {data.value}
+                            {displayMode === 'percentage' && (
+                                <span> ({data.percentage.toFixed(1)}%)</span>
+                            )}
+                        </p>
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        if (loading.responses) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {title}
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CircularProgress />
+                    </Box>
+                </Box>
+            );
+        }
+
+        if (data.length === 0) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {title}
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            No data available for this question
+                        </Typography>
+                    </Box>
+                </Box>
+            );
+        }
+
+        return (
+            <Box sx={{
+                height: '500px',
+                display: 'flex',
+                flexDirection: 'column',
+            }}>
+                <Typography
+                    variant="h6"
+                    component="h2"
+                    gutterBottom
+                    sx={{
+                        textAlign: 'center',
+                        color: '#34495e',
+                        fontWeight: 'medium',
+                        fontSize: '1rem',
+                        mb: 2,
+                        minHeight: '24px'
+                    }}
+                >
+                    {title}
+                </Typography>
+                <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    mb: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    gap: { xs: 1, sm: 2 }
+                }}>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={displayMode === 'percentage'}
+                                onChange={(e) => handleDisplayModeChange(question, e.target.checked)}
+                                disabled={loading.responses}
+                                size="small"
+                            />
+                        }
+                        label={displayMode === 'count' ? 'Show Percentage' : 'Show Count'}
+                        sx={{ fontSize: '0.875rem' }}
+                    />
+                    {question === 'ques7' && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={showTop10}
+                                    onChange={(e) => setShowTop10(e.target.checked)}
+                                    disabled={loading.responses}
+                                    size="small"
+                                    color="secondary"
+                                />
+                            }
+                            label={showTop10 ? 'Top 5' : 'Top 10'}
+                            sx={{ 
+                                fontSize: '0.875rem',
+                                ml: { xs: 0, sm: 1 }
+                            }}
+                        />
+                    )}
+                </Box>
+                <Box sx={{ flex: 1, minHeight: '350px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                            data={data}
+                            margin={{ top: 40, right: 20, left: 10, bottom: 60 }}
+                            maxBarSize={60}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                                dataKey="name"
+                                tick={{ fontSize: 9 }}
+                                interval={0}
+                                angle={-45}
+                                textAnchor="end"
+                                height={80}
+                                tickFormatter={formatLabel}
+                            />
+                            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar
+                                dataKey={dataKey}
+                                maxBarSize={60}
+                            >
+                                {data.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 60}, 70%, 50%)`} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </Box>
+            </Box>
+        );
+    };
+
     const getQuestionTitle = (questionKey) => {
         const titles = {
-            "ques1": "Question 1 - Vote 2016",
-            "ques2": "Question 2 - Vote 2021",
-            "ques3": "Question 3 - Vote 2026",
-            "ques4": "Question 4 - CM EPS (2017–2021)",
-            "ques5": "Question 5 - CM Stalin (2021–2026)",
-            "ques6": "Question 6 - Current MLA"
+            "ques1": "Voted Parties in 2016",
+            "ques2": "Voted Parties in 2021",
+            "ques3": "Preferred Parties for 2026",
+            "ques4": "CM EPS (2017–2021)",
+            "ques5": "CM Stalin (2021–2026)",
+            "ques6": "Current MLA",
+            "ques7": "Important Issues In The Constituency"
         };
         return titles[questionKey] || questionKey;
     };
@@ -772,13 +1326,13 @@ export default function Statistics() {
                     gutterBottom
                     sx={{
                         textAlign: 'center',
-                        transform: 'uppercase',
                         mb: 4,
                         fontWeight: 'bold',
-                        color: '#2c3e50'
+                        color: '#2c3e50',
+                        transform: 'uppercase',
                     }}
                 >
-                    Survey Analytics
+                    SURVEY ANALYTICS
                 </Typography>
 
                 <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', mb: 4, flexDirection: { xs: 'column', sm: 'row' } }}>
@@ -913,13 +1467,14 @@ export default function Statistics() {
                             textAlign: 'center',
                             mb: 3,
                             fontWeight: 'bold',
-                            color: '#2c3e50'
+                            color: '#2c3e50',
+                            textTransform: 'uppercase'
                         }}
                     >
                         Political Party Preferences
                     </Typography>
 
-                    <Grid container spacing={3}>
+                    <Grid container spacing={3} style={{textTransform: 'uppercase',fontWeight: '700'}}>
                         {["ques1", "ques2", "ques3"].map((questionKey) => (
                             <Grid size={{ xs: 12, md: 4 }} key={questionKey}>
                                 {renderBarChart(questionKey, getQuestionTitle(questionKey))}
@@ -945,13 +1500,105 @@ export default function Statistics() {
                             textAlign: 'center',
                             mb: 3,
                             fontWeight: 'bold',
-                            color: '#2c3e50'
+                            color: '#2c3e50',
+                            textTransform: 'uppercase'
+                        }}
+                    >
+                        Survey Demographics & Issues
+                    </Typography>
+
+                    <Grid container spacing={3} style={{textTransform: 'uppercase', fontWeight: '700'}}>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <Typography
+                                    variant="h6"
+                                    component="h2"
+                                    gutterBottom
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: '#34495e',
+                                        fontWeight: 'medium',
+                                        fontSize: '1rem',
+                                        mb: 2,
+                                        minHeight: '24px'
+                                    }}
+                                >
+                                    Important Issues in Constituency
+                                </Typography>
+                                {renderSimpleBarChart('ques7', '', 5)}
+                            </Box>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <Typography
+                                    variant="h6"
+                                    component="h2"
+                                    gutterBottom
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: '#34495e',
+                                        fontWeight: 'medium',
+                                        fontSize: '1rem',
+                                        mb: 2,
+                                        minHeight: '24px'
+                                    }}
+                                >
+                                    Voter Status
+                                </Typography>
+                                {renderSimpleBarChart('voterStatus', '', 3)}
+                            </Box>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <Typography
+                                    variant="h6"
+                                    component="h2"
+                                    gutterBottom
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: '#34495e',
+                                        fontWeight: 'medium',
+                                        fontSize: '1rem',
+                                        mb: 2,
+                                        minHeight: '24px'
+                                    }}
+                                >
+                                    Voter Type
+                                </Typography>
+                                {renderSimpleBarChart('voterType', '', 3)}
+                            </Box>
+                        </Grid>
+                    </Grid>
+                    <Box sx={{ mt: 4 }}>
+                        {renderHorizontalBarChart()}
+                    </Box>
+                </Paper>
+                
+                <Paper
+                    elevation={3}
+                    sx={{
+                        p: 3,
+                        borderRadius: 2,
+                        backgroundColor: "rgba(255, 255, 255, 0.25)",
+                        backdropFilter: "blur(10px)",
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        mb: 4
+                    }}
+                >
+                    <Typography
+                        variant="h5"
+                        sx={{
+                            textAlign: 'center',
+                            mb: 3,
+                            fontWeight: 'bold',
+                            color: '#2c3e50',
+                            textTransform: 'uppercase'
                         }}
                     >
                         Performance Ratings
                     </Typography>
 
-                    <Grid container spacing={3}>
+                    <Grid container spacing={3} style={{textTransform: 'uppercase',fontWeight: '700'}}>
                         {["ques4", "ques5", "ques6"].map((questionKey) => (
                             <Grid size={{ xs: 12, md: 4 }} key={questionKey}>
                                 {renderPieChart(questionKey, getQuestionTitle(questionKey))}
