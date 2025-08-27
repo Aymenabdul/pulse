@@ -14,24 +14,18 @@ import {
     Button,
     Chip,
     IconButton,
-    Menu,
     MenuItem as MenuItemComponent,
     Container,
     Snackbar,
     Alert,
     CircularProgress,
-    Skeleton,
     Pagination,
     Stack
 } from "@mui/material";
 import {
     ArrowBack,
-    Search,
-    MoreVert,
-    Check,
     Clear,
     FilterList,
-    Delete,
     Verified
 } from "@mui/icons-material";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
@@ -113,9 +107,7 @@ export default function WithVoterId() {
     }, [setSearchParams, currentPage]);
 
     useEffect(() => {
-        // Check if the user object is available
         if (user) {
-            // If the role is admin or surveyor, and they have a constituency assigned
             if (user && (user.role.toLowerCase() === 'admin' || user.role.toLowerCase() === 'surveyor') && user.constituency) {
                 displayedConstituencyOptions = [user.constituency];
             }
@@ -198,7 +190,6 @@ export default function WithVoterId() {
 
     const fetchVoters = useCallback(async (currentFilters) => {
         const { survey, constituency, boothNumber, name, houseNo } = currentFilters;
-        // Early return if required parameters are not provided
         if (!survey || !constituency || !boothNumber) {
             setVoters([]);
             setCurrentPage(1);
@@ -214,14 +205,9 @@ export default function WithVoterId() {
                 booth: boothNumber
             });
 
-            // // Append filters only if they're provided
-            // if (name.trim()) params.append('name', name.trim());
-            // if (houseNo.trim()) params.append('houseNumber', houseNo.trim());
-
+            
             const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
-            console.log(response.data);
-
-            // Process the response data and map it to transformed structure
+            
             const transformedVoters = response.data.map((voter, index) => {
                 const isVerified = isVoterVerified(voter.id);
 
@@ -281,7 +267,6 @@ export default function WithVoterId() {
             setLoading(prev => ({ ...prev, search: false }));
         }
     }, [isVoterVerified, updateURLParams, itemsPerPage]); // Ensure proper dependencies
-
 
 
     useEffect(() => {

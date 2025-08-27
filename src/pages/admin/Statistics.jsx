@@ -37,7 +37,7 @@ import {
     Customized,
     PieChart,
     Pie,
-    CartesianGrid
+    CartesianGrid,
 } from "recharts";
 import axiosInstance from "../../axios/axios";
 import AIADMK from "../../assets/aiadmk.png";
@@ -115,9 +115,11 @@ const pieColors = {
 };
 
 const formatLabel = (label) => {
-    if (!label) return '';
+    if (!label || label === null || label === undefined) return '';
     
-    let formatted = label.replace(/['"[\]]/g, '');
+    const labelStr = String(label);
+    
+    let formatted = labelStr.replace(/['"[\]]/g, '');
     
     const parts = formatted.split(/[,/&-]/).map(part => {
         return part.trim()
@@ -290,7 +292,6 @@ export default function Statistics() {
             setLoading(prev => ({ ...prev, responses: false }));
         }
     };
-
 
     useEffect(() => {
         const handleInitialAndFilterCascade = async () => {
@@ -622,6 +623,412 @@ export default function Statistics() {
         );
     };
 
+    const renderHorizontalBarChart = () => {
+        const [selectedYear, setSelectedYear] = useState('');
+        const [selectedParty, setSelectedParty] = useState('');
+        const [displayMode, setDisplayMode] = useState('count');
+        const [horizontalData, setHorizontalData] = useState([]);
+        const [horizontalLoading, setHorizontalLoading] = useState(false);
+
+        const yearOptions = [
+            { value: 'ques1', label: '2016' },
+            { value: 'ques2', label: '2021' },
+            { value: 'ques3', label: '2026' }
+        ];
+
+        const partyOptions = [
+            { value: 'AIADMK', label: 'AIADMK' },
+            { value: 'DMK', label: 'DMK' },
+            { value: 'BJP', label: 'BJP' },
+            { value: 'INC', label: 'INC' },
+            { value: 'NTK', label: 'NTK' },
+            { value: 'TVK', label: 'TVK' },
+            { value: 'VCK', label: 'VCK' },
+            { value: 'MDMK', label: 'MDMK' },
+            { value: 'CPI', label: 'CPI' },
+            { value: 'CPM', label: 'CPM' },
+            { value: 'PMK', label: 'PMK' },
+            { value: 'DMDK', label: 'DMDK' },
+            { value: 'MNM', label: 'MNM' },
+            { value: 'MUSLIM PARTIES (SPECIFY)', label: 'Muslim Parties' },
+            { value: 'OTHERS (SPECIFY)', label: 'Others' },
+            { value: 'INDEPENDENT (SPECIFY)', label: 'Independent' },
+            { value: 'NOTA', label: 'NOTA' }
+        ];
+
+        const fetchHorizontalData = async (year, party) => {
+            setHorizontalLoading(true);
+            try {
+                const params = new URLSearchParams();
+                
+                // Add the selected party as the value for the selected year parameter
+                if (year && party) {
+                    params.append(year, party);
+                }
+                
+                console.log("API call params:", params.toString());
+
+                const response = await axiosInstance.get(`/survey/occupation-counts?${params.toString()}`);
+                const result = response.data;
+                
+                console.log("Occupation-counts response: ", result);
+                
+                // The API returns a flat object with occupation counts
+                // Process the data directly from the response
+                const processedData = Object.entries(result)
+                    .filter(([occupation, count]) => occupation && count > 0)
+                    .map(([occupation, count]) => ({
+                        name: formatLabel(occupation),
+                        value: Number(count) || 0
+                    }))
+                    .sort((a, b) => b.value - a.value);
+
+                const total = processedData.reduce((sum, entry) => sum + entry.value, 0);
+                
+                const finalData = processedData.map(entry => ({
+                    ...entry,
+                    percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
+                }));
+
+                console.log("Processed horizontal data:", finalData);
+
+                setHorizontalData(finalData);
+            } catch (error) {
+                console.error('Error fetching horizontal data:', error);
+                setHorizontalData([]);
+            } finally {
+                setHorizontalLoading(false);
+            }
+        };
+
+        // Fetch data when both year and party are selected
+        useEffect(() => {
+            if (selectedYear && selectedParty) {
+                fetchHorizontalData(selectedYear, selectedParty);
+            } else {
+                setHorizontalData([]);
+            }
+        }, [selectedYear, selectedParty]);
+
+        const handleYearChange = (event) => {
+            setSelectedYear(event.target.value);
+        };
+
+        const handlePartyChange = (event) => {
+            setSelectedParty(event.target.value);
+        };
+
+        const handleHorizontalDisplayModeChange = (checked) => {
+            setDisplayMode(checked ? 'percentage' : 'count');
+        };
+
+        const yAxisLabel = displayMode === 'count' ? 'Count' : 'Percentage (%)';
+        const dataKey = displayMode === 'count' ? 'value' : 'percentage';
+        const currentYearLabel = yearOptions.find(opt => opt.value === selectedYear)?.label || '';
+        const currentPartyLabel = partyOptions.find(opt => opt.value === selectedParty)?.label || '';
+        
+        const chartTitle = selectedYear && selectedParty 
+            ? `${currentPartyLabel} Supporters by Occupation (${currentYearLabel})`
+            : 'Party Performance by Occupation';
+
+        // Custom tooltip component
+        const CustomHorizontalTooltip = ({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                return (
+                    <div style={{
+                        backgroundColor: 'white',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        padding: '10px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                        <p style={{ margin: 0, fontWeight: 'bold' }}>{label}</p>
+                        <p style={{ margin: '4px 0 0 0', color: '#666' }}>
+                            Count: {data.value}
+                            {data.percentage && (
+                                <span> ({data.percentage.toFixed(1)}%)</span>
+                            )}
+                        </p>
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        if (horizontalLoading) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {chartTitle}
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CircularProgress />
+                    </Box>
+                </Box>
+            );
+        }
+
+        // Don't render the chart options if no survey is selected
+        if (!filters.surveyName) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        Party Performance by Occupation
+                    </Typography>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Please select a survey first to view occupation data
+                        </Typography>
+                    </Box>
+                </Box>
+            );
+        }
+
+        if (!selectedYear || !selectedParty) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {chartTitle}
+                    </Typography>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        mb: 3,
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        alignItems: 'center',
+                        gap: { xs: 2, sm: 3 },
+                        flexWrap: 'wrap'
+                    }}>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel>Year</InputLabel>
+                            <Select
+                                value={selectedYear}
+                                onChange={handleYearChange}
+                                disabled={horizontalLoading}
+                                label="Year"
+                            >
+                                <MenuItem value="">Select Year</MenuItem>
+                                {yearOptions.map(option => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <InputLabel>Party</InputLabel>
+                            <Select
+                                value={selectedParty}
+                                onChange={handlePartyChange}
+                                disabled={horizontalLoading}
+                                label="Party"
+                            >
+                                <MenuItem value="">Select Party</MenuItem>
+                                {partyOptions.map(option => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Box>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Please select both year and party to view occupation data
+                        </Typography>
+                    </Box>
+                </Box>
+            );
+        }
+
+        if (horizontalData.length === 0) {
+            return (
+                <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
+                        {chartTitle}
+                    </Typography>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        mb: 3,
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        alignItems: 'center',
+                        gap: { xs: 2, sm: 3 },
+                        flexWrap: 'wrap'
+                    }}>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel>Year</InputLabel>
+                            <Select
+                                value={selectedYear}
+                                onChange={handleYearChange}
+                                disabled={horizontalLoading}
+                                label="Year"
+                            >
+                                <MenuItem value="">Select Year</MenuItem>
+                                {yearOptions.map(option => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <InputLabel>Party</InputLabel>
+                            <Select
+                                value={selectedParty}
+                                onChange={handlePartyChange}
+                                disabled={horizontalLoading}
+                                label="Party"
+                            >
+                                <MenuItem value="">Select Party</MenuItem>
+                                {partyOptions.map(option => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={displayMode === 'percentage'}
+                                    onChange={(e) => handleHorizontalDisplayModeChange(e.target.checked)}
+                                    disabled={horizontalLoading}
+                                    size="small"
+                                />
+                            }
+                            label={displayMode === 'count' ? 'Show Percentage' : 'Show Count'}
+                            sx={{ fontSize: '0.875rem' }}
+                        />
+                    </Box>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            No occupation data available for the selected filters
+                        </Typography>
+                    </Box>
+                </Box>
+            );
+        }
+
+        return (
+            <Box sx={{
+                height: '500px',
+                display: 'flex',
+                flexDirection: 'column',
+                mt: 3
+            }}>
+                <Typography
+                    variant="h6"
+                    component="h2"
+                    gutterBottom
+                    sx={{
+                        textAlign: 'center',
+                        color: '#34495e',
+                        fontWeight: 'medium',
+                        fontSize: '1rem',
+                        mb: 2,
+                        minHeight: '24px'
+                    }}
+                >
+                    {chartTitle}
+                </Typography>
+                
+                <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    mb: 2,
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    gap: { xs: 1, sm: 2 },
+                    flexWrap: 'wrap'
+                }}>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                            value={selectedYear}
+                            onChange={handleYearChange}
+                            disabled={horizontalLoading}
+                            label="Year"
+                        >
+                            <MenuItem value="">Select Year</MenuItem>
+                            {yearOptions.map(option => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Party</InputLabel>
+                        <Select
+                            value={selectedParty}
+                            onChange={handlePartyChange}
+                            disabled={horizontalLoading}
+                            label="Party"
+                        >
+                            <MenuItem value="">Select Party</MenuItem>
+                            {partyOptions.map(option => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={displayMode === 'percentage'}
+                                onChange={(e) => handleHorizontalDisplayModeChange(e.target.checked)}
+                                disabled={horizontalLoading}
+                                size="small"
+                            />
+                        }
+                        label={displayMode === 'count' ? 'Show Percentage' : 'Show Count'}
+                        sx={{ fontSize: '0.875rem' }}
+                    />
+                </Box>
+                
+                <Box sx={{ flex: 1, minHeight: '350px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                            layout="vertical"
+                            data={horizontalData}
+                            margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                                type="number" 
+                                label={{ value: yAxisLabel, position: 'insideBottom', offset: -10 }}
+                            />
+                            <YAxis 
+                                type="category" 
+                                dataKey="name"
+                                width={90}
+                                tick={{ fontSize: 10 }}
+                                tickFormatter={formatLabel}
+                            />
+                            <Tooltip content={<CustomHorizontalTooltip />} />
+                            <Bar
+                                dataKey={dataKey}
+                                barSize={30}
+                            >
+                                {horizontalData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 50%)`} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </Box>
+            </Box>
+        );
+    };
+
     const renderPieChart = (question, title) => {
         const chartData = preparePieChartData(responseData[question]);
 
@@ -732,7 +1139,6 @@ export default function Statistics() {
             return [];
         }
 
-        // ✅ Restrict voterStatus strictly to 3 allowed values
         if (question === 'voterStatus') {
             const voterStatusOrder = [
                 'Moved to different constituency',
@@ -745,7 +1151,7 @@ export default function Statistics() {
                     name: formatLabel(status),
                     value: parseInt(questionData[status]) || 0
                 }))
-                .filter(entry => entry.value > 0); // only show >0
+                .filter(entry => entry.value > 0); 
 
             if (filteredEntries.length === 0) return [];
 
@@ -756,7 +1162,6 @@ export default function Statistics() {
             }));
         }
 
-        // ✅ Generic fallback for all other questions
         const entries = Object.entries(questionData)
             .filter(([key, value]) => key && value > 0)
             .map(([key, value]) => ({
@@ -768,12 +1173,57 @@ export default function Statistics() {
 
         const total = entries.reduce((sum, entry) => sum + entry.value, 0);
 
-        return entries.map(entry => ({
+        let finalEntries = entries.map(entry => ({
             ...entry,
             percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
         }));
+
+        // Apply center-out alignment for important issues (ques7)
+        if (question === 'ques7') {
+            finalEntries = arrangeDataCenterOut(finalEntries);
+        }
+
+        return finalEntries;
     };
 
+    const arrangeDataCenterOut = (sortedData) => {
+        if (sortedData.length === 0) return [];
+        if (sortedData.length === 1) return sortedData;
+
+        const arranged = new Array(sortedData.length);
+        const centerIndex = Math.floor(sortedData.length / 2);
+
+        // Place the highest value (first in sorted array) at center
+        arranged[centerIndex] = sortedData[0];
+
+        // Alternate placing remaining values to the right and left of center
+        let leftIndex = centerIndex - 1;
+        let rightIndex = centerIndex + 1;
+        
+        for (let i = 1; i < sortedData.length; i++) {
+            if (i % 2 === 1) {
+                // Odd positions go to the right
+                if (rightIndex < arranged.length) {
+                    arranged[rightIndex] = sortedData[i];
+                    rightIndex++;
+                } else if (leftIndex >= 0) {
+                    arranged[leftIndex] = sortedData[i];
+                    leftIndex--;
+                }
+            } else {
+                // Even positions go to the left
+                if (leftIndex >= 0) {
+                    arranged[leftIndex] = sortedData[i];
+                    leftIndex--;
+                } else if (rightIndex < arranged.length) {
+                    arranged[rightIndex] = sortedData[i];
+                    rightIndex++;
+                }
+            }
+        }
+
+        return arranged;
+    };
 
     const renderSimpleBarChart = (question, title) => {
         const [showTop10, setShowTop10] = useState(false);
@@ -782,6 +1232,30 @@ export default function Statistics() {
         const displayMode = displayModes[question] || 'count';
         const yAxisLabel = displayMode === 'count' ? 'Count' : 'Percentage (%)';
         const dataKey = displayMode === 'count' ? 'value' : 'percentage';
+
+        const CustomTooltip = ({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                return (
+                    <div style={{
+                        backgroundColor: 'white',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        padding: '10px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                        <p style={{ margin: 0, fontWeight: 'bold' }}>{label}</p>
+                        <p style={{ margin: '4px 0 0 0', color: '#666' }}>
+                            Count: {data.value}
+                            {displayMode === 'percentage' && (
+                                <span> ({data.percentage.toFixed(1)}%)</span>
+                            )}
+                        </p>
+                    </div>
+                );
+            }
+            return null;
+        };
 
         if (loading.responses) {
             return (
@@ -889,6 +1363,7 @@ export default function Statistics() {
                                 tickFormatter={formatLabel}
                             />
                             <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+                            <Tooltip content={<CustomTooltip />} />
                             <Bar
                                 dataKey={dataKey}
                                 maxBarSize={60}
@@ -1215,6 +1690,9 @@ export default function Statistics() {
                             </Box>
                         </Grid>
                     </Grid>
+                    <Box sx={{ mt: 4 }}>
+                        {renderHorizontalBarChart()}
+                    </Box>
                 </Paper>
                 
                 <Paper
