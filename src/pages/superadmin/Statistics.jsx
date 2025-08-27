@@ -666,20 +666,15 @@ export default function Statistics() {
             try {
                 const params = new URLSearchParams();
                 
-                // Add the selected party as the value for the selected year parameter
                 if (year && party) {
                     params.append(year, party);
                 }
                 
-                console.log("API call params:", params.toString());
-
                 const response = await axiosInstance.get(`/survey/occupation-counts?${params.toString()}`);
                 const result = response.data;
                 
-                console.log("Occupation-counts response: ", result);
-                
                 const processedData = Object.entries(result)
-                    .filter(([occupation, count]) => occupation && count > 0)
+                    .filter(([occupation, count]) => occupation && count > 0 && occupation !== "Unknown")
                     .map(([occupation, count]) => ({
                         name: formatLabel(occupation),
                         value: Number(count) || 0
