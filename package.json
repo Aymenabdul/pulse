@@ -18,6 +18,7 @@
     "@mui/x-date-pickers": "^8.10.0",
     "axios": "^1.11.0",
     "dayjs": "^1.11.13",
+    "google-translate-api-x": "^10.7.2",
     "js-cookie": "^3.0.5",
     "jwt-decode": "^4.0.0",
     "react": "^19.1.0",

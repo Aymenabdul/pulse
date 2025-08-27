@@ -368,6 +368,8 @@ const statusItems = getStatusItems(userRole);
                 open={Boolean(translateAnchorEl)}
                 onClose={handleTranslateMenuClose}
                 slotProps={{
+                    overflow: "visible !important",   
+                    zIndex: 1500,
                     paper: {
                         sx: {
                             background: "rgba(255, 255, 255, 0.95)",

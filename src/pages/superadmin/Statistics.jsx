@@ -890,10 +890,18 @@ export default function Statistics() {
                                 <Bar
                                     dataKey={dataKey}
                                     barSize={30}
+                                    label={() => <text>{100}</text>}
                                 >
                                     {horizontalData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={categoricalColors[index % categoricalColors.length]} />
                                     ))}
+                                    <LabelList
+                                    dataKey={dataKey}
+                                    position="right"
+                                    style={{ fill: "#555", fontSize: "12px", fontWeight: 600 }}
+                                    formatter={(value) => `${value}`}
+                                    
+                                />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -1105,7 +1113,42 @@ export default function Statistics() {
         "#30918A",
         "#267D77",
         "#1C6964" 
-    ]
+    ];
+
+    const CustomBarShape2 = (props) => {
+    const { fill, x, y, width, height, payload } = props;
+    const value =
+        props.displayMode === "percentage"
+        ? `${Number(payload.percentage ?? 0).toFixed(1)}%`
+        : payload.value;
+
+    return (
+        <g>
+        {/* Bar */}
+        <rect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fill={fill}
+            rx={4}
+            ry={4}
+        />
+
+        {/* Value text */}
+        <text
+            x={x + width / 2}
+            y={y - 6}
+            textAnchor="middle"
+            fill="#555"
+            fontSize={12}
+            fontWeight={600}
+        >
+            {value}
+        </text>
+        </g>
+    );
+    };
 
     const renderSimpleBarChart = (question, title) => {
         const [showTop10, setShowTop10] = useState(false);
@@ -1188,9 +1231,9 @@ export default function Statistics() {
                 >
                     {title}
                 </Typography>
-                <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
                     mb: 2,
                     flexDirection: { xs: 'column', sm: 'row' },
                     alignItems: 'center',
@@ -1220,7 +1263,7 @@ export default function Statistics() {
                                 />
                             }
                             label={showTop10 ? 'Top 5' : 'Top 10'}
-                            sx={{ 
+                            sx={{
                                 fontSize: '0.875rem',
                                 ml: { xs: 0, sm: 1 }
                             }}
@@ -1247,16 +1290,19 @@ export default function Statistics() {
                             <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
                             <Tooltip content={<CustomTooltip />} />
                             <Bar
-                                dataKey={dataKey}
-                                maxBarSize={60}
+                            dataKey={dataKey}
+                            shape={<CustomBarShape displayMode={displayMode} />}
                             >
-                                {data.map((entry, index) => (
-                                    <Cell 
-                                        key={`cell-${index}`} 
-                                        fill={question === "ques7" ? ques7Colors[index % ques7Colors.length]
-                                            : categoricalColors[index % categoricalColors.length]} 
-                                    />
-                                ))}
+                            {data.map((entry, index) => (
+                                <Cell
+                                key={`cell-${index}`}
+                                fill={
+                                    question === "ques7"
+                                    ? ques7Colors[index % ques7Colors.length]
+                                    : categoricalColors[index % categoricalColors.length]
+                                }
+                                />
+                            ))}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>

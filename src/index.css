@@ -2,3 +2,13 @@ body {
   margin: 0;
   padding: 0;
 }
+
+.goog-te-menu-frame {
+  z-index: 2000 !important; 
+  position: absolute !important;
+}
+
+.goog-te-menu2 {
+  max-height: 300px !important; 
+  overflow-y: auto !important;
+}
