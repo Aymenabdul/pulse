@@ -82,7 +82,7 @@ export default function PollDay() {
         }
 
         console.log("User role:", user?.role, "Constituency:", user?.constituency);
-        
+
     }, [user]);
 
     const shouldShowVoters = filters.constituency && filters.boothNumber;
@@ -133,9 +133,9 @@ export default function PollDay() {
             });
 
             const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
-            
+
             const transformedVoters = response.data.map((voter, index) => ({
-                id: voter.id || index + 1, 
+                id: voter.id || index + 1,
                 name: voter.name || 'N/A',
                 voterId: voter.voterId || voter.voterID || 'N/A',
                 serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
@@ -147,7 +147,7 @@ export default function PollDay() {
                 gender: voter.gender || 'N/A',
                 voted: Boolean(voter.voted)
             }));
-            
+
             setAllVoters(transformedVoters);
             setCurrentPage(1);
         } catch (error) {
@@ -168,13 +168,13 @@ export default function PollDay() {
         let filtered = [...allVoters];
 
         if (filters.name.trim()) {
-            filtered = filtered.filter(voter => 
+            filtered = filtered.filter(voter =>
                 voter.name.toLowerCase().includes(filters.name.trim().toLowerCase())
             );
         }
 
         if (filters.gender && filters.gender !== '') {
-            filtered = filtered.filter(voter => 
+            filtered = filtered.filter(voter =>
                 voter.gender.toLowerCase() === filters.gender.toLowerCase()
             );
         }
@@ -196,24 +196,24 @@ export default function PollDay() {
         applyFilters();
     }, [applyFilters]);
 
-   const handleFilterChange = useCallback((field, value) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
+    const handleFilterChange = useCallback((field, value) => {
+        setFilters(prev => ({ ...prev, [field]: value }));
 
-    // When a constituency is selected, fetch its booths.
-    if (field === 'constituency') {
-        fetchBooths(value);
-    }
-}, [fetchBooths]);
+        // When a constituency is selected, fetch its booths.
+        if (field === 'constituency') {
+            fetchBooths(value);
+        }
+    }, [fetchBooths]);
 
-   useEffect(() => {
-    // This hook will run whenever the main filters change.
-    if (filters.constituency && filters.boothNumber) {
-        fetchVoters(filters);
-    } else {
-        // Clear voters if the required filters are not set
-        setAllVoters([]);
-    }
-}, [filters.constituency, filters.boothNumber, fetchVoters]);
+    useEffect(() => {
+        // This hook will run whenever the main filters change.
+        if (filters.constituency && filters.boothNumber) {
+            fetchVoters(filters);
+        } else {
+            // Clear voters if the required filters are not set
+            setAllVoters([]);
+        }
+    }, [filters.constituency, filters.boothNumber, fetchVoters]);
 
     const handlePageChange = (event, page) => {
         setCurrentPage(page);
@@ -259,18 +259,18 @@ export default function PollDay() {
         try {
             const currentVoter = allVoters.find(voter => voter.id === selectedVoterId);
             const isCurrentlyVoted = Boolean(currentVoter?.voted);
-            
+
             const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
             if (response.status === 200) {
-                setAllVoters(prev => 
-                    prev.map(voter => 
-                        voter.id === selectedVoterId 
+                setAllVoters(prev =>
+                    prev.map(voter =>
+                        voter.id === selectedVoterId
                             ? { ...voter, voted: !voter.voted }
                             : voter
                     )
                 );
                 showSnackbar(
-                    isCurrentlyVoted ? 'Voter unmarked as voted!' : 'Voter marked as voted!', 
+                    isCurrentlyVoted ? 'Voter unmarked as voted!' : 'Voter marked as voted!',
                     'success'
                 );
             } else {
@@ -284,20 +284,20 @@ export default function PollDay() {
         }
     };
 
-  let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
+    let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
 
-if (user && user.role && user.constituency) {
-    const role = user.role.toLowerCase();
+    if (user && user.role && user.constituency) {
+        const role = user.role.toLowerCase();
 
-    if (role === 'admin') {
-        // This is the critical part: it splits the string into a real array.
-        // The .trim() removes any accidental spaces around the comma.
-        displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
-    } else if (role === 'surveyor') {
-        // Surveyor logic remains the same.
-        displayedConstituencyOptions = [user.constituency];
+        if (role === 'admin') {
+            // This is the critical part: it splits the string into a real array.
+            // The .trim() removes any accidental spaces around the comma.
+            displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
+        } else if (role === 'surveyor') {
+            // Surveyor logic remains the same.
+            displayedConstituencyOptions = [user.constituency];
+        }
     }
-}
 
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
@@ -305,13 +305,13 @@ if (user && user.role && user.constituency) {
         ));
     };
 
-   return (
+    return (
         <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2, height: "100%", alignItems: "center", justifyContent: "center" }}>
             <Container maxWidth="xl">
                 <Box sx={{ mb: 6 }}>
                     <Grid container spacing={3} sx={{ mb: 3 }}>
 
-                        <Grid size={{xs:12 ,sm:6 , md:4}}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Constituency</InputLabel>
                                 <Select
@@ -348,11 +348,15 @@ if (user && user.role && user.constituency) {
                                     endAdornment={loading.booths && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Booth</MenuItem>
-                                    {boothOptions.map((booth, index) => (
-                                        <MenuItem key={index} value={booth}>
-                                            Booth {booth}
-                                        </MenuItem>
-                                    ))}
+                                    {boothOptions
+                                        .slice() // Create a copy to avoid mutating state
+                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) // Sort alphanumerically
+                                        .map((booth, index) => (
+                                            <MenuItem key={index} value={booth}>
+                                                {booth}
+                                            </MenuItem>
+                                        ))
+                                    }
                                 </Select>
                             </FormControl>
                         </Grid>

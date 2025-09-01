@@ -122,18 +122,18 @@ const categoricalColors = [
 
 const formatLabel = (label) => {
     if (!label || label === null || label === undefined) return '';
-    
+
     const labelStr = String(label);
-    
+
     let formatted = labelStr.replace(/['"[\]]/g, '');
-    
+
     const parts = formatted.split(/[,/&-]/).map(part => {
         return part.trim()
             .split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
     });
-    
+
     return parts.join(' / ');
 };
 
@@ -165,7 +165,7 @@ export default function Statistics() {
         ques2: 'count',
         ques3: 'count'
     });
-    
+
 
     const useAnimatedCounter = (targetValue, duration = 2000) => {
         const [count, setCount] = useState(0);
@@ -252,24 +252,50 @@ export default function Statistics() {
             if (filters.constituency) params.append('constituency', filters.constituency);
             if (filters.boothNumber) params.append('booth', filters.boothNumber);
 
+            // The API endpoint is now correct
             const response = await axiosInstance.get(`/file/filter-counts?${params.toString()}`);
             const data = response.data;
 
             console.log('Fetched statistics:', data);
 
+            // --- NEW LOGIC STARTS HERE ---
+            // This block correctly handles the different response keys from the backend
 
-            const newStats = {
-                totalConstituencies: data.constituencyCount || 0,
-                totalBooths: data.boothCount || 0,
-                totalVoters: data.voterCount || 0
-            };
+            let newStats = { ...initialStatistics }; // Start with default zero counts
+
+            // Case 1: Response is from the 'survey' table (only surveyName was selected)
+            if (data.hasOwnProperty('surveyTotalBooths')) {
+                newStats = {
+                    totalConstituencies: data.surveyTotalConstituencies || 0,
+                    totalBooths: data.surveyTotalBooths || 0,
+                    totalVoters: data.surveyTotalVotes || 0,
+                };
+
+                // Case 2: Response is from 'filedata' with constituency/booth filters
+            } else if (data.hasOwnProperty('filedataBoothCount')) {
+                newStats = {
+                    totalConstituencies: data.filedataConstituencyCount || 0,
+                    totalBooths: data.filedataBoothCount || 0,
+                    totalVoters: data.filedataVoterCount || 0,
+                };
+
+                // Case 3: Response is from 'filedata' with no filters
+            } else if (data.hasOwnProperty('filedataTotalBooths')) {
+                newStats = {
+                    totalConstituencies: data.filedataTotalConstituencies || 0,
+                    totalBooths: data.filedataTotalBooths || 0,
+                    totalVoters: data.filedataTotalVoters || 0,
+                };
+            }
+
+            // --- NEW LOGIC ENDS HERE ---
 
             setStatistics(newStats);
 
         } catch (error) {
             console.error('Error fetching statistics:', error);
             showSnackbar('Error fetching statistics', 'error');
-            setStatistics(initialStatistics);
+            setStatistics(initialStatistics); // Reset on error
         } finally {
             setLoading(prev => ({ ...prev, statistics: false }));
         }
@@ -280,7 +306,6 @@ export default function Statistics() {
         try {
             const params = new URLSearchParams();
 
-            // Logging filter values before making the API call
             console.log('Filters:', filters);
 
             if (filters.surveyName) params.append('surveyName', filters.surveyName);
@@ -602,27 +627,48 @@ export default function Statistics() {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                             data={data}
-                            margin={{ top: 40, right: 20, left: 10, bottom: 60 }}
+                            margin={{ top: 40, right: 20, left: 20, bottom: 80 }}
                             maxBarSize={60}
                         >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
                                 dataKey="party"
-                                tick={{ fontSize: 9 }}
+                                tick={{ fontSize: 11, fontWeight: 'bold', fill: 'black', fontFamily: 'sans-serif' }}
                                 interval={0}
-                                angle={-90}
+                                angle={-45}
                                 textAnchor="end"
-                                height={80}
+                                height={70}
                                 tickFormatter={formatLabel}
                             />
-                            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+                            <YAxis
+                                tick={{ fill: 'black', fontFamily: 'sans-serif' }}
+                                label={{
+                                    value: yAxisLabel,
+                                    angle: -90,
+                                    position: 'insideLeft',
+                                    dx: -10,
+                                    style: { fill: 'black', fontFamily: 'sans-serif' }
+                                }}
+                            />
                             <Tooltip content={PoliticalTooltip} />
                             <Bar
                                 dataKey={dataKey}
                                 shape={CustomBarShape}
                                 maxBarSize={60}
                             >
-                                <LabelList dataKey={dataKey} position="center" angle={-90} style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16 }} />
+                                <LabelList
+                                    dataKey={dataKey}
+                                    position="center"
+                                    offset={-20}
+                                    angle={-90}
+                                    style={{
+                                        fill: 'white',
+                                        fontWeight: 'bolder',
+                                        fontSize: 16,
+                                        fontFamily: 'sans-serif',
+                                        textShadow: '0px 0px 3px rgba(255, 255, 255, 0.7)'
+                                    }}
+                                />
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
@@ -668,14 +714,14 @@ export default function Statistics() {
             setHorizontalLoading(true);
             try {
                 const params = new URLSearchParams();
-                
+
                 if (year && party) {
                     params.append(year, party);
                 }
-                
+
                 const response = await axiosInstance.get(`/survey/occupation-counts?${params.toString()}`);
                 const result = response.data;
-                
+
                 const processedData = Object.entries(result)
                     .filter(([occupation, count]) => occupation && count > 0 && occupation !== "Unknown")
                     .map(([occupation, count]) => ({
@@ -685,13 +731,11 @@ export default function Statistics() {
                     .sort((a, b) => b.value - a.value);
 
                 const total = processedData.reduce((sum, entry) => sum + entry.value, 0);
-                
+
                 const finalData = processedData.map(entry => ({
                     ...entry,
                     percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
                 }));
-
-                console.log("Processed horizontal data:", finalData);
 
                 setHorizontalData(finalData);
             } catch (error) {
@@ -726,10 +770,10 @@ export default function Statistics() {
         const dataKey = displayMode === 'count' ? 'value' : 'percentage';
         const currentYearLabel = yearOptions.find(opt => opt.value === selectedYear)?.label || '';
         const currentPartyLabel = partyOptions.find(opt => opt.value === selectedParty)?.label || '';
-        
-        const chartTitle = selectedYear && selectedParty 
-            ? `${currentPartyLabel} Supporters by Occupation (${currentYearLabel})`
-            : 'Occupation Distribution';
+
+        const chartTitle = selectedYear && selectedParty
+            ? `${currentPartyLabel} SUPPORTERS BY OCCUPATION (${currentYearLabel})`
+            : 'OCCUPATION DISTRIBUTION';
 
         const CustomHorizontalTooltip = ({ active, payload, label }) => {
             if (active && payload && payload.length) {
@@ -772,7 +816,7 @@ export default function Statistics() {
             return (
                 <Box sx={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
                     <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontSize: '1rem' }}>
-                        Occupation Distribution
+                        OCCUPATION DISTRIBUTION
                     </Typography>
                     <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Typography variant="body2" color="text.secondary">
@@ -805,10 +849,10 @@ export default function Statistics() {
                 >
                     {chartTitle}
                 </Typography>
-                
-                <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
+
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
                     mb: 2,
                     flexDirection: { xs: 'column', sm: 'row' },
                     alignItems: 'center',
@@ -848,7 +892,7 @@ export default function Statistics() {
                             ))}
                         </Select>
                     </FormControl>
-                    
+
                     <FormControlLabel
                         control={
                             <Switch
@@ -862,7 +906,7 @@ export default function Statistics() {
                         sx={{ fontSize: '0.875rem' }}
                     />
                 </Box>
-                
+
                 <Box sx={{ flex: 1, minHeight: '350px' }}>
                     {horizontalData.length === 0 ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -878,15 +922,16 @@ export default function Statistics() {
                                 margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
                             >
                                 <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis 
-                                    type="number" 
-                                    label={{ value: yAxisLabel, position: 'insideBottom', offset: -10 }}
+                                <XAxis
+                                    type="number"
+                                    tick={{ fill: 'black', fontFamily: 'sans-serif' }}
+                                    label={{ value: yAxisLabel, position: 'insideBottom', offset: -10, style: { fill: 'black', fontFamily: 'sans-serif' } }}
                                 />
-                                <YAxis 
-                                    type="category" 
+                                <YAxis
+                                    type="category"
                                     dataKey="name"
                                     width={90}
-                                    tick={{ fontSize: 10 }}
+                                    tick={{ fontSize: 14, fontWeight: '700', fill: 'black', fontFamily: 'sans-serif', }}
                                     tickFormatter={formatLabel}
                                 />
                                 <Tooltip content={<CustomHorizontalTooltip />} />
@@ -897,7 +942,7 @@ export default function Statistics() {
                                     {horizontalData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={categoricalColors[index % categoricalColors.length]} />
                                     ))}
-                                    <LabelList dataKey={dataKey} position="center" style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16 }} />
+                                    <LabelList dataKey={dataKey} position="center" style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16, fontFamily: 'sans-serif' }} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -909,7 +954,32 @@ export default function Statistics() {
 
     const renderPieChart = (question, title) => {
         const chartData = preparePieChartData(responseData[question]);
+        const renderCustomPieLabel = (props) => {
+            const { cx, cy, midAngle, outerRadius, fill, percent, name } = props;
+            const RADIAN = Math.PI / 180;
 
+            const sin = Math.sin(-RADIAN * midAngle);
+            const cos = Math.cos(-RADIAN * midAngle);
+            const sx = cx + (outerRadius + 10) * cos;
+            const sy = cy + (outerRadius + 10) * sin;
+            const mx = cx + (outerRadius + 30) * cos;
+            const my = cy + (outerRadius + 30) * sin;
+            const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+            const ey = my;
+            const textAnchor = cos >= 0 ? 'start' : 'end';
+
+            const labelText = `${name} ${(percent * 100).toFixed(0)}%`;
+
+            return (
+                <g>
+                    <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
+                    <circle cx={sx} cy={sy} r={2} fill={fill} stroke="none" />
+                    <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333" style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                        {labelText}
+                    </text>
+                </g>
+            );
+        };
         if (loading.responses) {
             return (
                 <Box sx={{ height: '400px', display: 'flex', flexDirection: 'column' }}>
@@ -978,12 +1048,12 @@ export default function Statistics() {
                                 data={chartData}
                                 cx="50%"
                                 cy="45%"
-                                outerRadius={70}
+                                outerRadius={60}
                                 innerRadius={0}
                                 fill="#8884d8"
                                 dataKey="value"
                                 nameKey="name"
-                                label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                                label={renderCustomPieLabel}
                                 labelStyle={{ fontSize: '11px', fontWeight: 'bold' }}
                             >
                                 {chartData.map((entry, index) => (
@@ -1002,7 +1072,7 @@ export default function Statistics() {
                                     color: '#000000'
                                 }}
                                 formatter={(value) => {
-                                return <span style={{ color: "black" }}>{value}</span>;
+                                    return <span style={{ color: "black" }}>{value}</span>;
                                 }}
                             />
                         </PieChart>
@@ -1029,7 +1099,7 @@ export default function Statistics() {
                     name: formatLabel(status),
                     value: parseInt(questionData[status]) || 0
                 }))
-                .filter(entry => entry.value > 0); 
+                .filter(entry => entry.value > 0);
 
             if (filteredEntries.length === 0) return [];
 
@@ -1074,7 +1144,7 @@ export default function Statistics() {
 
         let leftIndex = centerIndex - 1;
         let rightIndex = centerIndex + 1;
-        
+
         for (let i = 1; i < sortedData.length; i++) {
             if (i % 2 === 1) {
                 if (rightIndex < arranged.length) {
@@ -1099,16 +1169,16 @@ export default function Statistics() {
     };
 
     const ques7Colors = [
-        "#A7E8E2", 
+        "#A7E8E2",
         "#8FE2DA",
         "#77DBD2",
         "#5FD5CA",
-        "#4ECDC4", 
+        "#4ECDC4",
         "#44B9B0",
         "#3AA59D",
         "#30918A",
         "#267D77",
-        "#1C6964" 
+        "#1C6964"
     ]
 
     const renderSimpleBarChart = (question, title) => {
@@ -1192,9 +1262,9 @@ export default function Statistics() {
                 >
                     {title}
                 </Typography>
-                <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
                     mb: 2,
                     flexDirection: { xs: 'column', sm: 'row' },
                     alignItems: 'center',
@@ -1224,7 +1294,7 @@ export default function Statistics() {
                                 />
                             }
                             label={showTop10 ? 'Top 5' : 'Top 10'}
-                            sx={{ 
+                            sx={{
                                 fontSize: '0.875rem',
                                 ml: { xs: 0, sm: 1 }
                             }}
@@ -1241,27 +1311,40 @@ export default function Statistics() {
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
                                 dataKey="name"
-                                tick={{ fontSize: 9 }}
+                                tick={{ fontSize: 12, fill: 'black', fontFamily: 'sans-serif' }}
                                 interval={0}
-                                angle={-90}
+                                angle={-40}
                                 textAnchor="end"
                                 height={80}
                                 tickFormatter={formatLabel}
                             />
-                            <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+                            <YAxis
+                                tick={{ fill: 'black', fontFamily: 'sans-serif' }}
+                                label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', style: { fill: 'black', fontFamily: 'sans-serif' } }}
+                            />
                             <Tooltip content={<CustomTooltip />} />
                             <Bar
                                 dataKey={dataKey}
                                 maxBarSize={60}
                             >
                                 {data.map((entry, index) => (
-                                    <Cell 
-                                        key={`cell-${index}`} 
+                                    <Cell
+                                        key={`cell-${index}`}
                                         fill={question === "ques7" ? ques7Colors[index % ques7Colors.length]
-                                            : categoricalColors[index % categoricalColors.length]} 
+                                            : categoricalColors[index % categoricalColors.length]}
                                     />
                                 ))}
-                                <LabelList dataKey={dataKey} position="center" angle={-90} style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16 }} />
+                                <LabelList
+                                    dataKey={dataKey}
+                                    position="center"
+                                    angle={-90}
+                                    style={{
+                                        fill: 'white',
+                                        fontWeight: 'bolder',
+                                        fontSize: 16,
+                                        fontFamily: 'sans-serif'
+                                    }}
+                                />
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
@@ -1400,8 +1483,8 @@ export default function Statistics() {
                             >
                                 <MenuItem value="">All Booths</MenuItem>
                                 {boothOptions
-                                    .slice() // 1. Creates a copy of the array
-                                    .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) // 2. Sorts the copy
+                                    .slice()
+                                    .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
                                     .map((booth, index) => (
                                         <MenuItem key={index} value={booth}>
                                             {booth}
@@ -1436,7 +1519,7 @@ export default function Statistics() {
                 )}
 
                 <Grid container spacing={3} sx={{ mb: 4 }}>
-                    <Grid size={{ xs: 12, sm: 4 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <CounterBox
                             title="Total Constituencies"
                             count={animatedConstituenciesCount}
@@ -1444,7 +1527,7 @@ export default function Statistics() {
                             color="#e74c3c"
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 4 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <CounterBox
                             title="Total Booths"
                             count={animatedBoothsCount}
@@ -1452,7 +1535,7 @@ export default function Statistics() {
                             color="#3498db"
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 4 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <CounterBox
                             title="Total Voters"
                             count={animatedVotersCount}
@@ -1486,7 +1569,7 @@ export default function Statistics() {
                         Political Party Preferences
                     </Typography>
 
-                    <Grid container spacing={3} style={{textTransform: 'uppercase',fontWeight: '700'}}>
+                    <Grid container spacing={3} style={{ textTransform: 'uppercase', fontWeight: '700' }}>
                         {["ques1", "ques2", "ques3"].map((questionKey) => (
                             <Grid size={{ xs: 12, md: 4 }} key={questionKey}>
                                 {renderBarChart(questionKey, getQuestionTitle(questionKey))}
@@ -1519,7 +1602,7 @@ export default function Statistics() {
                         Survey Demographics & Issues
                     </Typography>
 
-                    <Grid container spacing={3} style={{textTransform: 'uppercase', fontWeight: '700'}}>
+                    <Grid container spacing={3} style={{ textTransform: 'uppercase', fontWeight: '700' }}>
                         <Grid size={{ xs: 12, md: 4 }}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <Typography
@@ -1585,7 +1668,7 @@ export default function Statistics() {
                         {renderHorizontalBarChart()}
                     </Box>
                 </Paper>
-                
+
                 <Paper
                     elevation={3}
                     sx={{
@@ -1610,7 +1693,7 @@ export default function Statistics() {
                         Performance Ratings
                     </Typography>
 
-                    <Grid container spacing={3} style={{textTransform: 'uppercase',fontWeight: '700'}}>
+                    <Grid container spacing={3} style={{ textTransform: 'uppercase', fontWeight: '500', fontFamily: 'sans-serif' }}>
                         {["ques4", "ques5", "ques6"].map((questionKey) => (
                             <Grid size={{ xs: 12, md: 4 }} key={questionKey}>
                                 {renderPieChart(questionKey, getQuestionTitle(questionKey))}

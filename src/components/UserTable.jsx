@@ -30,15 +30,15 @@ import ClearIcon from "@mui/icons-material/Clear";
 import axiosInstance from "../axios/axios";
 
 const headCells = [
-  {id: "id", label: "S.no", sortable: true},
+  {id: "id", label: "S.No", sortable: true},
   { id: "name", label: "User", sortable: true },
+  { id: "actions", label: "Actions", sortable: false },
+  { id: "constituency", label: "Constituency", sortable: true },
   { id: "email", label: "Email", sortable: true },
   { id: "phone", label: "Phone", sortable: false },
   { id: "createdAt", label: "CreatedAt", sortable: true },
-  { id: "constituency", label: "Constituency", sortable: true },
-  { id: "role", label: "Role", sortable: false, filterable: true },
+  // { id: "role", label: "Role", sortable: false, filterable: true },
   { id: "status", label: "Status", sortable: false, filterable: true },
-  { id: "actions", label: "Actions", sortable: false }
 ];
 
 export default function UserTable({ users }) {
@@ -229,12 +229,12 @@ export default function UserTable({ users }) {
   };
 
   return (
-    <Box sx={{ width: { xs: "100%", md: "95%" } }} p={2}>
+    <Box sx={{ width: '100%', overflowX: 'auto' }} p={2}>
 
       <Typography 
         variant="h5" 
         gutterBottom 
-        sx={{ fontWeight: 'bold', textAlign: 'center', mb: 3,textTransform: 'uppercase' }}
+        sx={{ fontWeight: 'bold', textAlign: 'left', mb: 3,textTransform: 'uppercase' }}
       >
         Surveyor Details
       </Typography>
@@ -371,15 +371,7 @@ export default function UserTable({ users }) {
                 }}
               >
                 <TableCell sx={{ py: 2 }} align="center">{index + 1}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user?.name}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user?.email}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user?.phoneNumber || "No phone number given"}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user?.createdAt || "N/A"}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user?.constituency}</TableCell>
-                <TableCell sx={{ py: 2 }}>{user?.role}</TableCell>
-                <TableCell sx={{ py: 2, textTransform: "capitalize" }}>
-                  {getStatusText(user.accept)}
-                </TableCell>
+                <TableCell sx={{ py: 2 }} align="center">{user?.name}</TableCell>
                 <TableCell sx={{ py: 2 }} align="center">
                   {user.accept === "Declined" && (
                     <Button
@@ -405,6 +397,14 @@ export default function UserTable({ users }) {
                       Deactivate
                     </Button>
                   )}
+                </TableCell>
+                <TableCell sx={{ py: 2 }} align="center">{user?.constituency}</TableCell>
+                <TableCell sx={{ py: 2 }} align="center">{user?.email}</TableCell>
+                <TableCell sx={{ py: 2 }}align="center">{user?.phoneNumber || "No phone number given"}</TableCell>
+                <TableCell sx={{ py: 2 }}align="center">{user?.createdAt || "N/A"}</TableCell>
+                {/* <TableCell sx={{ py: 2 }}>{user?.role}</TableCell> */}
+                <TableCell sx={{ py: 2, textTransform: "capitalize" }}>
+                  {getStatusText(user.accept)}
                 </TableCell>
               </TableRow>
             ))}

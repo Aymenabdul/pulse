@@ -27,12 +27,12 @@ import EditPopup from "../pages/superadmin/EditPopup";
 
 const headCells = [
     { id: "S.No", label: "S.No", sortable: false, align: 'center' },
-    { id: "Constituency", label: "Constituency", sortable: true, align: 'center' },
-    { id: "CreatedAt", label: "CreatedAt", sortable: true, align: 'center' },
-    { id: "Booth", label: "Booth", sortable: true, align: 'center' },
-    { id: "Total Data", label: "Total Data", sortable: true, align: 'center' },
-    { id: "status", label: "Status", sortable: false, align: 'center' },
     { id: "activity", label: "Activity", sortable: false, align: 'center' },
+    { id: "Constituency", label: "Constituency", sortable: true, align: 'center' },
+    { id: "status", label: "Status", sortable: false, align: 'center' },
+    { id: " Booth", label: "Booth", sortable: true, align: 'center' },
+    { id: "Total", label: "Total Data", sortable: true, align: 'center' },
+    { id: "CreatedAt", label: "CreatedAt", sortable: true, align: 'center' },
 ];
 
 export default function SuperConstTable({ data, loading }) {
@@ -233,7 +233,7 @@ export default function SuperConstTable({ data, loading }) {
 
     return (
         <Box sx={{ width: { xs: "100%", md: "98%" }, p: 2 }}>
-            <Typography variant="h6" sx={{ flex: '1 1 100%',textTransform: 'uppercase',fontWeight:'700' }}>Surveys</Typography>
+            <Typography variant="h6" sx={{ flex: '1 1 100%',textTransform: 'uppercase',fontWeight:'700' }}>voter list</Typography>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, width: '70%' }}>
                 <Box sx={{ width: '70%' }}>
                     <TextField
@@ -321,16 +321,16 @@ export default function SuperConstTable({ data, loading }) {
                                             <Checkbox checked={isItemSelected} onClick={(event) => handleCheckboxClick(event, rowId)} />
                                         </TableCell>
                                         <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
-                                        <TableCell align="center">{row?.assemblyConstituency}</TableCell>
-                                        <TableCell align="center">{row?.formattedCreateAt}</TableCell>
-                                        <TableCell align="center">{row?.booth}</TableCell>
-                                        <TableCell align="center">{row?.dataCount}</TableCell>
-                                        <TableCell align="center" sx={{ textTransform: "capitalize" }}>{row?.active ? "Active" : "Inactive"}</TableCell>
                                         <TableCell align="center">
                                             <Button variant="contained" size="small" color={row.active ? "error" : "success"} onClick={(e) => { e.stopPropagation(); handleToggleActiveStatus(row); }}>
                                                 {row.active ? "Deactivate" : "Activate"}
                                             </Button>
                                         </TableCell>
+                                        <TableCell align="center">{row?.assemblyConstituency}</TableCell>
+                                        <TableCell align="center" sx={{ textTransform: "capitalize" }}>{row?.active ? "Active" : "Inactive"}</TableCell>
+                                        <TableCell align="center">{row?.booth}</TableCell>
+                                        <TableCell align="center">{row?.dataCount}</TableCell>
+                                        <TableCell align="center">{row?.formattedCreateAt}</TableCell>
                                     </TableRow>
                                 );
                             })

@@ -12,13 +12,13 @@ import {
 } from "@mui/material";
 import MenuIcon from '@mui/icons-material/Menu';
 import TranslateIcon from '@mui/icons-material/Translate';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'; 
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import GoogleTranslateWidget from "./GoogleTranslateWidget";
 
-export default function Navbar({ userRole }) { 
+export default function Navbar({ userRole }) {
     const [anchorEl, setAnchorEl] = useState(null);
     const [translateAnchorEl, setTranslateAnchorEl] = useState(null);
     const [statusAnchorEl, setStatusAnchorEl] = useState(null);
@@ -55,7 +55,7 @@ export default function Navbar({ userRole }) {
         { label: "Home", href: "/admin/dashboard" },
         { label: "Data", href: "/admin/files" },
         { label: "Users", href: "/admin/users" },
-        { label: "Statistics", href: "/admin/statistics" }, // This was commented out in your original
+        { label: "Analytics", href: "/admin/statistics" }, // This was commented out in your original
     ];
 
     const surveyorNavItems = [
@@ -63,51 +63,51 @@ export default function Navbar({ userRole }) {
     ];
 
     // Corrected conditional logic for navItems to use lowercase "admin"
-    const navItems = 
-        userRole === "SuperAdmin" 
-        ? superAdminNavItems 
-        : userRole === "Admin" // Changed from "Admin" to "admin"
-            ? adminNavItems 
-            : surveyorNavItems;
+    const navItems =
+        userRole === "SuperAdmin"
+            ? superAdminNavItems
+            : userRole === "Admin" // Changed from "Admin" to "admin"
+                ? adminNavItems
+                : surveyorNavItems;
 
     const getStatusItems = (userRole) => {
-    // Items available to all roles
-    const items = [
-        {
-            label: "Poll Day",
-            href: (userRole === "Admin" || userRole === "SuperAdmin")
-                ? "/admin/status/poll-day"
-                : "/surveyor/status/poll-day"
-        },
-        {
-            label: "Verification Status",
-            href: (userRole === "Admin" || userRole === "SuperAdmin")
-                ? "/admin/status/verification-status"
-                : "/surveyor/status/verification-status"
+        // Items available to all roles
+        const items = [
+            {
+                label: "Poll Day",
+                href: (userRole === "Admin" || userRole === "SuperAdmin")
+                    ? "/admin/status/poll-day"
+                    : "/surveyor/status/poll-day"
+            },
+            {
+                label: "Verification Status",
+                href: (userRole === "Admin" || userRole === "SuperAdmin")
+                    ? "/admin/status/verification-status"
+                    : "/surveyor/status/verification-status"
+            }
+        ];
+
+        // Conditionally add items for specific roles
+        if (userRole === "SuperAdmin") {
+            items.push({
+                label: "Survey",
+                href: "/superadmin/status/survey"
+            });
         }
-    ];
 
-    // Conditionally add items for specific roles
-    if (userRole === "SuperAdmin") {
-        items.push({
-            label: "Survey",
-            href: "/superadmin/status/survey"
-        });
-    }
+        return items;
+    };
 
-    return items;
-};
-
-// Example usage:
-const statusItems = getStatusItems(userRole);
+    // Example usage:
+    const statusItems = getStatusItems(userRole);
 
     const handleNavClick = (href) => { navigate(href); handleMenuClose(); };
     const handleStatusClick = (href) => { navigate(href); handleStatusMenuClose(); };
     const handleLogout = () => { logout(); handleMenuClose(); navigate("/login"); };
 
     return (
-        <AppBar 
-            position="static" 
+        <AppBar
+            position="static"
             elevation={0}
             sx={{
                 background: "rgba(255, 255, 255, 0.15)",
@@ -127,20 +127,21 @@ const statusItems = getStatusItems(userRole);
             }}
         >
             <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
-                <Typography
-                    variant="h4"
-                    component="div"
+                <Box
+                    component="video"
+                    // The path should be absolute from your `public` folder
+                    src="/video/pulzvideo.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
                     sx={{
-                        flexGrow: 0,
-                        fontWeight: 800,
-                        color: "#333",
-                        letterSpacing: "0.1em",
-                        textShadow: "0 2px 4px rgba(255, 255, 255, 0.3)",
-                        mr: 4
+                        height: '2.5em',      // Scales with the parent text's font size
+                        width: 'auto',      // Maintains the video's aspect ratio
+                        verticalAlign: 'middle', // Aligns well with surrounding text
+                        borderRadius: '5px'  // Optional: for soft corners
                     }}
-                >
-                    Pulz
-                </Typography>
+                />
 
                 {!isMobile && (
                     <Box sx={{ flexGrow: 1, display: "flex", gap: 1 }}>
@@ -168,7 +169,7 @@ const statusItems = getStatusItems(userRole);
                                 {item.label}
                             </Button>
                         ))}
-                        
+
                         {/* Field Status Dropdown for Desktop */}
                         <Button
                             onClick={handleStatusMenuOpen}
@@ -315,7 +316,7 @@ const statusItems = getStatusItems(userRole);
                         {item.label}
                     </MenuItem>
                 ))}
-                
+
                 {/* Field Status submenu for mobile */}
                 {statusItems.map((item) => (
                     <MenuItem
@@ -326,7 +327,7 @@ const statusItems = getStatusItems(userRole);
                         {item.label}
                     </MenuItem>
                 ))}
-                
+
                 <MenuItem
                     sx={{ color: "#555", fontWeight: 500, py: 1, fontSize: "0.875rem", opacity: 0.8 }}
                 >
@@ -368,7 +369,7 @@ const statusItems = getStatusItems(userRole);
                 open={Boolean(translateAnchorEl)}
                 onClose={handleTranslateMenuClose}
                 slotProps={{
-                    overflow: "visible !important",   
+                    overflow: "visible !important",
                     zIndex: 1500,
                     paper: {
                         sx: {

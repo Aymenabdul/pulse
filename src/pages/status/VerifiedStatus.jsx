@@ -69,7 +69,7 @@ export default function VerifiedStatus() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentPageVoters = filteredVoters.slice(startIndex, endIndex);
-      const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
+    const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbarMessage(message);
@@ -89,7 +89,7 @@ export default function VerifiedStatus() {
             setLoading(prev => ({ ...prev, surveys: false }));
         }
     }, []);
-useEffect(() => {
+    useEffect(() => {
         // Check if the user object is available
         if (user) {
             // If the role is admin or surveyor, and they have a constituency assigned
@@ -99,7 +99,7 @@ useEffect(() => {
         }
 
         console.log("User role:", user?.role, "Constituency:", user?.constituency);
-        
+
     }, [user]);
     const fetchConstituencies = useCallback(async (surveyName) => {
         if (!surveyName) return;
@@ -149,10 +149,10 @@ useEffect(() => {
             });
 
             const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
-            
+
             const transformedVoters = response.data.map((voter, index) => {
                 return {
-                    id: voter.id || index + 1, 
+                    id: voter.id || index + 1,
                     name: voter.name || 'N/A',
                     voterId: voter.voterId || voter.voterID || 'N/A',
                     serialNumber: voter.serialNumber || voter.serialNo || 'N/A',
@@ -167,7 +167,7 @@ useEffect(() => {
                     verified: Boolean(voter.verified)
                 };
             });
-            
+
             setAllVoters(transformedVoters);
             setCurrentPage(1);
         } catch (error) {
@@ -188,13 +188,13 @@ useEffect(() => {
         let filtered = [...allVoters];
 
         if (filters.name.trim()) {
-            filtered = filtered.filter(voter => 
+            filtered = filtered.filter(voter =>
                 voter.name.toLowerCase().includes(filters.name.trim().toLowerCase())
             );
         }
 
         if (filters.gender && filters.gender !== '') {
-            filtered = filtered.filter(voter => 
+            filtered = filtered.filter(voter =>
                 voter.gender.toLowerCase() === filters.gender.toLowerCase()
             );
         }
@@ -217,39 +217,39 @@ useEffect(() => {
     }, [applyFilters]);
 
     const handleFilterChange = useCallback((field, value) => {
-    setFilters(prev => {
-        const newFilters = { ...prev, [field]: value };
+        setFilters(prev => {
+            const newFilters = { ...prev, [field]: value };
 
-        if (field === 'survey') {
-            newFilters.constituency = '';
-            newFilters.boothNumber = '';
-            setConstituencyOptions([]);
-            setBoothOptions([]);
-            if (value) {
-                fetchConstituencies(value);
+            if (field === 'survey') {
+                newFilters.constituency = '';
+                newFilters.boothNumber = '';
+                setConstituencyOptions([]);
+                setBoothOptions([]);
+                if (value) {
+                    fetchConstituencies(value);
+                }
+            } else if (field === 'constituency') {
+                newFilters.boothNumber = '';
+                setBoothOptions([]);
+                if (value && newFilters.survey) {
+                    fetchBooths(newFilters.survey, value);
+                }
             }
-        } else if (field === 'constituency') {
-            newFilters.boothNumber = '';
-            setBoothOptions([]);
-            if (value && newFilters.survey) {
-                fetchBooths(newFilters.survey, value);
-            }
-        }
 
-        localStorage.setItem('filters', JSON.stringify(newFilters));
-        setCurrentPage(1);
-        // updateURLParams(newFilters, 1); // This line is removed
-        return newFilters;
-    });
-}, [fetchConstituencies, fetchBooths]); // Dependencies are corrected
+            localStorage.setItem('filters', JSON.stringify(newFilters));
+            setCurrentPage(1);
+            // updateURLParams(newFilters, 1); // This line is removed
+            return newFilters;
+        });
+    }, [fetchConstituencies, fetchBooths]); // Dependencies are corrected
 
     useEffect(() => {
-    if (filters.survey && filters.constituency && filters.boothNumber) {
-        fetchVoters(filters);
-    } else {
-        setAllVoters([]); // Clear voters if filters are incomplete
-    }
-}, [filters.survey, filters.constituency, filters.boothNumber, fetchVoters]);
+        if (filters.survey && filters.constituency && filters.boothNumber) {
+            fetchVoters(filters);
+        } else {
+            setAllVoters([]); // Clear voters if filters are incomplete
+        }
+    }, [filters.survey, filters.constituency, filters.boothNumber, fetchVoters]);
 
     const handlePageChange = (event, page) => {
         setCurrentPage(page);
@@ -296,19 +296,19 @@ useEffect(() => {
         try {
             const currentVoter = allVoters.find(voter => voter.id === selectedVoterId);
             const isCurrentlyVerified = Boolean(currentVoter?.verified);
-            
+
             const response = await axiosInstance.put(`/file/markAsVerified/${selectedVoterId}`);
-            
+
             if (response.status === 200) {
-                setAllVoters(prev => 
-                    prev.map(voter => 
-                        voter.id === selectedVoterId 
+                setAllVoters(prev =>
+                    prev.map(voter =>
+                        voter.id === selectedVoterId
                             ? { ...voter, verified: !Boolean(voter.verified) }
                             : voter
                     )
                 );
                 showSnackbar(
-                    isCurrentlyVerified ? 'Voter unmarked as verified!' : 'Voter marked as verified!', 
+                    isCurrentlyVerified ? 'Voter unmarked as verified!' : 'Voter marked as verified!',
                     'success'
                 );
             } else {
@@ -324,18 +324,18 @@ useEffect(() => {
 
     let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
 
-if (user && user.role && user.constituency) {
-    const role = user.role.toLowerCase();
+    if (user && user.role && user.constituency) {
+        const role = user.role.toLowerCase();
 
-    if (role === 'admin') {
-        // This is the critical part: it splits the string into a real array.
-        // The .trim() removes any accidental spaces around the comma.
-        displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
-    } else if (role === 'surveyor') {
-        // Surveyor logic remains the same.
-        displayedConstituencyOptions = [user.constituency];
+        if (role === 'admin') {
+            // This is the critical part: it splits the string into a real array.
+            // The .trim() removes any accidental spaces around the comma.
+            displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
+        } else if (role === 'surveyor') {
+            // Surveyor logic remains the same.
+            displayedConstituencyOptions = [user.constituency];
+        }
     }
-}
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
             <VoterCardSkeleton key={`skeleton-${index}`} />
@@ -367,7 +367,7 @@ if (user && user.role && user.constituency) {
                             </FormControl>
                         </Grid>
 
-                        <Grid size={{xs:12 ,sm:6 , md:4}}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Constituency</InputLabel>
                                 <Select
@@ -406,11 +406,15 @@ if (user && user.role && user.constituency) {
                                     endAdornment={loading.booths && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Booth</MenuItem>
-                                    {boothOptions.map((booth, index) => (
-                                        <MenuItem key={index} value={booth}>
-                                            Booth {booth}
-                                        </MenuItem>
-                                    ))}
+                                    {boothOptions
+                                        .slice() // Create a copy to avoid mutating state
+                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) // Sort alphanumerically
+                                        .map((booth, index) => (
+                                            <MenuItem key={index} value={booth}>
+                                                {booth}
+                                            </MenuItem>
+                                        ))
+                                    }
                                 </Select>
                             </FormControl>
                         </Grid>

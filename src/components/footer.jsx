@@ -48,7 +48,7 @@ function Footer() {
             src={dataEmperorLogo}
           />
 
-          <Link color="inherit" href="#" sx={{ fontWeight: 'bold' }}>
+          <Link color="inherit" href="https://dataemperor.in/" sx={{ fontWeight: 'bold' }}>
             DataEmperor
           </Link>
         </Typography>

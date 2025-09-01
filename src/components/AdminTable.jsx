@@ -33,15 +33,15 @@ import axiosInstance from "../axios/axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 const headCells = [
-  { id: "S.no", label: "S.no", sortable: true },
+  { id: "S.no", label: "S.No", sortable: true },
   { id: "name", label: "User", sortable: true },
+  { id: "actions", label: "Actions", sortable: false },
+    { id: "constituency", label: "Constituency", sortable: true },
   { id: "email", label: "Email", sortable: true },
   { id: "phone", label: "Phone", sortable: false },
   { id: "CreatedAt", label: "CreatedAt", sortable: true },
-  { id: "constituency", label: "Constituency", sortable: true },
-  { id: "role", label: "Role", sortable: false, filterable: true },
+  // { id: "role", label: "Role", sortable: false, filterable: true },
   { id: "status", label: "Status", sortable: false, filterable: true },
-  { id: "actions", label: "Actions", sortable: false }
 ];
 
 export default function AdminTable({ users }) {
@@ -343,7 +343,7 @@ export default function AdminTable({ users }) {
 
   return (
      <Box sx={{ width: '100%', overflowX: 'auto' }} p={2}>
-      <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3,textAlign:'center',textTransform:'uppercase' }}>
+      <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3,textAlign:'left',textTransform:'uppercase' }}>
         Admin Details
       </Typography>
       
@@ -456,9 +456,23 @@ export default function AdminTable({ users }) {
               >
                 <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
                 <TableCell align="left">{user?.name}</TableCell>
-                <TableCell align="left">{user?.email}</TableCell>
-                <TableCell align="left">{user?.phoneNumber || "N/A"}</TableCell>
-                <TableCell align="left">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</TableCell>
+                <TableCell align="center">
+                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                    {loading[user.id] ? <CircularProgress size={24} /> : (
+                      <>
+                        {user.accept === "Accepted" ? (
+                          <Button variant="outlined" color="error" size="small" onClick={() => handleDeactivateUser(user.email, user.id)}>
+                            Deactivate
+                          </Button>
+                        ) : (
+                          <Button variant="contained" color="success" size="small" onClick={() => handleActivateUser(user.email, user.id)}>
+                            Activate
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </Box>
+                </TableCell>
                 <TableCell align="left" sx={{ minWidth: 250 }}> {/* Give constituency column enough space */}
                   {isEditing[user.id] ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -467,7 +481,7 @@ export default function AdminTable({ users }) {
                         <Select
                           multiple
                           value={newConstituency[user.id] || []}
-                          onChange={(e) => handleConstituencyChange(e, user.id)}
+                          onChange={(e) => handleChange(e, user.id)} 
                           label="Constituency"
                           renderValue={(selected) => (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -496,30 +510,16 @@ export default function AdminTable({ users }) {
                     />
                   )}
                 </TableCell>
-                <TableCell align="center">{user?.role}</TableCell>
+                <TableCell align="left">{user?.email}</TableCell>
+                <TableCell align="left">{user?.phoneNumber || "N/A"}</TableCell>
+                <TableCell align="left">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</TableCell>
+                {/* <TableCell align="center">{user?.role}</TableCell> */}
                 <TableCell align="center">
                   <Chip
                     label={getStatusText(user.accept)}
                     color={user.accept === "Accepted" ? "success" : "error"}
                     size="small"
                   />
-                </TableCell>
-                <TableCell align="center">
-                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                    {loading[user.id] ? <CircularProgress size={24} /> : (
-                      <>
-                        {user.accept === "Accepted" ? (
-                          <Button variant="outlined" color="error" size="small" onClick={() => handleDeactivateUser(user.email, user.id)}>
-                            Deactivate
-                          </Button>
-                        ) : (
-                          <Button variant="contained" color="success" size="small" onClick={() => handleActivateUser(user.email, user.id)}>
-                            Activate
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </Box>
                 </TableCell>
               </TableRow>
             ))}

@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useMemo, memo } from "react";
+import { useCallback, useState, useEffect, useMemo, memo, Fragment } from "react";
 import {
   Box,
   Grid,
@@ -18,12 +18,11 @@ import {
   InputLabel,
   MenuItem,
 } from "@mui/material";
-// FIXED: Imports should come from 'react-router-dom'
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams  } from "react-router";
 import axiosInstance from "../../axios/axios";
 import { useAuth } from "../../hooks/useAuth";
 
-// --- Constants (No changes) ---
+// --- Constants ---
 const casteOptions = [
     "Adi Andhra", "Adi Dravida", "Adi Karnataka", "Adiyan", "Agamudayar",
     "Agaram Vellan Chettiar", "Ajila", "Alwar, Azhavar and Alavar", "Ambalakarar",
@@ -100,9 +99,14 @@ const casteOptions = [
     "Vettuva Gounder", "Vettuvan", "Virakodi Vellala", "Vokkaligar",
     "Wayalpad or Nawalpeta Korachas", "Wynad Chetty", "Yadhava", "Yavana", "Yerukula", "Yogeeswarar","Others (Specify)",
 ];
+
+const partyOptions = [
+    "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
+    "CPI", "CPM", "PMK", "DMDK", "MNM", "Muslim Parties (Specify)"
+];
+
 const specifyQuestions = { ques1: true, ques2: true, ques3: true, ques7: true, religion: true, gender: true, caste: true, occupation: true };
 
-// --- Reusable Helper Function ---
 const processSpecifyFields = (payload) => {
   const processedPayload = { ...payload };
   for (const field in specifyQuestions) {
@@ -123,7 +127,6 @@ const processSpecifyFields = (payload) => {
   return processedPayload;
 };
 
-// --- Memoized Components (No functional changes needed) ---
 const MemoizedTextField = memo(({ label, field, value, onChange, type = "text" }) => {
   const handleInputChange = (e) => {
     let inputValue = e.target.value;
@@ -133,13 +136,11 @@ const MemoizedTextField = memo(({ label, field, value, onChange, type = "text" }
       inputValue = inputValue.replace(/[^0-9]/g, '').slice(0, 10);
     }
     else if (fieldName === 'name') {
-      // Allows only alphabets and spaces
       inputValue = inputValue.replace(/[^A-Za-z ]/g, '');
     }
     else if (fieldName.endsWith('_specify')) {
       inputValue = inputValue.replace(/[^A-Za-z ]/g, '');
     }
-
     onChange(field, inputValue);
   };
 
@@ -186,8 +187,7 @@ const MemoizedRadioGroup = memo(({ label, field, options, value, onChange }) => 
         <RadioGroup value={value} onChange={(e) => onChange(field, e.target.value)}>
           <Grid container spacing={1}>
             {options.map((option) => (
-              // --- CHANGED FOR 3-COLUMN LAYOUT ---
-              <Grid  size={{xs:6, sm:6, md:3}} key={option}>
+              <Grid size={{xs:6,sm:6, md:3}} key={option}>
                 <FormControlLabel value={option} control={<Radio />} label={option} />
               </Grid>
             ))}
@@ -198,7 +198,6 @@ const MemoizedRadioGroup = memo(({ label, field, options, value, onChange }) => 
 ));
 MemoizedRadioGroup.displayName = 'MemoizedRadioGroup';
 
-// --- CHECKBOX GROUP: CHANGED FOR 4-COLUMN LAYOUT ---
 const MemoizedMultiSelectRadio = memo(({ label, field, options, value, onChange }) => {
   const handleToggle = (option) => {
     const newSelected = value.includes(option) ? value.filter(item => item !== option) : [...value, option];
@@ -210,7 +209,7 @@ const MemoizedMultiSelectRadio = memo(({ label, field, options, value, onChange 
       <FormControl component="fieldset" fullWidth>
         <Grid container spacing={1}>
           {options.map((option) => (
-            <Grid size={{xs:6, sm:3}} key={option}>
+            <Grid size={{xs:6,sm:6, md:3}} key={option}>
               <FormControlLabel control={<Checkbox checked={value.includes(option)} onChange={() => handleToggle(option)} />} label={option} />
             </Grid>
           ))}
@@ -236,7 +235,11 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
     if (isInput) {
       return <MemoizedTextField label={label} field={field} value={value} onChange={onChange} type={field.toLowerCase().includes('number') ? 'tel' : 'text'} />;
     }
-    if (field === "ques7") { // Multi-select checkbox
+    // --- MODIFIED: Specific check for 'caste' to render as a dropdown ---
+    if (field === "caste") { 
+      return <MemoizedSelect label={label} field={field} options={options} value={value} onChange={onChange} isSpecifyQuestion={isSpecifyQuestion} specifyValue={specifyValue} />
+    }
+    if (field === "ques7") { 
       return (
         <div>
           <MemoizedMultiSelectRadio label={label} field={field} options={options} value={value} onChange={onChange} />
@@ -244,10 +247,7 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
         </div>
       );
     }
-    if (field === "caste") { // Dropdown select
-        return <MemoizedSelect label={label} field={field} options={options} value={value} onChange={onChange} isSpecifyQuestion={isSpecifyQuestion} specifyValue={specifyValue} />
-    }
-    // Default to Radio Group
+    // --- MODIFIED: Default to Radio Group for all other non-input fields ---
     return (
       <div>
         <MemoizedRadioGroup label={label} field={field} options={options} value={value} onChange={onChange} />
@@ -257,7 +257,6 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
   };
 
   return (
-    // FIXED: Use `item` and `xs` props for Grid items
     <Grid size={{xs:12}}>
       <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
         <CardContent>{renderField()}</CardContent>
@@ -267,16 +266,13 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
 });
 FormField.displayName = 'FormField';
 
-// --- Main Component ---
 export default function SurveyWithoutVoterId() {
   const from = location.pathname.split('/')[1];
   console.log('SurveyWithoutVoterId rendered with from:', from);
-  
   const [existingSurvey, setExistingSurvey] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeSurveys, setActiveSurveys] = useState([]);
   const [selectedSurveyName, setSelectedSurveyName] = useState("");
-  // FIXED: Initialize options state with empty arrays
   const [districtOptions, setDistrictOptions] = useState([]);
   const [constituencyOptions, setConstituencyOptions] = useState([]);
 
@@ -284,10 +280,11 @@ export default function SurveyWithoutVoterId() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
-  // FIXED: Added district and constituency to the main form state
   const [form, setForm] = useState({
     name: "", age: "", gender: "", gender_specify: "", houseNumber: "", phoneNumber: "", whatsappNumber: "", religion: "", religion_specify: "", caste: "", caste_specify: "",
     district: "", constituency: "",
+    // --- ADDED: voterType and party fields to state ---
+    voterType: "", partyName: "", supportingParty: "",
     ques1: "", ques1_specify: "", ques2: "", ques2_specify: "", ques3: "", ques3_specify: "",
     ques4: "", ques5: "", ques6: "",
     ques7: [], ques7_specify: "",occupation:"",occupation_specify:"",
@@ -298,6 +295,8 @@ export default function SurveyWithoutVoterId() {
 
   const formFields = useMemo(() => [
     { label: "Full Name", field: "name", isInput: true },
+    // --- ADDED: Voter Type field definition ---
+    { label: "Voter Type", field: "voterType", options: ["Public", "Party Member"] },
     { label: "Occupation / Employment Status", field: "occupation", options: ["Student", "Homemaker", "Unemployed", "Self-employed","Farmer","Daily wage laborer","Private sector employee","Government employee","Professional","Retired", "Others (Specify)"] },
     { label: "Religion", field: "religion", options: ["Hindu", "Muslim", "Christian", "Others (Specify)"] },
     { label: "Caste", field: "caste", options: casteOptions },
@@ -305,23 +304,21 @@ export default function SurveyWithoutVoterId() {
     { label: "Gender", field: "gender", options: ["Male", "Female", "Others (Specify)"] },
     { label: "Phone Number", field: "phoneNumber", isInput: true },
     { label: "WhatsApp Number", field: "whatsappNumber", isInput: true },
-    { label: "Who did you vote for in 2016?", field: "ques1", options: ["AIADMK", "DMK", "BJP", "INC", "NTK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"] },
-    { label: "Who did you vote for in 2021?", field: "ques2", options: ["AIADMK", "DMK", "BJP", "INC", "NTK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK", "MNM", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"] },
-    { label: "Who will you vote for in 2026?", field: "ques3", options: ["AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", "CPI", "CPM", "PMK", "DMDK", "MNM", "Muslim Parties (Specify)", "Others (Specify)", "Independent (Specify)", "NOTA"] },
+    { label: "Who did you vote for in 2016?", field: "ques1", options: partyOptions.filter(p => !['TVK', 'MNM'].includes(p)) },
+    { label: "Who did you vote for in 2021?", field: "ques2", options: partyOptions.filter(p => p !== 'TVK') },
+    { label: "Who will you vote for in 2026?", field: "ques3", options: partyOptions },
     { label: "Performance of CM Edappadi K. Palaniswami (2017–2021)?", field: "ques4", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Performance of CM Stalin (2021–2026)?", field: "ques5", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Performance of your current MLA?", field: "ques6", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Important issues in this constituency?", field: "ques7", options: ["Traffic", "Poor Roads", "Flood", "Drainage", "Waterlogging", " No Flyover", "NEET", "Mosquitos", "Garbage", "Water supply", "Crop harvest disruption", "Pollution", "Public health crisis", "Women safety", "Unemployment", "Bus Services", "Train services", "Land grabbing", "No Electricity", "Inflation", "Caste conflict", "Others (Specify)"] },
   ], []);
-
-  // Fetch districts on component mount
+  
   useEffect(() => {
     axiosInstance.get('/getdist')
       .then((response) => setDistrictOptions(response.data))
       .catch((error) => console.error('Error fetching districts!', error));
   }, []);
-
-  // Fetch constituencies when the district in the form changes
+  
   useEffect(() => {
     if (form.district) {
       axiosInstance.get(`/distconst?districtName=${encodeURIComponent(form.district)}`)
@@ -335,7 +332,6 @@ export default function SurveyWithoutVoterId() {
     }
   }, [form.district]);
 
-  // Fetch existing survey data for editing
   const fetchExistingSurvey = useCallback(async (id) => {
     if (!id) return;
     try {
@@ -344,8 +340,15 @@ export default function SurveyWithoutVoterId() {
         setExistingSurvey(response.data);
         setIsEditing(true);
         const fetchedData = response.data;
-        const newFormState = { ...form, ...fetchedData, ques7: fetchedData.ques7 || [] };
-        // Logic to parse combined "specify" answers back into separate fields
+        
+        // --- MODIFIED: Fix for voterType loading ---
+        const newFormState = { 
+            ...form, 
+            ...fetchedData,
+            voterType: fetchedData.voter_type || fetchedData.voterType || '',
+            ques7: fetchedData.ques7 || [] 
+        };
+
         Object.keys(specifyQuestions).forEach(field => {
           const value = fetchedData[field];
           if (Array.isArray(value)) {
@@ -379,8 +382,7 @@ export default function SurveyWithoutVoterId() {
       console.error("Error loading existing survey data.", error);
     }
   }, [ formFields]);
-
-  // Fetch active surveys on component mount
+  
   useEffect(() => {
     axiosInstance.get('/survey/active')
       .then((response) => setActiveSurveys(response.data))
@@ -393,42 +395,53 @@ export default function SurveyWithoutVoterId() {
     }
   }, [idFromParams, fetchExistingSurvey]);
   
-  // Universal change handler for all form inputs
   const handleChange = useCallback((field, value) => {
     setForm((prev) => {
       const newState = { ...prev, [field]: value };
-      const isSpecifyField = specifyQuestions[field];
 
-      if (field === 'district') {
-        newState.constituency = ''; // Reset constituency when district changes
-      }
+      if (field === 'district') newState.constituency = '';
 
-      if (isSpecifyField) {
+      if (specifyQuestions[field]) {
         const isSpecifySelected = Array.isArray(value)
           ? value.some(item => item.includes('(Specify)'))
           : typeof value === 'string' && value.includes('(Specify)');
-        if (!isSpecifySelected) {
-          newState[`${field}_specify`] = ''; // Clear specify text if not selected
-        }
+        if (!isSpecifySelected) newState[`${field}_specify`] = '';
       }
+      
+      // --- ADDED: Clear party fields if voterType is not 'Party Member' ---
+      if (field === 'voterType' && value !== 'Party Member') {
+        newState.partyName = '';
+        newState.supportingParty = '';
+      }
+
       return newState;
     });
   }, []);
   
-  // Form submission handler
   const handleSubmit = useCallback(async () => {
     if (!selectedSurveyName) {
       setAlert({ open: true, type: "error", message: "Please select a survey first." });
       return;
     }
     try {
+        const basePayload = { 
+            ...form, 
+            surveyName: selectedSurveyName, 
+            userId: user?.id, 
+            role: user?.role,
+            // --- ADDED: Map voterType to voter_type for backend ---
+            voter_type: form.voterType
+        };
+        // We delete the frontend-specific 'voterType' key before sending
+        delete basePayload.voterType;
+
       if (isEditing && existingSurvey?.id) {
-        const updatePayload = processSpecifyFields({ ...form, id: existingSurvey.id, updated_by: user?.name });
+        const updatePayload = processSpecifyFields({ ...basePayload, id: existingSurvey.id, updated_by: user?.name });
         const updateUrl = `/survey/update-by-id?surveyName=${selectedSurveyName}&id=${existingSurvey.id}`;
         await axiosInstance.put(updateUrl, updatePayload);
         setAlert({ open: true, type: "success", message: "Survey updated successfully!" });
       } else {
-        const submitPayload = processSpecifyFields({ ...form, surveyName: selectedSurveyName, userId: user?.id, created_by: user?.name, role: user?.role, verified: true, voted: false });
+        const submitPayload = processSpecifyFields({ ...basePayload, created_by: user?.name, verified: true, voted: false });
         await axiosInstance.post('/survey/submit', submitPayload);
         setAlert({ open: true, type: "success", message: "Survey submitted successfully!" });
       }
@@ -439,18 +452,19 @@ export default function SurveyWithoutVoterId() {
     }
   }, [form, user, selectedSurveyName, isEditing, existingSurvey, navigate]);
 
-  // Form clear handler
   const handleClear = useCallback(() => {
     setForm({
       name: "", age: "", gender: "", gender_specify: "", houseNumber: "", phoneNumber: "", whatsappNumber: "", religion: "", religion_specify: "", caste: "", caste_specify: "",
       district: "", constituency: "",
+      // --- ADDED: Clear party fields ---
+      voterType: "", partyName: "", supportingParty: "",
       ques1: "", ques1_specify: "", ques2: "", ques2_specify: "", ques3: "", ques3_specify: "",
       ques4: "", ques5: "", ques6: "",
       ques7: [], ques7_specify: "",occupation:"",occupation_specify:"",
     });
   }, []);
 
-  const handleBack = useCallback(() => navigate(-1), [navigate]);
+  // const handleBack = useCallback(() => navigate(-1), [navigate]);
 
   const handleStartSurvey = (type) => {
     console.log('Starting survey of type:', from);
@@ -464,13 +478,12 @@ export default function SurveyWithoutVoterId() {
 
   return (
     <Box p={2} maxWidth="md" mx="auto">
-      <Button onClick={handleBack} sx={{ mb: 2 }} variant="outlined">Back</Button>
+      {/* <Button onClick={handleBack} sx={{ mb: 2 }} variant="outlined">Back</Button> */}
       <Button onClick={() => handleStartSurvey('without-voter-id')} sx={{ mb: 2,marginLeft:'1%'}}  variant="outlined">Edit Survey</Button>
       <Typography variant="h4" align="center" style={{textTransform: 'uppercase',fontWeight:'700'}} gutterBottom>General Survey</Typography>
 
-      {/* --- Survey, District, and Constituency Selection --- */}
       <Grid container spacing={2} mb={2}>
-        <Grid  size={{xs:12,sm:12}}>
+        <Grid size={{xs:12}}>
             <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
                 <CardContent>
                     <FormControl fullWidth>
@@ -483,7 +496,7 @@ export default function SurveyWithoutVoterId() {
                 </CardContent>
             </Card>
         </Grid>
-        <Grid size={{xs:12,sm:12}}>
+        <Grid size={{xs:12}}>
             <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
                 <CardContent>
                     <FormControl fullWidth>
@@ -496,7 +509,7 @@ export default function SurveyWithoutVoterId() {
                 </CardContent>
             </Card>
         </Grid>
-        <Grid size={{xs:12,sm:12}}>
+        <Grid size={{xs:12}}>
             <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
                 <CardContent>
                     <FormControl fullWidth>
@@ -515,16 +528,49 @@ export default function SurveyWithoutVoterId() {
 
       <Grid container spacing={2}>
         {formFields.map(({ label, field, options, isInput }) => (
-          <FormField
-            key={field}
-            label={label}
-            field={field}
-            options={options}
-            isInput={isInput}
-            value={form[field]}
-            onChange={handleChange}
-            specifyValue={form[`${field}_specify`]}
-          />
+          <Fragment key={field}>
+            <FormField
+              key={field}
+              label={label}
+              field={field}
+              options={options}
+              isInput={isInput}
+              value={form[field]}
+              onChange={handleChange}
+              specifyValue={form[`${field}_specify`]}
+            />
+            {/* --- MODIFIED: Conditional rendering logic for party dropdowns --- */}
+            {field === 'voterType' && form.voterType === 'Party Member' && (
+              <>
+                <Grid size={{xs:12}}>
+                  <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
+                    <CardContent>
+                       <MemoizedSelect
+                          label="Party Name"
+                          field="partyName"
+                          options={partyOptions}
+                          value={form.partyName}
+                          onChange={handleChange}
+                        />
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid size={{xs:12}}>
+                   <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
+                    <CardContent>
+                       <MemoizedSelect
+                          label="Supporting Party"
+                          field="supportingParty"
+                          options={partyOptions}
+                          value={form.supportingParty}
+                          onChange={handleChange}
+                        />
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </>
+            )}
+          </Fragment>
         ))}
       </Grid>
 

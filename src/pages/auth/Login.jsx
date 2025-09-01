@@ -235,10 +235,42 @@ export default function Login() {
                         sx={{
                             fontWeight: 700,
                             mb: 2,
-                            fontSize: { xs: "2rem", md: "3rem" }
+                            fontSize: { xs: "2rem", md: "3rem" },
+                            // Use flexbox to vertically align the text and the video
+                            display: 'flex',
+                            justifyContent:'center',
+                            alignItems: 'center',
+                            flexWrap: 'wrap', // Allows wrapping on smaller screens
                         }}
                     >
-                        {isResetMode ? "Reset Password" : "Welcome Back To Pulz"}
+                        {isResetMode ? "Reset Password" : (
+                            <>
+                                {/* The static part of the text */}
+                                {"Welcome Back To"}
+
+                                {/* The video element that replaces the word "Pulz" */}
+                                <Box
+                                    component="video"
+                                    // IMPORTANT: Replace with the path to your video file
+                                    src="video/pulzvideo.mp4"
+                                    autoPlay
+                                    loop
+                                    muted
+                                    playsInline
+                                    sx={{
+                                        // This makes the video's height match the text's line height
+                                        height: '2em',
+                                        // Automatically adjust width to maintain aspect ratio
+                                        width: '100%',
+                                        // Adds a space after the text
+                                        ml: '0.4em',
+                                        // Optional: softens the corners of the video
+                                        borderRadius: '40%',
+                                        marginRight:'10%'
+                                    }}
+                                />
+                            </>
+                        )}
                     </Typography>
                     <Typography
                         variant="body1"
