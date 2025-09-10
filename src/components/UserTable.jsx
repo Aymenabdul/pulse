@@ -21,6 +21,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Chip,
   TablePagination,
   Menu
 } from "@mui/material";
@@ -37,7 +38,6 @@ const headCells = [
   { id: "email", label: "Email", sortable: true },
   { id: "phone", label: "Phone", sortable: false },
   { id: "createdAt", label: "CreatedAt", sortable: true },
-  // { id: "role", label: "Role", sortable: false, filterable: true },
   { id: "status", label: "Status", sortable: false, filterable: true },
 ];
 
@@ -325,13 +325,13 @@ export default function UserTable({ users }) {
                     fontSize: "1rem", 
                     fontWeight: 600
                   }} 
-                  align="center"
+                  align="left"
                 >
                   <Box
                     sx={{
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      alignItems: "left",
+                      // justifyContent: "center",
                     }}
                   >
                     {headCell.sortable ? (
@@ -370,9 +370,9 @@ export default function UserTable({ users }) {
                   py: 2 
                 }}
               >
-                <TableCell sx={{ py: 2 }} align="center">{index + 1}</TableCell>
-                <TableCell sx={{ py: 2 }} align="center">{user?.name}</TableCell>
-                <TableCell sx={{ py: 2 }} align="center">
+                <TableCell sx={{ py: 2 }} align="left">{index + 1}</TableCell>
+                <TableCell sx={{ py: 2 }} align="left">{user?.name}</TableCell>
+                <TableCell sx={{ py: 2 }} align="left">
                   {user.accept === "Declined" && (
                     <Button
                       variant="contained"
@@ -398,13 +398,17 @@ export default function UserTable({ users }) {
                     </Button>
                   )}
                 </TableCell>
-                <TableCell sx={{ py: 2 }} align="center">{user?.constituency}</TableCell>
-                <TableCell sx={{ py: 2 }} align="center">{user?.email}</TableCell>
-                <TableCell sx={{ py: 2 }}align="center">{user?.phoneNumber || "No phone number given"}</TableCell>
-                <TableCell sx={{ py: 2 }}align="center">{user?.createdAt || "N/A"}</TableCell>
+                <TableCell sx={{ py: 2 }} align="left">{user?.constituency}</TableCell>
+                <TableCell sx={{ py: 2 }} align="left">{user?.email}</TableCell>
+                <TableCell sx={{ py: 2 }}align="left">{user?.phoneNumber || "No phone number given"}</TableCell>
+                <TableCell sx={{ py: 2 }}align="left">{user?.createdAt || "N/A"}</TableCell>
                 {/* <TableCell sx={{ py: 2 }}>{user?.role}</TableCell> */}
-                <TableCell sx={{ py: 2, textTransform: "capitalize" }}>
-                  {getStatusText(user.accept)}
+                <TableCell align="left">
+                  <Chip
+                    label={getStatusText(user.accept)}
+                    color={user.accept === "Accepted" ? "success" : "error"}
+                    size="small"
+                  />
                 </TableCell>
               </TableRow>
             ))}

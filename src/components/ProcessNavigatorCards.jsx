@@ -9,6 +9,7 @@ import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import ManageAccounts from '@mui/icons-material/BarChart';
 import axiosInstance from "../axios/axios";
 import PostAdd from '@mui/icons-material/PostAdd';
 
@@ -47,6 +48,15 @@ export default function ProcessNavigatorCards() {
     }
   };
 
+  const handleNavigations = () => {
+
+    if (role === 'Admin') {
+      navigate('/admin/statistics');  // Navigate to the admin users page
+    } else if (role === 'SuperAdmin') {
+      navigate('/superadmin/statistics');  // Navigate to the superadmin table
+    }
+  };
+
   const handlefileNavigation = () => {
 
     if (role === 'Admin') {
@@ -63,7 +73,7 @@ export default function ProcessNavigatorCards() {
   return (
     <Box sx={{ width: { xs: '100%', md: '75%', lg: '60%' }, mt: 1, mx: 'auto', mb: 3 }}>
       <Grid container spacing={2.5} alignItems="stretch">
-        <Grid size={{ xs: 12, sm: 6 }}>
+        <Grid size={{ xs: 12, sm: 6 }} onClick={handlefileNavigation}>
           <Paper
             sx={{
               borderRadius: 2.5,
@@ -74,7 +84,7 @@ export default function ProcessNavigatorCards() {
               border: '1px solid rgba(255, 255, 255, 0.3)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
               transition: 'all 0.3s ease',
-              minHeight: 260,
+              minHeight: 160,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -106,7 +116,7 @@ export default function ProcessNavigatorCards() {
               ECI Voters Details
             </Typography>
 
-            <Typography
+            {/* <Typography
               variant="body1"
               sx={{
                 color: 'rgba(0, 0, 0, 0.7)',
@@ -118,9 +128,9 @@ export default function ProcessNavigatorCards() {
               }}
             >
               Upload voters data in excel format
-            </Typography>
+            </Typography> */}
 
-            <Button
+            {/* <Button
               variant="contained"
               onClick={handlefileNavigation}
               sx={{
@@ -143,10 +153,10 @@ export default function ProcessNavigatorCards() {
               }}
             >
               VIEW & UPLOAD
-            </Button>
+            </Button> */}
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
+        <Grid size={{ xs: 12, sm: 6 }} onClick={handleNavigation}>
           <Paper
             sx={{
               borderRadius: 2.5,
@@ -157,7 +167,7 @@ export default function ProcessNavigatorCards() {
               border: '1px solid rgba(255, 255, 255, 0.3)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
               transition: 'all 0.3s ease',
-              minHeight: 260,
+              minHeight: 160,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -189,7 +199,7 @@ export default function ProcessNavigatorCards() {
               Manage Users / Admins
             </Typography>
 
-            <Typography
+            {/* <Typography
               variant="body1"
               sx={{
                 color: 'rgba(0, 0, 0, 0.7)',
@@ -225,17 +235,17 @@ export default function ProcessNavigatorCards() {
               }}
             >
               MANAGE USERS / ADMINS
-            </Button>
+            </Button> */}
           </Paper>
         </Grid>
         {role === 'SuperAdmin' && (
-          <Grid  size={{ xs: 12, sm: 12 }}>
+          <Grid  size={{ xs: 12, sm:6 }} onClick={handleCreateSurvey}>
             <Paper
               sx={{
                 borderRadius: 2.5, p: 3, textAlign: 'center',
                 background: 'rgba(255, 255, 255, 0.25)', backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.3s ease', minHeight: 260, display: 'flex',
+                transition: 'all 0.3s ease', minHeight: 160, display: 'flex',
                 flexDirection: 'column', justifyContent: 'center',
                 '&:hover': {
                   transform: 'translateY(-4px)', boxShadow: '0 12px 48px rgba(0, 0, 0, 0.15)',
@@ -262,7 +272,7 @@ export default function ProcessNavigatorCards() {
               <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>
                 Surveys
               </Typography>
-              <Typography variant="body1" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 2.5, fontSize: '0.9rem', lineHeight: 1.5, maxWidth: 250, mx: 'auto' }}>
+              {/* <Typography variant="body1" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 2.5, fontSize: '0.9rem', lineHeight: 1.5, maxWidth: 250, mx: 'auto' }}>
                 Create, Activate and Deactivate Surveys
               </Typography>
                <Button
@@ -287,9 +297,93 @@ export default function ProcessNavigatorCards() {
               }}
             >
               MANAGE SURVEYS
-              </Button>
+              </Button> */}
             </Paper>
           </Grid>
+        )}
+        {(role === 'SuperAdmin' || role === 'Admin') &&  (
+        <Grid size={{ xs: 12, sm: 6 }} onClick={handleNavigations}>
+          <Paper
+            sx={{
+              borderRadius: 2.5,
+              p: 3,
+              textAlign: 'center',
+              background: 'rgba(255, 255, 255, 0.25)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease',
+              minHeight: 160,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 48px rgba(0, 0, 0, 0.15)',
+                background: 'rgba(255, 255, 255, 0.3)',
+              }
+            }}
+          >
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                background: 'rgba(76, 175, 80, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2,
+                border: '2px solid rgba(76, 175, 80, 0.2)'
+              }}
+            >
+              <ManageAccounts sx={{ fontSize: 28, color: '#4CAF50' }} />
+            </Box>
+
+            <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>
+              Analytics
+            </Typography>
+
+            {/* <Typography
+              variant="body1"
+              sx={{
+                color: 'rgba(0, 0, 0, 0.7)',
+                mb: 2.5,
+                fontSize: '0.9rem',
+                lineHeight: 1.5,
+                maxWidth: 250,
+                mx: 'auto'
+              }}
+            >
+              Activate or Deactivate users and admins
+            </Typography>
+
+            <Button
+              variant="contained"
+              onClick={handleNavigation}
+              sx={{
+                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                color: 'white',
+                fontWeight: 600,
+                textTransform: 'none',
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                fontSize: '0.9rem',
+                boxShadow: '0 4px 16px rgba(76, 175, 80, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #45a049, #3d8b40)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 6px 24px rgba(76, 175, 80, 0.4)'
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              MANAGE USERS / ADMINS
+            </Button> */}
+          </Paper>
+        </Grid>
         )}
       </Grid>
     </Box>

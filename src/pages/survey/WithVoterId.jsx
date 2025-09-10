@@ -108,6 +108,7 @@ export default function WithVoterId() {
 
     useEffect(() => {
         if (user) {
+            let displayedConstituencyOptions = constituencyOptions;
             if (user && (user.role.toLowerCase() === 'admin' || user.role.toLowerCase() === 'surveyor') && user.constituency) {
                 displayedConstituencyOptions = [user.constituency];
             }
@@ -115,7 +116,7 @@ export default function WithVoterId() {
 
         console.log("User role:", user?.role, "Constituency:", user?.constituency);
 
-    }, [user]);
+    }, [user, constituencyOptions]);
 
     const handlePageChange = (event, page) => {
         setIsUpdatingPage(true);
@@ -205,9 +206,9 @@ export default function WithVoterId() {
                 booth: boothNumber
             });
 
-            
+
             const response = await axiosInstance.get(`/file/filter2?${params.toString()}`);
-            
+
             const transformedVoters = response.data.map((voter, index) => {
                 const isVerified = isVoterVerified(voter.id);
 
@@ -229,7 +230,6 @@ export default function WithVoterId() {
                 };
             });
 
-            // Filter the voters based on name and house number
             const filtered = transformedVoters.filter(voter => {
                 const matchesName = name && name.trim()
                     ? voter.name.toLowerCase().includes(name.trim().toLowerCase())
@@ -242,9 +242,7 @@ export default function WithVoterId() {
                 return matchesName && matchesHouse;
             });
 
-            // Update voters and pagination state
-            setAllVoters(transformedVoters); // Store the transformed data
-            setVoters(filtered); // Store the filtered data
+            setVoters(filtered);
 
             const urlPage = parseInt(searchParams.get('page')) || 1;
             const maxPage = Math.ceil(filtered.length / itemsPerPage);
@@ -266,7 +264,7 @@ export default function WithVoterId() {
         } finally {
             setLoading(prev => ({ ...prev, search: false }));
         }
-    }, [isVoterVerified, updateURLParams, itemsPerPage]); // Ensure proper dependencies
+    }, [isVoterVerified, searchParams, updateURLParams, itemsPerPage]);
 
 
     useEffect(() => {
@@ -312,8 +310,7 @@ export default function WithVoterId() {
                 await fetchVoters(filters);
             } else {
                 setVoters([]);
-                setAllVoters([]);
-                setCurrentPage(1);
+                // REMOVED: `setCurrentPage(1);`
                 if (!filters.survey && !filters.constituency && !filters.boothNumber) {
                     setHasAttemptedSearch(false);
                 }
@@ -322,6 +319,7 @@ export default function WithVoterId() {
 
         return () => clearTimeout(delayDebounceFn);
     }, [filters, isInitialized, surveyData, fetchVoters]);
+
 
     const handleFilterChange = useCallback((field, value) => {
         setFilters(prev => {
@@ -355,17 +353,12 @@ export default function WithVoterId() {
             const role = user.role.toLowerCase();
 
             if (role === 'admin') {
-                // Split the admin's constituencies and get the first one
                 const adminConstituencies = user.constituency.split(',').map(c => c.trim());
                 const firstConstituency = adminConstituencies[0];
-
-                // If the current filter is not one of the admin's constituencies,
-                // set it to the first one as a default.
                 if (firstConstituency && !adminConstituencies.includes(filters.constituency)) {
                     handleFilterChange('constituency', firstConstituency);
                 }
             } else if (role === 'surveyor') {
-                // Surveyor logic remains the same
                 if (filters.constituency !== user.constituency) {
                     handleFilterChange('constituency', user.constituency);
                 }
@@ -387,7 +380,6 @@ export default function WithVoterId() {
         setFilters(clearedFilters);
         setConstituencyOptions([]);
         setBoothOptions([]);
-        setAllVoters([]);
         setVoters([]);
         setShowAdditionalFilters(false);
         setHasAttemptedSearch(false);
@@ -395,12 +387,6 @@ export default function WithVoterId() {
         setSearchParams(new URLSearchParams());
         localStorage.removeItem('filters');
     };
-
-    // const handleMenuOpen = (event, voterId) => {
-    //     event.stopPropagation();
-    //     setAnchorEl(event.currentTarget);
-    //     setSelectedVoterId(voterId);
-    // };
 
     const handleMenuClose = () => {
         setAnchorEl(null);
@@ -413,54 +399,6 @@ export default function WithVoterId() {
         }
         setSnackbarOpen(false);
     };
-
-    // const handleDelete = async () => {
-    //     try {
-    //         await axiosInstance.delete(`/file/delete/${selectedVoterId}`);
-    //         setVoters(prev => prev.filter(voter => voter.id !== selectedVoterId));
-    //         showSnackbar('Entry deleted successfully!', 'success');
-    //     } catch (error) {
-    //         console.error('Error deleting voter:', error);
-    //         showSnackbar('Error deleting voter.', 'error');
-    //     } finally {
-    //         handleMenuClose();
-    //     }
-    // };
-
-    // const handleVotedToggle = async () => {
-    //     try {
-    //         const currentVoter = voters.find(voter => voter.id === selectedVoterId);
-    //         const isCurrentlyVoted = currentVoter?.voted;
-
-    //         const response = await axiosInstance.put(`/file/markAsVoted/${selectedVoterId}`);
-    //         if (response.status === 200) {
-    //             showSnackbar(
-    //                 isCurrentlyVoted ? 'Voter unmarked as voted!' : 'Voter marked as voted!', 
-    //                 'success'
-    //             );
-    //             await fetchVoters(filters);
-    //         } else {
-    //             showSnackbar('Failed to update voted status.', 'error');
-    //         }
-    //     } catch (error) {
-    //         console.error('Error toggling voted status:', error);
-    //         showSnackbar('Error updating voted status.', 'error');
-    //     } finally {
-    //         handleMenuClose();
-    //     }
-    // };
-
-    // const handleVerifiedToggle = () => {
-    //     setVoters(prev =>
-    //         prev.map(voter =>
-    //             voter.id === selectedVoterId
-    //                 ? { ...voter, verified: !voter.verified }
-    //                 : voter
-    //         )
-    //     );
-    //     showSnackbar(selectedVoter?.verified ? 'Voter unmarked as verified.' : 'Voter marked as verified!', 'success');
-    //     handleMenuClose();
-    // };
 
     const handleBack = () => {
         const currentPath = location.pathname;
@@ -478,6 +416,7 @@ export default function WithVoterId() {
         }
     };
 
+    // THIS IS THE FUNCTION YOU PROVIDED
     const handleNavigateToSurvey = (id, surveyName) => {
         const currentPath = location.pathname;
         const currentParams = searchParams.toString();
@@ -495,7 +434,6 @@ export default function WithVoterId() {
     };
 
     const shouldShowVoters = filters.survey && filters.constituency && filters.boothNumber;
-    const shouldShowLoadingOrResults = shouldShowVoters || hasAttemptedSearch;
 
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
@@ -503,17 +441,14 @@ export default function WithVoterId() {
         ));
     };
 
-    let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
+    let displayedConstituencyOptions = constituencyOptions;
 
     if (user && user.role && user.constituency) {
         const role = user.role.toLowerCase();
 
         if (role === 'admin') {
-            // This is the critical part: it splits the string into a real array.
-            // The .trim() removes any accidental spaces around the comma.
             displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
         } else if (role === 'surveyor') {
-            // Surveyor logic remains the same.
             displayedConstituencyOptions = [user.constituency];
         }
     }
@@ -523,7 +458,7 @@ export default function WithVoterId() {
             <Container maxWidth="xl">
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
                     <Button
-                        variant="contained"
+                        variant="outlined"
                         color="primary"
                         startIcon={<ArrowBack />}
                         onClick={handleBack}
@@ -545,12 +480,24 @@ export default function WithVoterId() {
                                     disabled={loading.surveys}
                                     endAdornment={loading.surveys && <CircularProgress size={20} />}
                                 >
-                                    <MenuItem value="">Select Survey</MenuItem>
-                                    {surveyOptions.map((survey) => (
-                                        <MenuItem key={survey.id || survey} value={survey.surveyName || survey}>
-                                            {survey.surveyName || survey}
-                                        </MenuItem>
-                                    ))}
+                                    <MenuItem value=""><em>Select Survey</em></MenuItem>
+                                    {/* --- THIS LOGIC IS NOW FIXED --- */}
+                                    {surveyOptions.map((survey, index) => {
+                                        // Check if 'survey' is an object or just a string
+                                        const surveyName = typeof survey === 'object' && survey !== null ? survey.surveyName : survey;
+
+                                        // Create a reliable key for each item
+                                        const key = typeof survey === 'object' && survey !== null ? survey.id || surveyName : `${surveyName}-${index}`;
+
+                                        // Prevent rendering empty items
+                                        if (!surveyName) return null;
+
+                                        return (
+                                            <MenuItem key={key} value={surveyName}>
+                                                {surveyName}
+                                            </MenuItem>
+                                        );
+                                    })}
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -562,18 +509,10 @@ export default function WithVoterId() {
                                     value={filters.constituency}
                                     label="Constituency"
                                     onChange={(e) => handleFilterChange('constituency', e.target.value)}
-                                    // The dropdown is disabled if:
-                                    // 1. No survey is selected, OR
-                                    // 2. The constituencies are loading, OR
-                                    // 3. The logged-in user is an admin or a surveyor.
-                                    disabled={
-                                        !filters.survey || loading.constituencies
-                                    }
+                                    disabled={!filters.survey || loading.constituencies}
                                     endAdornment={loading.constituencies && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Constituency</MenuItem>
-
-                                    {/* Map over the conditionally filtered options */}
                                     {displayedConstituencyOptions.map((constituency, index) => (
                                         <MenuItem key={index} value={constituency}>
                                             {constituency}
@@ -595,8 +534,8 @@ export default function WithVoterId() {
                                 >
                                     <MenuItem value="">Select Booth</MenuItem>
                                     {boothOptions
-                                        .slice() // 1. Create a shallow copy to avoid mutating the original array
-                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) // 2. Sort numerically
+                                        .slice()
+                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
                                         .map((booth, index) => (
                                             <MenuItem key={index} value={booth}>
                                                 {booth}
@@ -695,7 +634,6 @@ export default function WithVoterId() {
 
                 <Grid container spacing={4}>
                     {!isInitialized ? (
-                        // Show loading skeleton during initial load
                         renderSkeletonCards()
                     ) : loading.search ? (
                         renderSkeletonCards()
@@ -704,9 +642,9 @@ export default function WithVoterId() {
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
                                 <Card
                                     onClick={() => {
-                                        console.log("Voter ID:", voter?.id);  // Log the voter ID
-                                        console.log("Survey Name:", voter?.survey);  // Log the survey name
-                                        handleNavigateToSurvey(voter?.id, voter?.survey);  // Call the function with voter ID and survey name
+                                        console.log("Voter ID:", voter?.id);
+                                        console.log("Survey Name:", voter?.survey);
+                                        handleNavigateToSurvey(voter?.id, voter?.survey);
                                     }}
                                     sx={{
                                         background: 'rgba(255, 255, 255, 0.25)',
@@ -755,7 +693,7 @@ export default function WithVoterId() {
                                                             mt: 1
                                                         }}
                                                     >
-                                                        <Verified sx={{ fontSize: 14, color: 'verified' }} />
+                                                        <Verified sx={{ fontSize: 14, color: 'white' }} />
                                                     </Box>
                                                 )}
                                             </Box>
@@ -777,7 +715,6 @@ export default function WithVoterId() {
                                             <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}>
                                                 <strong>Relative:</strong> {voter.relative}
                                             </Typography>
-                                            <Typography variant="body2" sx={{ color: 'rgba(0, 0, 0, 0.7)', mb: 0.5 }}></Typography>
                                         </Box>
                                     </CardContent>
                                 </Card>
@@ -831,28 +768,6 @@ export default function WithVoterId() {
                         </Stack>
                     </Box>
                 )}
-
-                {/* <Menu
-                    anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
-                    onClose={handleMenuClose}
-                    slotProps={{
-                        paper: {
-                            sx: {
-                                background: 'rgba(255, 255, 255, 0.95)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid rgba(255, 255, 255, 0.3)',
-                                borderRadius: 2,
-                                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                                minWidth: 150
-                            }
-                        }
-                    }}
-                >
-                    <MenuItemComponent onClick={handleVotedToggle}>
-                        {selectedVoter?.voted ? 'Unmark Voted' : 'Mark Voted'}
-                    </MenuItemComponent>
-                </Menu> */}
 
                 <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={handleSnackbarClose}>
                     <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>

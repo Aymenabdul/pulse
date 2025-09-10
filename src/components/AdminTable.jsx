@@ -36,11 +36,10 @@ const headCells = [
   { id: "S.no", label: "S.No", sortable: true },
   { id: "name", label: "User", sortable: true },
   { id: "actions", label: "Actions", sortable: false },
-    { id: "constituency", label: "Constituency", sortable: true },
+  { id: "constituency", label: "Constituency", sortable: true },
   { id: "email", label: "Email", sortable: true },
   { id: "phone", label: "Phone", sortable: false },
   { id: "CreatedAt", label: "CreatedAt", sortable: true },
-  // { id: "role", label: "Role", sortable: false, filterable: true },
   { id: "status", label: "Status", sortable: false, filterable: true },
 ];
 
@@ -63,55 +62,54 @@ export default function AdminTable({ users }) {
   const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
 
   const [isEditing, setIsEditing] = useState({});
-  // newConstituency state now stores an array for each user
   const [newConstituency, setNewConstituency] = useState({});
 
   const [constituencies, setConstituencies] = useState([]);
 
   const ConstituencyCell = ({ constituency, onEdit }) => {
-  const userConstituencies = useMemo(() => (
-    constituency ? constituency.split(', ') : []
-  ), [constituency]);
+    const userConstituencies = useMemo(() => (
+      constituency ? constituency.split(', ') : []
+    ), [constituency]);
 
-  const displayLimit = 1;
+    const displayLimit = 1;
 
-  if (userConstituencies.length === 0) {
+    if (userConstituencies.length === 0) {
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Chip label="Not Assigned" size="small" />
+          <Tooltip title="Edit Constituency">
+            <IconButton size="small" onClick={onEdit}>
+              <EditIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      );
+    }
+
+    const tooltipTitle = (
+      <div>
+        {userConstituencies.map((c, i) => (
+          <Typography key={i} variant="body2">{c}</Typography>
+        ))}
+      </div>
+    );
+
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Chip label="Not Assigned" size="small" />
-        <Tooltip title="Edit Constituency">
+      <Tooltip title={tooltipTitle} placement="top-start">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {userConstituencies.slice(0, displayLimit).map((c, i) => (
+            <Chip key={i} label={c} color="primary" variant="outlined" size="small" />
+          ))}
+          {userConstituencies.length > displayLimit && (
+            <Chip label={`+${userConstituencies.length - displayLimit}`} size="small" />
+          )}
           <IconButton size="small" onClick={onEdit}>
             <EditIcon fontSize="inherit" />
           </IconButton>
-        </Tooltip>
-      </Box>
+        </Box>
+      </Tooltip>
     );
-  }
-
-  const tooltipTitle = (
-    <div>
-      {userConstituencies.map((c, i) => (
-        <Typography key={i} variant="body2">{c}</Typography>
-      ))}
-    </div>
-  );
-
-  return (
-    <Tooltip title={tooltipTitle} placement="top-start">
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        {userConstituencies.slice(0, displayLimit).map((c, i) => (
-          <Chip key={i} label={c} color="primary" variant="outlined" size="small" />
-        ))}
-        {userConstituencies.length > displayLimit && (
-          <Chip label={`+${userConstituencies.length - displayLimit}`} size="small" />
-        )}
-        <IconButton size="small" onClick={onEdit}>
-          <EditIcon fontSize="inherit" />
-        </IconButton>
-      </Box>
-    </Tooltip>
-  );
-};
+  };
 
   useEffect(() => {
     axiosInstance.get(`${BASE_URL}/file/constituencies`)
@@ -129,7 +127,6 @@ export default function AdminTable({ users }) {
 
   const handleEditClick = (userId, currentConstituency) => {
     setIsEditing(prev => ({ ...prev, [userId]: true }));
-    // Split the current constituency string into an array for the multi-select
     const currentConstituencyArray = currentConstituency ? currentConstituency.split(', ') : [];
     setNewConstituency(prev => ({ ...prev, [userId]: currentConstituencyArray }));
   };
@@ -138,7 +135,6 @@ export default function AdminTable({ users }) {
     const {
       target: { value },
     } = event;
-    // value can be a string or an array of strings. Handle both cases.
     setNewConstituency(prev => ({
       ...prev,
       [userId]: typeof value === 'string' ? value.split(',') : value,
@@ -149,16 +145,15 @@ export default function AdminTable({ users }) {
     setLoading(prev => ({ ...prev, [userId]: true }));
 
     try {
-      // Join the array of constituencies into a comma-separated string
       const constituenciesString = newConstituency[userId]?.join(', ');
 
       const response = await axiosInstance.put(
         `/updateConstituency?email=${email}&constituencies=${constituenciesString}`
       );
-      
+
       const message = response.data?.message || "Constituency updated successfully";
       showSnackbar(message, "success");
-      
+
       setUserData(prevData =>
         prevData.map(user =>
           user.id === userId ? { ...user, constituency: constituenciesString } : user
@@ -166,7 +161,7 @@ export default function AdminTable({ users }) {
       );
 
       setIsEditing(prev => ({ ...prev, [userId]: false }));
-      
+
     } catch (error) {
       console.error("Error updating constituency:", error);
       const errorMessage = error.response?.data?.message || error.response?.data?.error || "Error updating constituency";
@@ -295,14 +290,11 @@ export default function AdminTable({ users }) {
 
     try {
       const response = await axiosInstance.put(`/activate-user?email=${email}`);
-      
       const message = response.data?.message || response.data || "User activated successfully";
       showSnackbar(message, "success");
-      
       await refreshUserData();
     } catch (e) {
       console.error("Error activating user:", e);
-      
       const errorMessage = e.response?.data?.message || e.response?.data?.error || e.response?.data || "Error activating user";
       showSnackbar(errorMessage, "error");
     } finally {
@@ -312,18 +304,13 @@ export default function AdminTable({ users }) {
 
   const handleDeactivateUser = async (email, userId) => {
     setLoading(prev => ({ ...prev, [userId]: true }));
-
     try {
       const response = await axiosInstance.put(`/decline-user?email=${email}`);
-      
       const message = response.data?.message || response.data || "User deactivated successfully";
       showSnackbar(message, "success");
-      
       await refreshUserData();
     } catch (e) {
       console.error("Error deactivating user:", e);
-      
-      // Show the exact error message from backend
       const errorMessage = e.response?.data?.message || e.response?.data?.error || e.response?.data || "Error deactivating user";
       showSnackbar(errorMessage, "error");
     } finally {
@@ -333,7 +320,7 @@ export default function AdminTable({ users }) {
 
   const refreshUserData = async () => {
     try {
-      const response = await axiosInstance.get('/alladmin'); 
+      const response = await axiosInstance.get('/alladmin');
       setUserData(response.data);
     } catch (error) {
       console.error("Error refreshing user data:", error);
@@ -342,14 +329,13 @@ export default function AdminTable({ users }) {
   };
 
   return (
-     <Box sx={{ width: '100%', overflowX: 'auto' }} p={2}>
-      <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3,textAlign:'left',textTransform:'uppercase' }}>
+    <Box sx={{ width: '100%', overflowX: 'auto' }} p={2}>
+      <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3, textAlign: 'left', textTransform: 'uppercase' }}>
         Admin Details
       </Typography>
-      
+
       <Grid container spacing={2} mb={2}>
-        {/* Search fields remain the same */}
-        <Grid size={{xs:12, sm:6, md:4}}>
+        <Grid item xs={12} sm={6} md={4}>
           <TextField
             label="Search Name"
             variant="outlined"
@@ -368,7 +354,7 @@ export default function AdminTable({ users }) {
             }}
           />
         </Grid>
-        <Grid size={{xs:12, sm:6, md:4}}>
+        <Grid item xs={12} sm={6} md={4}>
           <TextField
             label="Search Email"
             variant="outlined"
@@ -387,7 +373,7 @@ export default function AdminTable({ users }) {
             }}
           />
         </Grid>
-        <Grid size={{xs:12, sm:6, md:4}}>
+        <Grid item xs={12} sm={6} md={4}>
           <TextField
             label="Search Constituency"
             variant="outlined"
@@ -421,10 +407,10 @@ export default function AdminTable({ users }) {
               {headCells.map((headCell) => (
                 <TableCell
                   key={headCell.id}
-                  align={headCell.align}
+                  align="left"
                   sx={{ fontWeight: 'bold' }}
                 >
-                  <Box display="flex" alignItems="center" justifyContent={headCell.align === 'center' ? 'center' : 'flex-start'}>
+                  <Box display="flex" alignItems="center" justifyContent="flex-start">
                     {headCell.sortable ? (
                       <TableSortLabel
                         active={orderBy === headCell.id}
@@ -454,26 +440,37 @@ export default function AdminTable({ users }) {
                 hover
                 sx={{ backgroundColor: index % 2 === 0 ? "#d0ebeaff" : "#e0f7f9" }}
               >
-                <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+                <TableCell align="left">{page * rowsPerPage + index + 1}</TableCell>
                 <TableCell align="left">{user?.name}</TableCell>
-                <TableCell align="center">
-                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                    {loading[user.id] ? <CircularProgress size={24} /> : (
-                      <>
-                        {user.accept === "Accepted" ? (
-                          <Button variant="outlined" color="error" size="small" onClick={() => handleDeactivateUser(user.email, user.id)}>
-                            Deactivate
-                          </Button>
-                        ) : (
-                          <Button variant="contained" color="success" size="small" onClick={() => handleActivateUser(user.email, user.id)}>
-                            Activate
-                          </Button>
-                        )}
-                      </>
+                <TableCell sx={{ py: 2 }} align="left">
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
+                    {user.accept === 'Declined' && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        size="small"
+                        onClick={() => handleActivateUser(user.email, user.id)}
+                        disabled={loading[user.id]}
+                        startIcon={loading[user.id] ? <CircularProgress size={16} /> : null}
+                      >
+                        Activate
+                      </Button>
+                    )}
+                    {user.accept === 'Accepted' && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => handleDeactivateUser(user.email, user.id)}
+                        disabled={loading[user.id]}
+                        startIcon={loading[user.id] ? <CircularProgress size={16} /> : null}
+                      >
+                        Deactivate
+                      </Button>
                     )}
                   </Box>
                 </TableCell>
-                <TableCell align="left" sx={{ minWidth: 250 }}> {/* Give constituency column enough space */}
+                <TableCell align="left" sx={{ minWidth: 250 }}>
                   {isEditing[user.id] ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <FormControl variant="outlined" size="small" fullWidth>
@@ -481,11 +478,11 @@ export default function AdminTable({ users }) {
                         <Select
                           multiple
                           value={newConstituency[user.id] || []}
-                          onChange={(e) => handleChange(e, user.id)} 
+                          onChange={(e) => handleChange(e, user.id)}
                           label="Constituency"
                           renderValue={(selected) => (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                              {selected.map((value) => <Chip key={value} label={value} size="small"/>)}
+                              {selected.map((value) => <Chip key={value} label={value} size="small" />)}
                             </Box>
                           )}
                         >
@@ -513,8 +510,7 @@ export default function AdminTable({ users }) {
                 <TableCell align="left">{user?.email}</TableCell>
                 <TableCell align="left">{user?.phoneNumber || "N/A"}</TableCell>
                 <TableCell align="left">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</TableCell>
-                {/* <TableCell align="center">{user?.role}</TableCell> */}
-                <TableCell align="center">
+                <TableCell align="left">
                   <Chip
                     label={getStatusText(user.accept)}
                     color={user.accept === "Accepted" ? "success" : "error"}
@@ -525,7 +521,7 @@ export default function AdminTable({ users }) {
             ))}
             {paginatedUsers?.length === 0 && (
               <TableRow>
-                <TableCell colSpan={headCells.length} align="center">
+                <TableCell colSpan={headCells.length} align="left">
                   No users found.
                 </TableCell>
               </TableRow>
@@ -543,8 +539,7 @@ export default function AdminTable({ users }) {
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
       />
-      
-      {/* Menus and Snackbar remain the same */}
+
       <Menu anchorEl={roleMenuAnchor} open={Boolean(roleMenuAnchor)} onClose={handleRoleFilterClose}>
         <MenuItem onClick={() => handleRoleFilterChange("")}>All</MenuItem>
         <MenuItem onClick={() => handleRoleFilterChange("surveyor")}>Surveyor</MenuItem>

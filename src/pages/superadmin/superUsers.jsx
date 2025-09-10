@@ -7,7 +7,7 @@ import {
 } from "@mui/material";
 import { Search, Clear } from "@mui/icons-material";
 import UserTable from "../../components/UserTable";
-import AdminTable from "../../components/admintable";
+import AdminTable from "../../components/AdminTable";
 import axiosInstance from "../../axios/axios";
 
 export default function superUsers() {

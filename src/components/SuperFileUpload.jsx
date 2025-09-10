@@ -428,7 +428,7 @@ export default function FileUpload({ onUploadSuccess }) {
                 variant="h5"
                 
                 gutterBottom
-                sx={{ fontWeight: 'bold', textAlign: 'center', mb: 3,textTransform: 'uppercase' }}
+                sx={{ fontWeight: 'bold', textAlign: 'left', mb: 3,textTransform: 'uppercase' }}
             >
                 Voters List File Upload
             </Typography>

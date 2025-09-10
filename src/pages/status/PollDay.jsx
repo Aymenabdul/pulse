@@ -28,19 +28,30 @@ import {
     FilterList,
     MoreVert
 } from "@mui/icons-material";
+import { useNavigate, useLocation, useSearchParams } from "react-router"; // Add this import
 import axiosInstance from "../../axios/axios";
 import VoterCardSkeleton from "../../components/VoterCardSkeleton";
 import { useAuth } from "../../hooks/useAuth";
+
 export default function PollDay() {
-    const [filters, setFilters] = useState({
-        constituency: '',
-        boothNumber: '',
-        name: '',
-        gender: '',
-        votedStatus: ''
-    });
+    // Initialize search params and other hooks
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
-    const [currentPage, setCurrentPage] = useState(1);
+
+    // Initialize state from URL search params or localStorage
+    const [filters, setFilters] = useState(() => {
+        const savedFilters = localStorage.getItem('pollDayFilters');
+        const urlFilters = {
+            constituency: searchParams.get('constituency') || '',
+            boothNumber: searchParams.get('boothNumber') || '',
+            name: searchParams.get('name') || '',
+            gender: searchParams.get('gender') || '',
+            votedStatus: searchParams.get('votedStatus') || '',
+        };
+        return savedFilters ? JSON.parse(savedFilters) : urlFilters;
+    });
+
+    const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page')) || 1);
     const itemsPerPage = 15;
 
     const [loading, setLoading] = useState({
@@ -66,24 +77,26 @@ export default function PollDay() {
     const endIndex = startIndex + itemsPerPage;
     const currentPageVoters = filteredVoters.slice(startIndex, endIndex);
 
+    // Function to update URL and localStorage
+    const updateURLAndLocalStorage = useCallback((newFilters, page) => {
+        const params = new URLSearchParams();
+        Object.entries(newFilters).forEach(([key, value]) => {
+            if (value) {
+                params.set(key, value);
+            }
+        });
+        if (page > 1) {
+            params.set('page', page.toString());
+        }
+        setSearchParams(params);
+        localStorage.setItem('pollDayFilters', JSON.stringify(newFilters));
+    }, [setSearchParams]);
+
     const showSnackbar = (message, severity = 'success') => {
         setSnackbarMessage(message);
         setSnackbarSeverity(severity);
         setSnackbarOpen(true);
     };
-
-    useEffect(() => {
-        // Check if the user object is available
-        if (user) {
-            // If the role is admin or surveyor, and they have a constituency assigned
-            if (user && (user.role.toLowerCase() === 'admin' || user.role.toLowerCase() === 'surveyor') && user.constituency) {
-                displayedConstituencyOptions = [user.constituency];
-            }
-        }
-
-        console.log("User role:", user?.role, "Constituency:", user?.constituency);
-
-    }, [user]);
 
     const shouldShowVoters = filters.constituency && filters.boothNumber;
 
@@ -120,8 +133,7 @@ export default function PollDay() {
         if (!constituency || !boothNumber) {
             setAllVoters([]);
             setFilteredVoters([]);
-            setCurrentPage(1);
-            return;
+            return; // Do not reset currentPage here
         }
 
         setLoading(prev => ({ ...prev, search: true }));
@@ -149,13 +161,12 @@ export default function PollDay() {
             }));
 
             setAllVoters(transformedVoters);
-            setCurrentPage(1);
+            // Don't reset currentPage here, let the URL handle it
         } catch (error) {
             console.error('Error searching voters:', error);
             if (error.response?.status === 404) {
                 setAllVoters([]);
                 setFilteredVoters([]);
-                setCurrentPage(1);
             } else {
                 showSnackbar('Error searching voters. Please try again.', 'error');
             }
@@ -185,7 +196,7 @@ export default function PollDay() {
         }
 
         setFilteredVoters(filtered);
-        setCurrentPage(1);
+        // Don't reset currentPage here
     }, [allVoters, filters.name, filters.gender, filters.votedStatus]);
 
     useEffect(() => {
@@ -193,30 +204,38 @@ export default function PollDay() {
     }, [fetchAllConstituencies]);
 
     useEffect(() => {
+        // This effect applies the local filters (name, gender, status)
+        // whenever the main voter list or the filters change.
         applyFilters();
-    }, [applyFilters]);
+    }, [applyFilters, allVoters]);
 
-    const handleFilterChange = useCallback((field, value) => {
-        setFilters(prev => ({ ...prev, [field]: value }));
-
-        // When a constituency is selected, fetch its booths.
-        if (field === 'constituency') {
-            fetchBooths(value);
-        }
-    }, [fetchBooths]);
-
+    // This effect handles the main API call when constituency or booth changes.
     useEffect(() => {
-        // This hook will run whenever the main filters change.
         if (filters.constituency && filters.boothNumber) {
             fetchVoters(filters);
         } else {
-            // Clear voters if the required filters are not set
             setAllVoters([]);
+            setFilteredVoters([]);
         }
     }, [filters.constituency, filters.boothNumber, fetchVoters]);
 
+    const handleFilterChange = useCallback((field, value) => {
+        setFilters(prev => {
+            const newFilters = { ...prev, [field]: value };
+            if (field === 'constituency') {
+                newFilters.boothNumber = '';
+                setBoothOptions([]);
+                fetchBooths(value);
+            }
+            // Always update the URL and reset the page to 1 on filter change
+            updateURLAndLocalStorage(newFilters, 1);
+            return newFilters;
+        });
+    }, [fetchBooths, updateURLAndLocalStorage]);
+
     const handlePageChange = (event, page) => {
         setCurrentPage(page);
+        updateURLAndLocalStorage(filters, page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -235,6 +254,8 @@ export default function PollDay() {
         setAllVoters([]);
         setFilteredVoters([]);
         setCurrentPage(1);
+        updateURLAndLocalStorage(clearedFilters, 1);
+        localStorage.removeItem('pollDayFilters');
     };
 
     const handleMenuOpen = (event, voterId) => {
@@ -284,17 +305,13 @@ export default function PollDay() {
         }
     };
 
-    let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
+    let displayedConstituencyOptions = constituencyOptions;
 
     if (user && user.role && user.constituency) {
         const role = user.role.toLowerCase();
-
         if (role === 'admin') {
-            // This is the critical part: it splits the string into a real array.
-            // The .trim() removes any accidental spaces around the comma.
             displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
         } else if (role === 'surveyor') {
-            // Surveyor logic remains the same.
             displayedConstituencyOptions = [user.constituency];
         }
     }
@@ -310,7 +327,6 @@ export default function PollDay() {
             <Container maxWidth="xl">
                 <Box sx={{ mb: 6 }}>
                     <Grid container spacing={3} sx={{ mb: 3 }}>
-
                         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Constituency</InputLabel>
@@ -318,16 +334,10 @@ export default function PollDay() {
                                     value={filters.constituency}
                                     label="Constituency"
                                     onChange={(e) => handleFilterChange('constituency', e.target.value)}
-                                    // The dropdown is disabled if:
-                                    // 1. No survey is selected, OR
-                                    // 2. The constituencies are loading, OR
-                                    // 3. The logged-in user is an admin or a surveyor.
                                     disabled={loading.constituencies}
                                     endAdornment={loading.constituencies && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Constituency</MenuItem>
-
-                                    {/* Map over the conditionally filtered options */}
                                     {displayedConstituencyOptions.map((constituency, index) => (
                                         <MenuItem key={index} value={constituency}>
                                             {constituency}
@@ -337,7 +347,7 @@ export default function PollDay() {
                             </FormControl>
                         </Grid>
 
-                        <Grid item size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Booth Number</InputLabel>
                                 <Select
@@ -349,8 +359,8 @@ export default function PollDay() {
                                 >
                                     <MenuItem value="">Select Booth</MenuItem>
                                     {boothOptions
-                                        .slice() // Create a copy to avoid mutating state
-                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) // Sort alphanumerically
+                                        .slice()
+                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
                                         .map((booth, index) => (
                                             <MenuItem key={index} value={booth}>
                                                 {booth}
@@ -453,7 +463,7 @@ export default function PollDay() {
                 <Grid container spacing={4}>
                     {loading.search ? (
                         renderSkeletonCards()
-                    ) : shouldShowVoters && currentPageVoters.length > 0 ? (
+                    ) : (filters.constituency && filters.boothNumber) && currentPageVoters.length > 0 ? (
                         currentPageVoters.map((voter) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
                                 <Card
@@ -488,7 +498,6 @@ export default function PollDay() {
                                                 {voter?.name}
                                             </Typography>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                {/* Fix: Properly check boolean voted status */}
                                                 {Boolean(voter?.voted) && (
                                                     <Chip
                                                         label="Voted"
@@ -541,7 +550,7 @@ export default function PollDay() {
                             </Grid>
                         ))
                     ) : (
-                        <Grid size={{ xs: 12 }}>
+                        <Grid size={{xs:12}}>
                             <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
                                 {shouldShowVoters ? (
                                     <Typography variant="h6">

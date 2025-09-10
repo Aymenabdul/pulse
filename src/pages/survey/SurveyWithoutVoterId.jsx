@@ -102,7 +102,7 @@ const casteOptions = [
 
 const partyOptions = [
     "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
-    "CPI", "CPM", "PMK", "DMDK", "MNM", "Muslim Parties (Specify)"
+    "CPI", "CPM", "PMK", "DMDK", "MNM", "Others",
 ];
 
 const specifyQuestions = { ques1: true, ques2: true, ques3: true, ques7: true, religion: true, gender: true, caste: true, occupation: true };
@@ -295,7 +295,6 @@ export default function SurveyWithoutVoterId() {
 
   const formFields = useMemo(() => [
     { label: "Full Name", field: "name", isInput: true },
-    // --- ADDED: Voter Type field definition ---
     { label: "Voter Type", field: "voterType", options: ["Public", "Party Member"] },
     { label: "Occupation / Employment Status", field: "occupation", options: ["Student", "Homemaker", "Unemployed", "Self-employed","Farmer","Daily wage laborer","Private sector employee","Government employee","Professional","Retired", "Others (Specify)"] },
     { label: "Religion", field: "religion", options: ["Hindu", "Muslim", "Christian", "Others (Specify)"] },
@@ -304,14 +303,18 @@ export default function SurveyWithoutVoterId() {
     { label: "Gender", field: "gender", options: ["Male", "Female", "Others (Specify)"] },
     { label: "Phone Number", field: "phoneNumber", isInput: true },
     { label: "WhatsApp Number", field: "whatsappNumber", isInput: true },
-    { label: "Who did you vote for in 2016?", field: "ques1", options: partyOptions.filter(p => !['TVK', 'MNM'].includes(p)) },
-    { label: "Who did you vote for in 2021?", field: "ques2", options: partyOptions.filter(p => p !== 'TVK') },
-    { label: "Who will you vote for in 2026?", field: "ques3", options: partyOptions },
+    { label: "Who did you vote for in 2016?", field: "ques1", options: [ "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
+    "CPI", "CPM", "PMK", "DMDK", "MNM","Muslim Parties (Specify)"," Independent (Specify)","NOTA", "Others (Specify)"] },
+    { label: "Who did you vote for in 2021?", field: "ques2",options: [ "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
+    "CPI", "CPM", "PMK", "DMDK", "MNM","Muslim Parties (Specify)"," Independent (Specify)","NOTA", "Others (Specify)"] },
+    { label: "Who will you vote for in 2026?", field: "ques3", options: [ "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
+    "CPI", "CPM", "PMK", "DMDK", "MNM","Muslim Parties (Specify)"," Independent (Specify)","NOTA", "Others (Specify)"] },
     { label: "Performance of CM Edappadi K. Palaniswami (2017–2021)?", field: "ques4", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Performance of CM Stalin (2021–2026)?", field: "ques5", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Performance of your current MLA?", field: "ques6", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Important issues in this constituency?", field: "ques7", options: ["Traffic", "Poor Roads", "Flood", "Drainage", "Waterlogging", " No Flyover", "NEET", "Mosquitos", "Garbage", "Water supply", "Crop harvest disruption", "Pollution", "Public health crisis", "Women safety", "Unemployment", "Bus Services", "Train services", "Land grabbing", "No Electricity", "Inflation", "Caste conflict", "Others (Specify)"] },
   ], []);
+
   
   useEffect(() => {
     axiosInstance.get('/getdist')

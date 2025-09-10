@@ -401,7 +401,7 @@ const [isSurveyPopupOpen, setIsSurveyPopupOpen] = useState(false);
                 }}
             >
                 <Button 
-                    variant="contained" 
+                    variant="outlined" 
                     color="primary" 
                     onClick={handleOpenSurveyPopup}
                     sx={{ borderRadius: 2 }}

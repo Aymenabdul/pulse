@@ -252,50 +252,54 @@ export default function Statistics() {
             if (filters.constituency) params.append('constituency', filters.constituency);
             if (filters.boothNumber) params.append('booth', filters.boothNumber);
 
-            // The API endpoint is now correct
             const response = await axiosInstance.get(`/file/filter-counts?${params.toString()}`);
             const data = response.data;
 
             console.log('Fetched statistics:', data);
 
-            // --- NEW LOGIC STARTS HERE ---
-            // This block correctly handles the different response keys from the backend
+            let newStats = { ...initialStatistics };
 
-            let newStats = { ...initialStatistics }; // Start with default zero counts
-
-            // Case 1: Response is from the 'survey' table (only surveyName was selected)
-            if (data.hasOwnProperty('surveyTotalBooths')) {
-                newStats = {
-                    totalConstituencies: data.surveyTotalConstituencies || 0,
-                    totalBooths: data.surveyTotalBooths || 0,
-                    totalVoters: data.surveyTotalVotes || 0,
-                };
-
-                // Case 2: Response is from 'filedata' with constituency/booth filters
-            } else if (data.hasOwnProperty('filedataBoothCount')) {
-                newStats = {
-                    totalConstituencies: data.filedataConstituencyCount || 0,
-                    totalBooths: data.filedataBoothCount || 0,
-                    totalVoters: data.filedataVoterCount || 0,
-                };
-
-                // Case 3: Response is from 'filedata' with no filters
-            } else if (data.hasOwnProperty('filedataTotalBooths')) {
+            // Handle the different API response structures
+            if (data.hasOwnProperty('filedataTotalConstituencies')) {
+                // Case: No filters applied (global counts)
                 newStats = {
                     totalConstituencies: data.filedataTotalConstituencies || 0,
                     totalBooths: data.filedataTotalBooths || 0,
                     totalVoters: data.filedataTotalVoters || 0,
                 };
+            } else if (data.hasOwnProperty('constituencyCount') && data.hasOwnProperty('boothCount')) {
+                // Case: Constituency filter applied (with or without survey)
+                newStats = {
+                    totalConstituencies: data.constituencyCount || 0,
+                    totalBooths: data.boothCount || 0,
+                    totalVoters: data.voterCount || 0,
+                };
+            } else if (data.hasOwnProperty('voterCount') && !data.hasOwnProperty('constituencyCount')) {
+                // Case: Booth filter applied (with or without survey/constituency)
+                newStats = {
+                    // In this case, constituencyCount and boothCount would be 1
+                    totalConstituencies: data.constituencyCount || 1, // Booth implies 1 constituency in the response.
+                    totalBooths: data.boothCount || 1, // Booth implies 1 booth in the response.
+                    totalVoters: data.voterCount || 0,
+                };
             }
 
-            // --- NEW LOGIC ENDS HERE ---
+            // This is a catch-all for when only surveyName is provided, 
+            // which might return specific keys like 'surveyTotalConstituencies'
+            else if (data.hasOwnProperty('surveyTotalConstituencies')) {
+                newStats = {
+                    totalConstituencies: data.surveyTotalConstituencies || 0,
+                    totalBooths: data.surveyTotalBooths || 0,
+                    totalVoters: data.surveyTotalVotes || 0,
+                };
+            }
 
             setStatistics(newStats);
 
         } catch (error) {
             console.error('Error fetching statistics:', error);
             showSnackbar('Error fetching statistics', 'error');
-            setStatistics(initialStatistics); // Reset on error
+            setStatistics(initialStatistics);
         } finally {
             setLoading(prev => ({ ...prev, statistics: false }));
         }
@@ -555,6 +559,44 @@ export default function Statistics() {
         );
     };
 
+    // Custom Label for Bar Charts to prevent overflow
+    const OverflowProtectedLabel = (props) => {
+        const { x, y, width, height, value, displayMode } = props;
+        const isPercentage = displayMode === 'percentage';
+        const formattedValue = isPercentage ? `${value}%` : value;
+
+        // Threshold to decide when to move the label outside
+        // For rotated text, height is the limiting factor. 20px is a safe bet for a 16px font.
+        const heightThreshold = 25;
+
+        if (height < heightThreshold) {
+            // Render label above the bar if bar is too short
+            return (
+                <text x={x + width / 2} y={y - 5} dy={12} fill="#000" textAnchor="middle" fontSize={18}>
+                    {formattedValue}
+                </text>
+            );
+        }
+
+        // Render label inside the bar (rotated)
+        return (
+            <g transform={`rotate(-90, ${x + width / 2}, ${y + height / 2})`}>
+                <text
+                    x={x + width / 2}
+                    y={y + height / 2}
+                    dy={5} // Adjust vertical alignment of text inside bar
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize={16}
+                    fontWeight="bolder"
+                >
+                    {formattedValue}
+                </text>
+            </g>
+        );
+    };
+
+
     const renderBarChart = (question, title) => {
         const data = getDisplayData(question, displayModes[question]);
         const yAxisLabel = displayModes[question] === 'count' ? 'Votes' : 'Percentage (%)';
@@ -616,7 +658,7 @@ export default function Statistics() {
                                 checked={displayModes[question] === 'percentage'}
                                 onChange={(e) => handleDisplayModeChange(question, e.target.checked)}
                                 disabled={loading.responses}
-                                size="small"
+                                size="medium"
                             />
                         }
                         label={displayModes[question] === 'count' ? 'Show Percentage' : 'Show Count'}
@@ -641,6 +683,7 @@ export default function Statistics() {
                                 tickFormatter={formatLabel}
                             />
                             <YAxis
+                                domain={displayModes[question] === 'percentage' ? [0, 100] : [0, 'auto']}
                                 tick={{ fill: 'black', fontFamily: 'sans-serif' }}
                                 label={{
                                     value: yAxisLabel,
@@ -658,16 +701,7 @@ export default function Statistics() {
                             >
                                 <LabelList
                                     dataKey={dataKey}
-                                    position="center"
-                                    offset={-20}
-                                    angle={-90}
-                                    style={{
-                                        fill: 'white',
-                                        fontWeight: 'bolder',
-                                        fontSize: 16,
-                                        fontFamily: 'sans-serif',
-                                        textShadow: '0px 0px 3px rgba(255, 255, 255, 0.7)'
-                                    }}
+                                    content={<OverflowProtectedLabel displayMode={displayModes[question]} />}
                                 />
                             </Bar>
                         </BarChart>
@@ -710,16 +744,31 @@ export default function Statistics() {
             { value: 'NOTA', label: 'NOTA' }
         ];
 
-        const fetchHorizontalData = async (year = '', party = '') => {
+        const fetchHorizontalData = async (year = '', party = '', surveyName = '', constituency = '', booth = '') => {
             setHorizontalLoading(true);
             try {
+                console.log("📌 Fetching Horizontal Data with filters:", {
+                    year,
+                    party,
+                    surveyName,
+                    constituency,
+                    booth
+                });
+
                 const params = new URLSearchParams();
 
-                if (year && party) {
-                    params.append(year, party);
-                }
+                console.log('booth for occupation count', booth);
+
+                if (year) params.append(year, party);
+                if (surveyName) params.append('surveyName', surveyName);
+                if (constituency) params.append('constituency', constituency);
+                if (booth) params.append('booth', booth);
+
+                console.log("📌 Final Request URL:", `/survey/occupation-counts?${params.toString()}`);
 
                 const response = await axiosInstance.get(`/survey/occupation-counts?${params.toString()}`);
+                console.log("✅ API Response Data:", response.data);
+
                 const result = response.data;
 
                 const processedData = Object.entries(result)
@@ -730,6 +779,8 @@ export default function Statistics() {
                     }))
                     .sort((a, b) => b.value - a.value);
 
+                console.log("📊 Processed Data:", processedData);
+
                 const total = processedData.reduce((sum, entry) => sum + entry.value, 0);
 
                 const finalData = processedData.map(entry => ({
@@ -737,9 +788,11 @@ export default function Statistics() {
                     percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
                 }));
 
+                console.log("📊 Final Data with Percentages:", finalData);
+
                 setHorizontalData(finalData);
             } catch (error) {
-                console.error('Error fetching horizontal data:', error);
+                console.error('❌ Error fetching horizontal data:', error);
                 setHorizontalData([]);
             } finally {
                 setHorizontalLoading(false);
@@ -747,12 +800,30 @@ export default function Statistics() {
         };
 
         useEffect(() => {
+            console.log("🎯 useEffect triggered with filters:", {
+                selectedYear,
+                selectedParty,
+                surveyName: filters.surveyName,
+                constituency: filters.constituency,
+                booth: filters.boothNumber
+            });
+
             if (filters.surveyName) {
-                fetchHorizontalData(selectedYear, selectedParty);
+                fetchHorizontalData(selectedYear, selectedParty, filters.surveyName, filters.constituency, filters.boothNumber);
             } else {
                 setHorizontalData([]);
             }
-        }, [selectedYear, selectedParty, filters.surveyName]);
+        }, [selectedYear, selectedParty, filters.surveyName, filters.constituency, filters.boothNumber]);
+
+
+        useEffect(() => {
+            if (filters.surveyName) {
+                fetchHorizontalData(selectedYear, selectedParty, filters.surveyName, filters.constituency, filters.boothNumber);
+            } else {
+                setHorizontalData([]);
+            }
+        }, [selectedYear, selectedParty, filters.surveyName, filters.constituency, filters.boothNumber]);
+
 
         const handleYearChange = (event) => {
             setSelectedYear(event.target.value);
@@ -908,7 +979,12 @@ export default function Statistics() {
                 </Box>
 
                 <Box sx={{ flex: 1, minHeight: '350px' }}>
-                    {horizontalData.length === 0 ? (
+                    {horizontalLoading ? (
+                        // Display a loading indicator while the data is being fetched
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : horizontalData.length === 0 ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                             <Typography variant="body2" color="text.secondary">
                                 No occupation data available
@@ -924,8 +1000,9 @@ export default function Statistics() {
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis
                                     type="number"
+                                    domain={displayMode === 'percentage' ? [0, 100] : [0, 'auto']}
                                     tick={{ fill: 'black', fontFamily: 'sans-serif' }}
-                                    label={{ value: yAxisLabel, position: 'insideBottom', offset: -10, style: { fill: 'black', fontFamily: 'sans-serif' } }}
+                                    label={{ value: yAxisLabel || 'Occupation Count', position: 'insideBottom', offset: -10, style: { fill: 'black', fontFamily: 'sans-serif' } }}
                                 />
                                 <YAxis
                                     type="category"
@@ -942,12 +1019,24 @@ export default function Statistics() {
                                     {horizontalData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={categoricalColors[index % categoricalColors.length]} />
                                     ))}
-                                    <LabelList dataKey={dataKey} position="center" style={{ fill: 'white', fontWeight: 'bolder', fontSize: 16, fontFamily: 'sans-serif' }} />
+                                    <LabelList
+                                        dataKey={dataKey}
+                                        position="center"
+                                        formatter={(value) => displayMode === 'percentage' ? `${value}%` : value}
+                                        style={{
+                                            fill: 'white',
+                                            fontWeight: 'bolder',
+                                            fontSize: 16,
+                                            fontFamily: 'sans-serif',
+                                            textShadow: '1px 1px 3px rgba(0,0,0,0.3)' // Optional: Adds a shadow for better visibility of labels
+                                        }}
+                                    />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     )}
                 </Box>
+
             </Box>
         );
     };
@@ -1116,7 +1205,7 @@ export default function Statistics() {
                 name: formatLabel(key),
                 value: parseInt(value) || 0
             }))
-            .sort((a, b) => b.value - a.value)
+            .sort((a, b) => b.value - a.value) // This line sorts in descending order.
             .slice(0, maxItems);
 
         const total = entries.reduce((sum, entry) => sum + entry.value, 0);
@@ -1126,13 +1215,15 @@ export default function Statistics() {
             percentage: total > 0 ? parseFloat(((entry.value / total) * 100).toFixed(1)) : 0
         }));
 
-        if (question === 'ques7') {
-            finalEntries = arrangeDataCenterOut(finalEntries);
-        }
+        // This block is removed to allow the default descending sort to apply to 'ques7'.
+        // if (question === 'ques7') {
+        //     finalEntries = arrangeDataCenterOut(finalEntries);
+        // }
 
         return finalEntries;
     };
 
+    // The arrangeDataCenterOut function is no longer called for 'ques7'
     const arrangeDataCenterOut = (sortedData) => {
         if (sortedData.length === 0) return [];
         if (sortedData.length === 1) return sortedData;
@@ -1319,6 +1410,7 @@ export default function Statistics() {
                                 tickFormatter={formatLabel}
                             />
                             <YAxis
+                                domain={displayMode === 'percentage' ? [0, 100] : [0, 'auto']}
                                 tick={{ fill: 'black', fontFamily: 'sans-serif' }}
                                 label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', style: { fill: 'black', fontFamily: 'sans-serif' } }}
                             />
@@ -1336,14 +1428,7 @@ export default function Statistics() {
                                 ))}
                                 <LabelList
                                     dataKey={dataKey}
-                                    position="center"
-                                    angle={-90}
-                                    style={{
-                                        fill: 'white',
-                                        fontWeight: 'bolder',
-                                        fontSize: 16,
-                                        fontFamily: 'sans-serif'
-                                    }}
+                                    content={<OverflowProtectedLabel displayMode={displayMode} />}
                                 />
                             </Bar>
                         </BarChart>
@@ -1603,7 +1688,7 @@ export default function Statistics() {
                     </Typography>
 
                     <Grid container spacing={3} style={{ textTransform: 'uppercase', fontWeight: '700' }}>
-                        <Grid size={{ xs: 12, md: 4 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <Typography
                                     variant="h6"
@@ -1623,7 +1708,7 @@ export default function Statistics() {
                                 {renderSimpleBarChart('ques7', '', 5)}
                             </Box>
                         </Grid>
-                        <Grid size={{ xs: 12, md: 4 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <Typography
                                     variant="h6"
@@ -1643,7 +1728,7 @@ export default function Statistics() {
                                 {renderSimpleBarChart('voterStatus', '', 3)}
                             </Box>
                         </Grid>
-                        <Grid size={{ xs: 12, md: 4 }}>
+                        {/* <Grid size={{xs:12, md:4}}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                 <Typography
                                     variant="h6"
@@ -1662,7 +1747,7 @@ export default function Statistics() {
                                 </Typography>
                                 {renderSimpleBarChart('voterType', '', 3)}
                             </Box>
-                        </Grid>
+                        </Grid> */}
                     </Grid>
                     <Box sx={{ mt: 4 }}>
                         {renderHorizontalBarChart()}

@@ -27,12 +27,12 @@ import EditPopup from "../pages/superadmin/EditPopup";
 
 const headCells = [
     { id: "S.No", label: "S.No", sortable: false, align: 'center' },
-    { id: "activity", label: "Activity", sortable: false, align: 'center' },
+    { id: "activity", label: "Action", sortable: false, align: 'center' },
     { id: "Constituency", label: "Constituency", sortable: true, align: 'center' },
     { id: "status", label: "Status", sortable: false, align: 'center' },
-    { id: " Booth", label: "Booth", sortable: true, align: 'center' },
-    { id: "Total", label: "Total Data", sortable: true, align: 'center' },
-    { id: "CreatedAt", label: "CreatedAt", sortable: true, align: 'center' },
+    { id: " Booth", label: "Booth Number", sortable: true, align: 'center' },
+    { id: "Total", label: "Total Voters", sortable: true, align: 'center' },
+    { id: "CreatedAt", label: "Created On", sortable: true, align: 'center' },
 ];
 
 export default function SuperConstTable({ data, loading }) {
@@ -233,7 +233,7 @@ export default function SuperConstTable({ data, loading }) {
 
     return (
         <Box sx={{ width: { xs: "100%", md: "98%" }, p: 2 }}>
-            <Typography variant="h6" sx={{ flex: '1 1 100%',textTransform: 'uppercase',fontWeight:'700' }}>voter list</Typography>
+            <Typography variant="h6" sx={{ flex: '1 1 100%',textTransform: 'uppercase',fontWeight:'700',marginBottom:'10px' }}>voter list</Typography>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, width: '70%' }}>
                 <Box sx={{ width: '70%' }}>
                     <TextField

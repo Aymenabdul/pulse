@@ -28,21 +28,30 @@ import {
     MoreVert,
     Verified
 } from "@mui/icons-material";
+import { useSearchParams } from "react-router"; // Add this import
 import axiosInstance from "../../axios/axios";
 import VoterCardSkeleton from "../../components/VoterCardSkeleton";
 import { useAuth } from "../../hooks/useAuth";
 
 export default function VerifiedStatus() {
-    const [filters, setFilters] = useState({
-        survey: '',
-        constituency: '',
-        boothNumber: '',
-        name: '',
-        gender: '',
-        verifiedStatus: ''
+    const [searchParams, setSearchParams] = useSearchParams();
+    
+    // Initialize state from URL search params or localStorage
+    const [filters, setFilters] = useState(() => {
+        const urlFilters = {
+            survey: searchParams.get('survey') || '',
+            constituency: searchParams.get('constituency') || '',
+            boothNumber: searchParams.get('boothNumber') || '',
+            name: searchParams.get('name') || '',
+            gender: searchParams.get('gender') || '',
+            verifiedStatus: searchParams.get('verifiedStatus') || '',
+        };
+        const savedFilters = localStorage.getItem('verifiedStatusFilters');
+        return savedFilters ? JSON.parse(savedFilters) : urlFilters;
     });
+
     const { user } = useAuth();
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page')) || 1);
     const itemsPerPage = 15;
 
     const [loading, setLoading] = useState({
@@ -77,6 +86,21 @@ export default function VerifiedStatus() {
         setSnackbarOpen(true);
     };
 
+    // New function to update URL and localStorage
+    const updateURLAndLocalStorage = useCallback((newFilters, page) => {
+        const params = new URLSearchParams();
+        Object.entries(newFilters).forEach(([key, value]) => {
+            if (value) {
+                params.set(key, value);
+            }
+        });
+        if (page > 1) {
+            params.set('page', page.toString());
+        }
+        setSearchParams(params);
+        localStorage.setItem('verifiedStatusFilters', JSON.stringify(newFilters));
+    }, [setSearchParams]);
+
     const fetchActiveSurveys = useCallback(async () => {
         setLoading(prev => ({ ...prev, surveys: true }));
         try {
@@ -89,18 +113,17 @@ export default function VerifiedStatus() {
             setLoading(prev => ({ ...prev, surveys: false }));
         }
     }, []);
+    
     useEffect(() => {
-        // Check if the user object is available
+        // This effect needs a variable to hold the options before it's assigned.
+        let displayedConstituencyOptions = constituencyOptions;
         if (user) {
-            // If the role is admin or surveyor, and they have a constituency assigned
             if (user && (user.role.toLowerCase() === 'admin' || user.role.toLowerCase() === 'surveyor') && user.constituency) {
-                displayedConstituencyOptions = [user.constituency];
+                displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
             }
         }
-
-        console.log("User role:", user?.role, "Constituency:", user?.constituency);
-
-    }, [user]);
+    }, [user, constituencyOptions]);
+    
     const fetchConstituencies = useCallback(async (surveyName) => {
         if (!surveyName) return;
         setLoading(prev => ({ ...prev, constituencies: true }));
@@ -135,7 +158,6 @@ export default function VerifiedStatus() {
         if (!survey || !constituency || !boothNumber) {
             setAllVoters([]);
             setFilteredVoters([]);
-            setCurrentPage(1);
             return;
         }
 
@@ -169,13 +191,11 @@ export default function VerifiedStatus() {
             });
 
             setAllVoters(transformedVoters);
-            setCurrentPage(1);
         } catch (error) {
             console.error('Error searching voters:', error);
             if (error.response?.status === 404) {
                 setAllVoters([]);
                 setFilteredVoters([]);
-                setCurrentPage(1);
             } else {
                 showSnackbar('Error searching voters. Please try again.', 'error');
             }
@@ -205,7 +225,6 @@ export default function VerifiedStatus() {
         }
 
         setFilteredVoters(filtered);
-        setCurrentPage(1);
     }, [allVoters, filters.name, filters.gender, filters.verifiedStatus]);
 
     useEffect(() => {
@@ -216,10 +235,25 @@ export default function VerifiedStatus() {
         applyFilters();
     }, [applyFilters]);
 
+    // Main useEffect to handle API calls based on URL/filter changes
+    useEffect(() => {
+        const urlFilters = {
+            survey: searchParams.get('survey') || '',
+            constituency: searchParams.get('constituency') || '',
+            boothNumber: searchParams.get('boothNumber') || '',
+        };
+
+        if (urlFilters.survey && urlFilters.constituency && urlFilters.boothNumber) {
+            fetchVoters(urlFilters);
+        } else {
+            setAllVoters([]);
+            setFilteredVoters([]);
+        }
+    }, [searchParams, fetchVoters]);
+
     const handleFilterChange = useCallback((field, value) => {
         setFilters(prev => {
             const newFilters = { ...prev, [field]: value };
-
             if (field === 'survey') {
                 newFilters.constituency = '';
                 newFilters.boothNumber = '';
@@ -235,24 +269,15 @@ export default function VerifiedStatus() {
                     fetchBooths(newFilters.survey, value);
                 }
             }
-
-            localStorage.setItem('filters', JSON.stringify(newFilters));
-            setCurrentPage(1);
-            // updateURLParams(newFilters, 1); // This line is removed
+            // Reset page to 1 when a filter changes
+            updateURLAndLocalStorage(newFilters, 1);
             return newFilters;
         });
-    }, [fetchConstituencies, fetchBooths]); // Dependencies are corrected
-
-    useEffect(() => {
-        if (filters.survey && filters.constituency && filters.boothNumber) {
-            fetchVoters(filters);
-        } else {
-            setAllVoters([]); // Clear voters if filters are incomplete
-        }
-    }, [filters.survey, filters.constituency, filters.boothNumber, fetchVoters]);
+    }, [fetchConstituencies, fetchBooths, updateURLAndLocalStorage]);
 
     const handlePageChange = (event, page) => {
         setCurrentPage(page);
+        updateURLAndLocalStorage(filters, page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -272,6 +297,8 @@ export default function VerifiedStatus() {
         setAllVoters([]);
         setFilteredVoters([]);
         setCurrentPage(1);
+        updateURLAndLocalStorage(clearedFilters, 1);
+        localStorage.removeItem('verifiedStatusFilters');
     };
 
     const handleMenuOpen = (event, voterId) => {
@@ -303,7 +330,7 @@ export default function VerifiedStatus() {
                 setAllVoters(prev =>
                     prev.map(voter =>
                         voter.id === selectedVoterId
-                            ? { ...voter, verified: !Boolean(voter.verified) }
+                            ? { ...voter, verified: !isCurrentlyVerified } // Fix: Use isCurrentlyVerified
                             : voter
                     )
                 );
@@ -321,21 +348,18 @@ export default function VerifiedStatus() {
             handleMenuClose();
         }
     };
-
-    let displayedConstituencyOptions = constituencyOptions; // Default for superadmin
-
+    
+    // The conditional variable needs to be handled inside a component or hook.
+    let displayedConstituencyOptions = constituencyOptions;
     if (user && user.role && user.constituency) {
         const role = user.role.toLowerCase();
-
         if (role === 'admin') {
-            // This is the critical part: it splits the string into a real array.
-            // The .trim() removes any accidental spaces around the comma.
             displayedConstituencyOptions = user.constituency.split(',').map(c => c.trim());
         } else if (role === 'surveyor') {
-            // Surveyor logic remains the same.
             displayedConstituencyOptions = [user.constituency];
         }
     }
+
     const renderSkeletonCards = () => {
         return Array.from({ length: 6 }).map((_, index) => (
             <VoterCardSkeleton key={`skeleton-${index}`} />
@@ -347,7 +371,7 @@ export default function VerifiedStatus() {
             <Container maxWidth="xl">
                 <Box sx={{ mb: 6 }}>
                     <Grid container spacing={3} sx={{ mb: 3 }}>
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{xs:12, sm:6, md:4}}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Survey</InputLabel>
                                 <Select
@@ -367,25 +391,17 @@ export default function VerifiedStatus() {
                             </FormControl>
                         </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{xs:12, sm:6, md:4}}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Constituency</InputLabel>
                                 <Select
                                     value={filters.constituency}
                                     label="Constituency"
                                     onChange={(e) => handleFilterChange('constituency', e.target.value)}
-                                    // The dropdown is disabled if:
-                                    // 1. No survey is selected, OR
-                                    // 2. The constituencies are loading, OR
-                                    // 3. The logged-in user is an admin or a surveyor.
-                                    disabled={
-                                        !filters.survey || loading.constituencies
-                                    }
+                                    disabled={!filters.survey || loading.constituencies}
                                     endAdornment={loading.constituencies && <CircularProgress size={20} />}
                                 >
                                     <MenuItem value="">Select Constituency</MenuItem>
-
-                                    {/* Map over the conditionally filtered options */}
                                     {displayedConstituencyOptions.map((constituency, index) => (
                                         <MenuItem key={index} value={constituency}>
                                             {constituency}
@@ -395,7 +411,7 @@ export default function VerifiedStatus() {
                             </FormControl>
                         </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{xs:12, sm:6, md:4}}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Booth Number</InputLabel>
                                 <Select
@@ -407,8 +423,8 @@ export default function VerifiedStatus() {
                                 >
                                     <MenuItem value="">Select Booth</MenuItem>
                                     {boothOptions
-                                        .slice() // Create a copy to avoid mutating state
-                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) // Sort alphanumerically
+                                        .slice()
+                                        .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
                                         .map((booth, index) => (
                                             <MenuItem key={index} value={booth}>
                                                 {booth}
@@ -419,7 +435,7 @@ export default function VerifiedStatus() {
                             </FormControl>
                         </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{xs:12, sm:6, md:4}}>
                             <TextField
                                 fullWidth
                                 label="Name"
@@ -430,7 +446,7 @@ export default function VerifiedStatus() {
                             />
                         </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{xs:12, sm:6, md:4}}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Gender</InputLabel>
                                 <Select
@@ -446,7 +462,7 @@ export default function VerifiedStatus() {
                             </FormControl>
                         </Grid>
 
-                        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Grid size={{xs:12, sm:6, md:4}}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Verified Status</InputLabel>
                                 <Select
@@ -515,7 +531,7 @@ export default function VerifiedStatus() {
                         renderSkeletonCards()
                     ) : shouldShowVoters && currentPageVoters.length > 0 ? (
                         currentPageVoters.map((voter) => (
-                            <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={voter.id}>
+                            <Grid size={{xs:12, sm:6, lg:4}} key={voter.id}>
                                 <Card
                                     sx={{
                                         background: 'rgba(255, 255, 255, 0.25)',
@@ -619,7 +635,7 @@ export default function VerifiedStatus() {
                             </Grid>
                         ))
                     ) : (
-                        <Grid size={{ xs: 12 }}>
+                        <Grid size={{xs:12}}>
                             <Box sx={{ textAlign: 'center', mt: 4, color: 'rgba(0, 0, 0, 0.6)' }}>
                                 {shouldShowVoters ? (
                                     <Typography variant="h6">

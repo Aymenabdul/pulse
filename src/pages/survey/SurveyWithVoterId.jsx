@@ -18,7 +18,7 @@ import {
   FormControl,
   TextField
 } from "@mui/material";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router"; // Ensure useLocation is imported
 import axiosInstance from "../../axios/axios";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -101,7 +101,7 @@ const casteOptions = [
 
 const partyOptions = [
     "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
-    "CPI", "CPM", "PMK", "DMDK", "MNM", "Muslim Parties (Specify)"
+    "CPI", "CPM", "PMK", "DMDK", "MNM", "Others"
 ];
 
 const specifyQuestions = {
@@ -192,7 +192,7 @@ const MemoizedRadioGroup = memo(({ label, field, options, value, onChange, requi
       <RadioGroup value={value} onChange={(e) => onChange(field, e.target.value)}>
         <Grid container spacing={1}>
           {options.map((option) => (
-            <Grid size={{xs:6, sm:6, md:6}} key={option}>
+            <Grid size={{xs:6,sm:6,md:4}} key={option}> {/* CORRECTED GRID PROP */}
               <FormControlLabel value={option} control={<Radio />} label={option} />
             </Grid>
           ))}
@@ -217,7 +217,7 @@ const MemoizedMultiSelectRadio = memo(({ label, field, options, value, onChange 
       <FormControl component="fieldset" fullWidth>
         <Grid container spacing={1}>
           {options.map((option) => (
-            <Grid size={{xs:6, sm:6, md:3}} key={option}>
+            <Grid size={{xs:6,sm:6,md:4}} key={option}> {/* CORRECTED GRID PROP */}
               <FormControlLabel control={<Checkbox checked={value.includes(option)} onChange={() => handleToggle(option)} />} label={option} />
             </Grid>
           ))}
@@ -228,7 +228,6 @@ const MemoizedMultiSelectRadio = memo(({ label, field, options, value, onChange 
 });
 MemoizedMultiSelectRadio.displayName = 'MemoizedMultiSelectRadio';
 
-// --- MODIFIED: Logic is corrected to use Radio buttons by default ---
 const FormField = memo(({ label, field, options, isInput, value, onChange, specifyValue, required }) => {
   const isSpecifyQuestion = specifyQuestions[field];
   const requiresSpecify = useMemo(() => {
@@ -239,7 +238,7 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
   }, [isSpecifyQuestion, value]);
 
   return (
-    <Grid size={{xs:12}}>
+    <Grid size={{xs:12}}> {/* CORRECTED GRID PROP */}
       <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
         <CardContent>
           {isInput ? (
@@ -250,7 +249,7 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
               onChange={onChange}
               type={field.toLowerCase().includes('number') ? 'tel' : 'text'}
             />
-          ) : field === 'caste' ? ( // Caste uses a dropdown
+          ) : field === 'caste' ? (
             <MemoizedSelect
               label={label}
               field={field}
@@ -261,7 +260,7 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
               specifyValue={specifyValue}
               required={required}
             />
-          ) : field === "ques7" ? ( // ques7 uses multi-select checkboxes
+          ) : field === "ques7" ? (
             <div>
               <MemoizedMultiSelectRadio label={label} field={field} options={options} value={value} onChange={onChange} />
               {requiresSpecify && (
@@ -273,7 +272,7 @@ const FormField = memo(({ label, field, options, isInput, value, onChange, speci
                 />
               )}
             </div>
-          ) : ( // All other questions now correctly use Radio Buttons
+          ) : (
             <div>
               <MemoizedRadioGroup label={label} field={field} options={options} value={value} required={required} onChange={onChange} />
               {requiresSpecify && (
@@ -314,6 +313,7 @@ export default function SurveyWithVoterId() {
   const [voter, setVoter] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation(); // ADD THIS HOOK TO GET LOCATION INFO
   const { id, surveyName } = useParams();
   const { user } = useAuth();
   const [form, setForm] = useState({
@@ -345,9 +345,12 @@ export default function SurveyWithVoterId() {
     { label: "Caste", field: "caste", options: casteOptions },
     { label: "Phone Number", field: "phoneNumber", isInput: true },
     { label: "WhatsApp Number", field: "whatsappNumber", isInput: true },
-    { label: "Who did you vote for in 2016?", field: "ques1", options: partyOptions.filter(p => !['TVK', 'MNM'].includes(p)) },
-    { label: "Who did you vote for in 2021?", field: "ques2", options: partyOptions.filter(p => p !== 'TVK') },
-    { label: "Who will you vote for in 2026?", field: "ques3", options: partyOptions },
+    { label: "Who did you vote for in 2016?", field: "ques1", options: [ "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
+    "CPI", "CPM", "PMK", "DMDK", "MNM","Muslim Parties (Specify)"," Independent (Specify)","NOTA", "Others (Specify)"] },
+    { label: "Who did you vote for in 2021?", field: "ques2",options: [ "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
+    "CPI", "CPM", "PMK", "DMDK", "MNM","Muslim Parties (Specify)"," Independent (Specify)","NOTA", "Others (Specify)"] },
+    { label: "Who will you vote for in 2026?", field: "ques3", options: [ "AIADMK", "DMK", "BJP", "INC", "NTK", "TVK", "VCK", "MDMK", 
+    "CPI", "CPM", "PMK", "DMDK", "MNM","Muslim Parties (Specify)"," Independent (Specify)","NOTA", "Others (Specify)"] },
     { label: "Performance of CM Edappadi K. Palaniswami (2017–2021)?", field: "ques4", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Performance of CM Stalin (2021–2026)?", field: "ques5", options: ["Bad", "Average", "Good", "Very good"] },
     { label: "Performance of your current MLA?", field: "ques6", options: ["Bad", "Average", "Good", "Very good"] },
@@ -359,10 +362,9 @@ export default function SurveyWithVoterId() {
       const response = await axiosInstance.get(`/survey/survey-by-fileid?fileDataId=${fileDataId}`);
       const data = response.data;
       
-      // --- FIX: Explicitly map voter_type from backend to voterType in frontend state ---
       const newFormState = { 
         ...data, 
-        voterType: data.voter_type || data.voterType || '', // Handles both snake_case and camelCase
+        voterType: data.voter_type || data.voterType || '',
         ques7: data.ques7 || [] 
       };
 
@@ -399,7 +401,7 @@ export default function SurveyWithVoterId() {
     } catch (error) {
       console.error("Error fetching survey data:", error);
     }
-  }, [formFields]);
+  }, [formFields, form]);
 
   const handleFetchVoterData = useCallback(async () => {
     try {
@@ -494,7 +496,7 @@ export default function SurveyWithVoterId() {
       
       const basePayload = {
         phoneNumber: form.phoneNumber,
-        voter_type: form.voterType, // Correctly maps to backend's expected 'voter_type'
+        voter_type: form.voterType,
         partyName: form.partyName,
         supportingParty: form.supportingParty,
         booth: voter?.booth,
@@ -547,10 +549,14 @@ export default function SurveyWithVoterId() {
       }
 
       await handleFetchVoterData();
+      
+      // *** NAVIGATION FIX IS HERE ***
       const basepath = user?.role === 'Surveyor' ? '/surveyor' : (user?.role === 'Admin' ? '/admin' : (user?.role === 'SuperAdmin' ? '/superadmin' : null));
       if (basepath) {
-        setTimeout(() => navigate(`${basepath}/survey/with-voter-id`), 500);
+        // This now includes location.search to preserve the filters and page number
+        setTimeout(() => navigate(`${basepath}/survey/with-voter-id${location.search}`), 500);
       }
+      
     } catch (e) {
       console.error("API Error:", e);
       let errorMessage = "Error processing the survey. Please try again.";
@@ -561,7 +567,7 @@ export default function SurveyWithVoterId() {
       }
       setAlert({ open: true, type: "error", message: errorMessage });
     }
-  }, [voter, form, user, isVerified, surveyName, navigate, handleFetchVoterData, formFields]);
+  }, [voter, form, user, isVerified, surveyName, navigate, handleFetchVoterData, formFields, location.search]); // Add location.search to dependency array
 
   const handleClear = useCallback(() => {
     setForm({
@@ -606,8 +612,7 @@ export default function SurveyWithVoterId() {
             
             {field === 'voterType' && form.voterType === 'Party Member' && (
               <>
-                {/* --- MODIFIED: This now renders Party Name as a Dropdown --- */}
-                <Grid size={{xs:6}}>
+                <Grid size={{xs:12,sm:6}}> {/* CORRECTED GRID PROP */}
                    <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
                     <CardContent>
                        <MemoizedSelect
@@ -620,8 +625,7 @@ export default function SurveyWithVoterId() {
                     </CardContent>
                   </Card>
                 </Grid>
-                {/* --- MODIFIED: This now renders Supporting Party as a Dropdown --- */}
-                <Grid size={{xs:6}}>
+                <Grid size={{xs:12,sm:6}}> {/* CORRECTED GRID PROP */}
                    <Card sx={{ backgroundColor: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)" }}>
                     <CardContent>
                        <MemoizedSelect

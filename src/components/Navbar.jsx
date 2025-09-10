@@ -42,36 +42,32 @@ export default function Navbar({ userRole }) {
         }
     }, [isMobile, anchorEl]);
 
-    // Corrected superAdminNavItems to match App.jsx routes
     const superAdminNavItems = [
-        { label: "Home", href: "/superadmin/dashboard" }, // Corrected path
-        { label: "Users", href: "/superadmin/superUsers" },         // Corrected path
-        { label: "Data", href: "/superadmin/superFiles" },         // Corrected path
+        { label: "Home", href: "/superadmin/dashboard" },
+        { label: "Users", href: "/superadmin/superUsers" },
+        { label: "Data", href: "/superadmin/superFiles" },
         { label: "Analytics", href: "/superadmin/statistics" },
-        // { label: "Create Survey", href: "/superadmin/createpopup" }, // Keep this if it's a direct route
     ];
 
     const adminNavItems = [
         { label: "Home", href: "/admin/dashboard" },
         { label: "Data", href: "/admin/files" },
         { label: "Users", href: "/admin/users" },
-        { label: "Analytics", href: "/admin/statistics" }, // This was commented out in your original
+        { label: "Analytics", href: "/admin/statistics" },
     ];
 
     const surveyorNavItems = [
         { label: "Home", href: "/surveyor/home" },
     ];
 
-    // Corrected conditional logic for navItems to use lowercase "admin"
     const navItems =
         userRole === "SuperAdmin"
             ? superAdminNavItems
-            : userRole === "Admin" // Changed from "Admin" to "admin"
+            : userRole === "Admin"
                 ? adminNavItems
                 : surveyorNavItems;
 
     const getStatusItems = (userRole) => {
-        // Items available to all roles
         const items = [
             {
                 label: "Poll Day",
@@ -86,19 +82,15 @@ export default function Navbar({ userRole }) {
                     : "/surveyor/status/verification-status"
             }
         ];
-
-        // Conditionally add items for specific roles
         if (userRole === "SuperAdmin") {
             items.push({
                 label: "Survey",
                 href: "/superadmin/status/survey"
             });
         }
-
         return items;
     };
 
-    // Example usage:
     const statusItems = getStatusItems(userRole);
 
     const handleNavClick = (href) => { navigate(href); handleMenuClose(); };
@@ -129,20 +121,18 @@ export default function Navbar({ userRole }) {
             <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
                 <Box
                     component="video"
-                    // The path should be absolute from your `public` folder
                     src="/video/pulzvideo.mp4"
                     autoPlay
                     loop
                     muted
                     playsInline
                     sx={{
-                        height: '2.5em',      // Scales with the parent text's font size
-                        width: 'auto',      // Maintains the video's aspect ratio
-                        verticalAlign: 'middle', // Aligns well with surrounding text
-                        borderRadius: '5px'  // Optional: for soft corners
+                        height: '2.5em',
+                        width: 'auto',
+                        verticalAlign: 'middle',
+                        borderRadius: '5px'
                     }}
                 />
-
                 {!isMobile && (
                     <Box sx={{ flexGrow: 1, display: "flex", gap: 1 }}>
                         {navItems.map((item) => (
@@ -169,8 +159,6 @@ export default function Navbar({ userRole }) {
                                 {item.label}
                             </Button>
                         ))}
-
-                        {/* Field Status Dropdown for Desktop */}
                         <Button
                             onClick={handleStatusMenuOpen}
                             endIcon={<ArrowDropDownIcon />}
@@ -195,9 +183,7 @@ export default function Navbar({ userRole }) {
                         </Button>
                     </Box>
                 )}
-
                 <Box sx={{ flexGrow: isMobile ? 1 : 0, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 2 }}>
-                    {/* Google Translate Widget - Desktop */}
                     {!isMobile && (
                         <Box sx={{
                             '& #google_translate_element': {
@@ -219,8 +205,6 @@ export default function Navbar({ userRole }) {
                             <GoogleTranslateWidget />
                         </Box>
                     )}
-
-                    {/* Translate Icon Button for Mobile */}
                     {isMobile && (
                         <IconButton
                             onClick={handleTranslateMenuOpen}
@@ -237,7 +221,6 @@ export default function Navbar({ userRole }) {
                             <TranslateIcon />
                         </IconButton>
                     )}
-
                     {!isMobile && (
                         <Typography
                             variant="body2"
@@ -255,25 +238,26 @@ export default function Navbar({ userRole }) {
                             Role: {user?.role || "User"}
                         </Typography>
                     )}
-
-                    <Button
-                        variant="outlined"
-                        onClick={handleLogout}
-                        sx={{
-                            color: "#333",
-                            borderColor: "rgba(51, 51, 51, 0.3)",
-                            fontWeight: 600,
-                            textTransform: "none",
-                            borderRadius: 2,
-                            px: { xs: 2, md: 3 },
-                            "&:hover": { borderColor: "#333", backgroundColor: "rgba(51, 51, 51, 0.05)", transform: "translateY(-1px)" },
-                            transition: "all 0.3s ease"
-                        }}
-                    >
-                        Logout
-                    </Button>
+                    {/* --- REMOVED THE STANDALONE LOGOUT BUTTON HERE --- */}
+                    {!isMobile && (
+                        <Button
+                            variant="outlined"
+                            onClick={handleLogout}
+                            sx={{
+                                color: "#333",
+                                borderColor: "rgba(51, 51, 51, 0.3)",
+                                fontWeight: 600,
+                                textTransform: "none",
+                                borderRadius: 2,
+                                px: { xs: 2, md: 3 },
+                                "&:hover": { borderColor: "#333", backgroundColor: "rgba(51, 51, 51, 0.05)", transform: "translateY(-1px)" },
+                                transition: "all 0.3s ease"
+                            }}
+                        >
+                            Logout
+                        </Button>
+                    )}
                 </Box>
-
                 {isMobile && (
                     <IconButton
                         size="large"
@@ -287,7 +271,6 @@ export default function Navbar({ userRole }) {
                     </IconButton>
                 )}
             </Toolbar>
-
             {/* Main Navigation Menu for Mobile */}
             <Menu
                 anchorEl={anchorEl}
@@ -316,8 +299,6 @@ export default function Navbar({ userRole }) {
                         {item.label}
                     </MenuItem>
                 ))}
-
-                {/* Field Status submenu for mobile */}
                 {statusItems.map((item) => (
                     <MenuItem
                         key={item.label}
@@ -327,14 +308,19 @@ export default function Navbar({ userRole }) {
                         {item.label}
                     </MenuItem>
                 ))}
-
                 <MenuItem
                     sx={{ color: "#555", fontWeight: 500, py: 1, fontSize: "0.875rem", opacity: 0.8 }}
                 >
                     Role: {user?.role || "User"}
                 </MenuItem>
+                {/* --- ADDED LOGOUT BUTTON INSIDE MOBILE MENU --- */}
+                <MenuItem
+                    onClick={handleLogout}
+                    sx={{ color: "#333", fontWeight: 600, py: 1.5, "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.25)" } }}
+                >
+                    Logout
+                </MenuItem>
             </Menu>
-
             <Menu
                 anchorEl={statusAnchorEl}
                 open={Boolean(statusAnchorEl)}
@@ -363,7 +349,6 @@ export default function Navbar({ userRole }) {
                     </MenuItem>
                 ))}
             </Menu>
-
             <Menu
                 anchorEl={translateAnchorEl}
                 open={Boolean(translateAnchorEl)}

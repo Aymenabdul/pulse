@@ -37,7 +37,7 @@ export default function SurveyNavigatorCards({ from }) {
   return (
     <Box sx={{ width: { xs: '100%', md: '75%', lg: '60%' }, mt: 3, mx: 'auto', }}>
       <Grid container spacing={2.5} alignItems="stretch">
-        <Grid size={{ xs: 12, sm: 6 }}>
+        <Grid size={{ xs: 12, sm: 6 }} onClick={() => handleStartSurvey('with-voter-id')}>
           <Paper
             sx={{
               borderRadius: 2.5,
@@ -48,7 +48,7 @@ export default function SurveyNavigatorCards({ from }) {
               border: '1px solid rgba(255, 255, 255, 0.3)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
               transition: 'all 0.3s ease',
-              minHeight: 260,
+              minHeight: 160,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -77,10 +77,10 @@ export default function SurveyNavigatorCards({ from }) {
             </Box>
 
             <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>
-              Voters Survey
+              Voters Verification & Survey 
             </Typography>
 
-            <Typography
+            {/* <Typography
               variant="body1"
               sx={{
                 color: 'rgba(0, 0, 0, 0.7)',
@@ -116,11 +116,11 @@ export default function SurveyNavigatorCards({ from }) {
               }}
             >
               START SURVEY
-            </Button>
+            </Button> */}
           </Paper>
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6 }}>
+        <Grid size={{ xs: 12, sm: 6 }} onClick={() => handleStartSurvey('without-voter-id')}>
           <Paper
             sx={{
               borderRadius: 2.5,
@@ -131,7 +131,7 @@ export default function SurveyNavigatorCards({ from }) {
               border: '1px solid rgba(255, 255, 255, 0.3)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
               transition: 'all 0.3s ease',
-              minHeight: 260,
+              minHeight: 160,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -163,7 +163,7 @@ export default function SurveyNavigatorCards({ from }) {
               General Survey
             </Typography>
 
-            <Typography
+            {/* <Typography
               variant="body1"
               sx={{
                 color: 'rgba(0, 0, 0, 0.7)',
@@ -200,7 +200,7 @@ export default function SurveyNavigatorCards({ from }) {
               }}
             >
               START SURVEY
-            </Button>
+            </Button> */}
           </Paper>
         </Grid>
       </Grid>

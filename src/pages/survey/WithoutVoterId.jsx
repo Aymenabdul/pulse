@@ -38,7 +38,7 @@ export default function WithoutVoterId() {
     const location = useLocation();
     const { user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
-    
+
     const [filters, setFilters] = useState({
         surveyName: searchParams.get('surveyName') || '',
         name: searchParams.get('name') || '',
@@ -47,14 +47,14 @@ export default function WithoutVoterId() {
         created_by: searchParams.get('created_by') || '',
         updated_by: searchParams.get('updated_by') || ''
     });
-    
+
     const [surveys, setSurveys] = useState([]);
     const [tableData, setTableData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-    
+
     const [page, setPage] = useState(parseInt(searchParams.get('page')) || 0);
     const [rowsPerPage, setRowsPerPage] = useState(parseInt(searchParams.get('rowsPerPage')) || 10);
 
@@ -71,7 +71,7 @@ export default function WithoutVoterId() {
                 setSurveys([]);
             }
         };
-        
+
 
         const fetchData = async () => {
             if (!filters.surveyName) {
@@ -108,7 +108,7 @@ export default function WithoutVoterId() {
 
     useEffect(() => {
         const params = new URLSearchParams();
-        
+
         if (filters.surveyName) params.set('surveyName', filters.surveyName);
         if (filters.name) params.set('name', filters.name);
         if (filters.gender) params.set('gender', filters.gender);
@@ -117,7 +117,7 @@ export default function WithoutVoterId() {
         if (filters.updated_by) params.set('updated_by', filters.updated_by);
         if (page > 0) params.set('page', page.toString());
         if (rowsPerPage !== 10) params.set('rowsPerPage', rowsPerPage.toString());
-        
+
         setSearchParams(params);
     }, [filters, page, rowsPerPage, setSearchParams]);
 
@@ -166,7 +166,7 @@ export default function WithoutVoterId() {
         const currentPath = location.pathname;
         const currentParams = searchParams.toString();
         const paramString = currentParams ? `&${currentParams}` : '';
-        
+
         if (currentPath.includes('/admin')) {
             navigate(`/admin/without-voter-id/form?id=${voterId}${paramString}`);
         } else if (currentPath.includes('/surveyor')) {
@@ -177,20 +177,37 @@ export default function WithoutVoterId() {
     };
 
     const filteredData = tableData.filter(item => {
-        const nameMatch = !filters.name || 
+        const nameMatch = !filters.name ||
             (item.name && item.name.toLowerCase().includes(filters.name.toLowerCase()));
-        
-        const genderMatch = !filters.gender || 
+
+        const genderMatch = !filters.gender ||
             (item.gender && item.gender.toLowerCase() === filters.gender.toLowerCase());
 
-        const ageMatch = !filters.age || 
-            (item.age && item.age === filters.age);
-
-        const createdByMatch = !filters.created_by || 
+        const createdByMatch = !filters.created_by ||
             (item.created_by && item.created_by.toLowerCase().includes(filters.created_by.toLowerCase()));
 
-        const updatedByMatch = !filters.updated_by || 
+        const updatedByMatch = !filters.updated_by ||
             (item.updated_by && item.updated_by.toLowerCase().includes(filters.updated_by.toLowerCase()));
+
+        // --- Corrected Age Filter Logic ---
+        let ageMatch = true;
+        const ageFromData = parseInt(item.age, 10);
+
+        if (filters.age) {
+            if (filters.age === '18-30') {
+                ageMatch = ageFromData >= 18 && ageFromData <= 30;
+            } else if (filters.age === '31-40') {
+                ageMatch = ageFromData >= 31 && ageFromData <= 40;
+            } else if (filters.age === '41-50') {
+                ageMatch = ageFromData >= 41 && ageFromData <= 50;
+            } else if (filters.age === 'Above 50') {
+                ageMatch = ageFromData > 50;
+            } else {
+                // Handle cases where item.age is not a number
+                ageMatch = false;
+            }
+        }
+        // --- End of Corrected Logic ---
 
         return nameMatch && genderMatch && ageMatch && createdByMatch && updatedByMatch;
     });
@@ -211,7 +228,7 @@ export default function WithoutVoterId() {
             <Container maxWidth="xl">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
                     <Button
-                        variant="contained"
+                        variant="outlined"
                         color="primary"
                         startIcon={<ArrowBack />}
                         onClick={handleBack}
@@ -367,11 +384,10 @@ export default function WithoutVoterId() {
                                     onChange={(e) => handleFilterChange('age', e.target.value)}
                                 >
                                     <MenuItem value="">All Ages</MenuItem>
-                                    <MenuItem value="18-24">18-24</MenuItem>
-                                    <MenuItem value="25-30">25-30</MenuItem>
-                                    <MenuItem value="31-35">31-35</MenuItem>
-                                    <MenuItem value="36-40">36-40</MenuItem>
-                                    <MenuItem value="Above 40">Above 40</MenuItem>
+                                    <MenuItem value="18-30">18-30</MenuItem>
+                                    <MenuItem value="31-40">31-40</MenuItem>
+                                    <MenuItem value="41-50">41-50</MenuItem>
+                                    <MenuItem value="Above 50">Above 50</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -449,9 +465,9 @@ export default function WithoutVoterId() {
                 </Box>
 
                 {!filters.surveyName ? (
-                    <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
+                    <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
                         alignItems: 'center',
                         minHeight: '300px',
                         flexDirection: 'column'
@@ -472,9 +488,9 @@ export default function WithoutVoterId() {
                     </Box>
                 ) : (
                     <>
-                        <TableContainer 
-                            component={Paper} 
-                            sx={{ 
+                        <TableContainer
+                            component={Paper}
+                            sx={{
                                 background: 'rgba(255,255,255,0.9)',
                                 borderRadius: 3,
                                 backdropFilter: 'blur(10px)',
@@ -484,6 +500,9 @@ export default function WithoutVoterId() {
                             <Table>
                                 <TableHead>
                                     <TableRow sx={{ backgroundColor: 'rgba(25, 118, 210, 0.1)' }}>
+                                        <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                            S.No
+                                        </TableCell>
                                         <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
                                             Name
                                         </TableCell>
@@ -519,17 +538,18 @@ export default function WithoutVoterId() {
                                 <TableBody>
                                     {paginatedData.length > 0 ? (
                                         paginatedData.map((item, index) => (
-                                            <TableRow 
+                                            <TableRow
                                                 key={item.id || index}
-                                                sx={{ 
-                                                    '&:nth-of-type(odd)': { 
-                                                        backgroundColor: 'rgba(0, 0, 0, 0.04)' 
+                                                sx={{
+                                                    '&:nth-of-type(odd)': {
+                                                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
                                                     },
                                                     '&:hover': {
                                                         backgroundColor: 'rgba(25, 118, 210, 0.1)'
                                                     }
                                                 }}
                                             >
+                                                <TableCell align="center">{index+1}</TableCell>
                                                 <TableCell align="center">
                                                     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
                                                         {item.name || 'N/A'}
@@ -541,8 +561,8 @@ export default function WithoutVoterId() {
                                                 <TableCell align="center">{item.age || 'N/A'}</TableCell>
                                                 <TableCell align="center">{item.surveyName || 'N/A'}</TableCell>
                                                 <TableCell align="center">
-                                                    <Chip 
-                                                        label={item?.voter_type || 'N/A'} 
+                                                    <Chip
+                                                        label={item?.voter_type || 'N/A'}
                                                         size="small"
                                                         color={item?.voter_type === 'Public' ? 'primary' : 'default'}
                                                     />
@@ -553,8 +573,8 @@ export default function WithoutVoterId() {
                                                 <TableCell align="center">{item?.updatedDate || 'N/A'}</TableCell>
                                                 <TableCell align="center">
                                                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                                                        <IconButton 
-                                                            size="small" 
+                                                        <IconButton
+                                                            size="small"
                                                             color="primary"
                                                             onClick={() => handleEditVoter(item.id)}
                                                             title="Edit Voter"
